@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Tumbleweed.Bench/Tumbleweed.Bench.csproj" />
+  <Project Path="Tumbleweed.Core/Tumbleweed.Core.csproj" />
+  <Project Path="Tumbleweed.Core.Tests/Tumbleweed.Core.Tests.csproj" />
+  <Project Path="Tumbleweed.Game/Tumbleweed.Game.csproj">
+    <BuildType Project="Debug" />
+  </Project>
+</Solution>

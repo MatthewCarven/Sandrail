@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Tumbleweed.Core</RootNamespace>
+
+    <!-- Core must never reference Godot. It holds what every player has to agree on (the track,
+         the generator, the file formats), and staying Godot-free is what lets the tests and the
+         bench run headless and keeps multiplayer cheap later. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Tumbleweed.Core.Tests" />
+  </ItemGroup>
+
+</Project>

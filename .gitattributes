@@ -1,0 +1,2 @@
+# Store text with LF line endings in the repository, whatever an editor writes; git converts on checkout.
+* text=auto

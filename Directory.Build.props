@@ -1,0 +1,19 @@
+<Project>
+
+  <!-- The Debug configuration keeps its symbols and its DEBUG constant but lets the JIT optimise.
+
+       Carried over from Overburden, where it was measured: Godot's editor host loads the Debug
+       build and nothing else, so every play there ran unoptimised until 2026-09-15, and the
+       bench's Debug arm read like a real number. One file rather than a csproj edit each, so
+       "Debug" means one thing everywhere.
+
+       Empty counts as Debug. This file is imported before the SDK defaults Configuration, so a
+       project built with no configuration given (Core as the Game's reference under
+       `dotnet build Tumbleweed.Game`, which is what start.cmd runs) sees '' here, and without the
+       second test would be built unoptimised while the Game itself was not - Overburden's
+       2026-09-28 finding. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug' or '$(Configuration)' == ''">
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+</Project>
