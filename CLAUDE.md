@@ -15,6 +15,7 @@ free of Godot. Its generator's `Hash64` and `GradientNoise` are ported here unch
 | Document | What it is |
 |---|---|
 | [docs/PLAN.md](docs/PLAN.md) | **The plan**: his decisions, Claude's suggestions, the car, pieces, generator, ghosts, milestones M0–M6, and the decisions still his. |
+| [docs/M1-PLAN.md](docs/M1-PLAN.md) | **M1, the buggy**: six facts, the car's model written down with its starting numbers, six decisions (all taken 2026-10-31), slices M1a–M1e with their checks, and the named levers. Read "The car's model" before touching `Buggy` or `CarSpec`. |
 | [WORKLOG.md](WORKLOG.md) | What happened and why, newest first. Findings worth keeping live here. |
 
 ## Non-negotiables
@@ -64,20 +65,40 @@ Godot_v4.7.1-stable_mono_win64/Godot_v4.7.1-stable_mono_win64_console.exe --path
 The pass prints `Core linked: Hash64.Mix(0) = 0xE220A8397B1DCDAF`. After a fresh clone, import once
 first: the same command with `--import` in place of `--quit-after 240`.
 
+**The oracles** drive the car headless and print one line each, ending with the spec's fingerprint
+(M1-PLAN, M1a). Run them after any change to the car, and quote them in the worklog:
+
+```bash
+pwsh tools/oracles.ps1
+```
+
+`-Oracles drop` runs one; `-Spec variant.json` drives a variant file instead of the shipped buggy, which
+is how to try numbers without touching what plays. The 2026-10-31 worklog entry has the figures they
+read at M1a.
+
+Game flags, after `--` (or passed to `start.cmd`): `--surface=road|dirt|grass|sand`, `--spec=<path>`,
+`--oracle=<name>`, and `--screenshot=<path.png>`, which saves a frame at rest and one turning, then
+quits. It opens a window for a few seconds, and it is how Claude sees anything at all.
+
 ## Layout
 
-- `Tumbleweed.Core/` — no Godot. `Generation/` holds `Hash64` and `GradientNoise`; the track model,
-  generator and formats land beside it.
+- `Tumbleweed.Core/` — no Godot. `Generation/` holds `Hash64` and `GradientNoise`. `Cars/` holds
+  `CarSpec`, `Surfaces` and `WheelModel`, the car's laws as plain functions; the track model, generator
+  and formats land beside them.
 - `Tumbleweed.Core.Tests/` — xunit.
 - `Tumbleweed.Bench/` — headless measurements, one arm per flag.
-- `Tumbleweed.Game/` — the Godot project. `project.godot` sets Jolt and 120 physics ticks a second.
+- `Tumbleweed.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
+  physics interpolation. `Cars/` is the `Buggy` and its `ChaseCamera`; `Oracles/` the headless drives;
+  `content/base/cars/buggy.json` the shipped spec.
 - `tools/godot-sln/` — the solution Godot's editor builds from (`project/solution_directory`).
 - `Directory.Build.props` — Debug builds are JIT-optimised, Overburden's measured rule.
 
 ## Where things stand
 
-**2026-10-31: M0, the skeleton, is built.** It builds, 14 tests pass, and the Godot project opens a
-sunlit 640 m plain with collision and prints the Core check. Nothing is committed yet. **M1, the buggy,
-is next**, and it gets its own plan doc (`docs/M1-PLAN.md`) before it's built: the raycast car, the
-first piece mesher for a handful of test pieces, the chase camera, respawn, and the live tuning panel
-for playtests with Matthew.
+**2026-10-31: M1a is built; M1b is next.** The buggy drives on the plain with the chase camera, and
+all four oracles are inside M1-PLAN's targets (the figures are in the worklog). Two changes from the
+plan: the friction circle is a dial, `forwardPriority`, because the keyboard is what gets tuned (**there's
+no pad here**; the pad is an owed check); and damping is 1,400/2,100 after the drop oracle. **Nobody has
+driven it yet.** Matthew can now (`start.cmd`), and his first impressions are worth taking before M1b.
+**M1b is telemetry (F3), the tuning panel (F2) and recorded runs (F4)**, the tools the tuning sessions
+need.

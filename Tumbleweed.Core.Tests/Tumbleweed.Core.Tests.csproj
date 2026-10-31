@@ -21,6 +21,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The shipped content, read from where the game reads it, so a test can't pass against a copy
+         that has drifted from what plays. -->
+    <None Include="..\Tumbleweed.Game\content\**\*.json" LinkBase="content" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Tumbleweed.Core\Tumbleweed.Core.csproj" />
   </ItemGroup>
 
