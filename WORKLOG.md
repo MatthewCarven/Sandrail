@@ -2,6 +2,70 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-17 — M1b: the tuning tools
+
+Built as M1-PLAN's M1b describes, on his "M1b as planned" (he was offered the bump patch first):
+
+- **Core:** a `[Tune(group, min, max)]` on every number in `CarSpec`, `CarSpec.Tunables` (every number
+  by reflection, in declaration order, with its group and range), and `WithValue(name, value)`, a copy
+  with one number changed. `EveryNumberHasATuneRange` nags when a new number arrives without a range;
+  it still gets a slider meanwhile. 52 tests.
+- **F2, the tuning panel:** 39 sliders in six groups (body, wheels, suspension, tyres, engine and
+  brakes, steering and pedals), each with a box to type into. A change applies the moment it's made;
+  one the spec refuses (say, minimum steering above maximum) isn't applied and the panel says why in
+  red. Numbers changed from the file are yellow and the title says "unsaved". **Save writes the file
+  that was loaded** (the shipped `buggy.json`, or `--spec=`'s), and Reset reloads it. Sliders take no
+  keyboard focus, so the arrows keep steering.
+- **F3, telemetry:** speed, sideways and fore-aft g, body slip, yaw, roll, pitch; throttle, brake and
+  steering against the keys behind them, with the steering lock allowed at that speed; and per wheel a
+  compression bar, load, slip angle, surface, and FULL GRIP or AIR.
+- **F4, recording:** every tick to `user://runs/<time>-<fingerprint>.csv`, with the spec saved beside
+  it as `.spec.json`. That matters for numbers changed in the panel and never saved. 47 columns, units
+  in the headers, invariant culture.
+- **`Buggy.ApplySpec`**: the car takes a new spec live, and rebuilds its collider and grey boxes only
+  when a dimension changed. `Buggy` also now reports its drive force, brake, steering lock and
+  acceleration. `CarReadout` turns all that into the numbers the overlay and the recorder share.
+- **Flags:** `--panels=tuning,telemetry` opens either at start; `--record` starts a run at start.
+
+**Checks:** 52/52 tests; **all four oracles identical to M1a, fingerprint `f4559570`**, so the tools
+changed nothing about how the car drives. A `--screenshot` run with both panels open and `--record`
+on wrote 600 rows (5 s × 120) of 47 columns that read back cleanly, and the numbers agree with each
+other: in the turn, the left wheels carry the load (1,741 and 1,928 N against 1,259 and 1,446), the
+roll is 1° with the right side up, and the rears read FULL GRIP in an 18° power slide at 38 km/h,
+which is the oversteer he liked. The two test runs were deleted afterwards so his runs folder starts
+empty.
+
+**Two faults the screenshot caught**, both fixed before this entry: the telemetry was double-spaced,
+because `AppendLine` writes a carriage return on Windows and a Godot label counts it as a second line
+break; and the recording message showed a long path with mixed slashes, so the HUD now shows the
+file's name and the log keeps the whole path.
+
+**Unverified:** nobody has clicked Save or Reset or dragged a slider. Their arithmetic is Core's
+(tested), but the clicks are his to try. Also unverified: how any of it feels in use.
+
+## 2026-11-17 — the first drive
+
+Matthew drove M1a on the plain (spec `f4559570`, road, keyboard). His words, verbatim:
+
+> Ok have driven seems ok, steering is a little slow but at the same time its difficult, the tail
+> stepping out under acceleration was exactly what i was hoping for its a little difficult now but
+> well i have not tried it with bumpy terrain like
+>
+> like leave the steering alone for noe
+
+What it settles and what it leaves open:
+- **Power oversteer is right.** M1a's dial, `forwardPriority` 0.3, is what he was hoping for, so it
+  stays. It was the riskiest number in the spec, because the plan's own rule (1.0) would have spun the
+  car on a keyboard.
+- **Steering: "a little slow but at the same time its difficult", and left alone at his word.** Read
+  two ways, it could be the 120°/s turn-in rate being slow to arrive while the result, once there, is
+  hard to hold. When he picks it up again, the levers are `steerRateDegPerS` (120),
+  `steerReturnRateDegPerS` (240), and the lock against speed (`maxSteerDeg` 30, `minSteerDeg` 8, fading
+  over `steerFadeSpeedMps` 50). M1b's telemetry will show which one the difficulty lives in. Nothing
+  changed.
+- **"A little difficult now", with the bumps still to come.** No change until he's driven it on bumpy
+  ground, which is M1c's bump patch.
+
 ## 2026-10-31 — M1a: the buggy on the plain
 
 Built as [M1-PLAN](docs/M1-PLAN.md) describes:

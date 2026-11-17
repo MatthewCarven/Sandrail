@@ -77,8 +77,15 @@ is how to try numbers without touching what plays. The 2026-10-31 worklog entry 
 read at M1a.
 
 Game flags, after `--` (or passed to `start.cmd`): `--surface=road|dirt|grass|sand`, `--spec=<path>`,
-`--oracle=<name>`, and `--screenshot=<path.png>`, which saves a frame at rest and one turning, then
-quits. It opens a window for a few seconds, and it is how Claude sees anything at all.
+`--oracle=<name>`, `--panels=tuning,telemetry` (opens either at start), `--record` (starts a run at
+start), and `--screenshot=<path.png>`, which saves a frame at rest and one turning, then quits. It opens
+a window for a few seconds, and it is how Claude sees anything at all.
+
+**A tuning session** (M1b): Matthew drives with F3 (telemetry) up, presses F4 to record the bit that
+feels wrong, and says what felt wrong. Runs land in `%APPDATA%\Godot\app_userdata\Tumbleweed\runs\` as
+`<time>-<fingerprint>.csv` with the spec beside them as `.spec.json`. Read the CSV (47 columns, units
+in the headers), change numbers in a `-Spec` variant, run the oracles, and only then touch
+`buggy.json`. He can also change numbers live with F2, whose Save writes the loaded spec file.
 
 ## Layout
 
@@ -88,17 +95,20 @@ quits. It opens a window for a few seconds, and it is how Claude sees anything a
 - `Tumbleweed.Core.Tests/` — xunit.
 - `Tumbleweed.Bench/` — headless measurements, one arm per flag.
 - `Tumbleweed.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
-  physics interpolation. `Cars/` is the `Buggy` and its `ChaseCamera`; `Oracles/` the headless drives;
+  physics interpolation. `Cars/` is the `Buggy`, its `ChaseCamera`, `CarReadout` and the `RunRecorder`;
+  `Ui/` the `Hud`, `TelemetryOverlay` and `TuningPanel`; `Oracles/` the headless drives;
   `content/base/cars/buggy.json` the shipped spec.
 - `tools/godot-sln/` — the solution Godot's editor builds from (`project/solution_directory`).
 - `Directory.Build.props` — Debug builds are JIT-optimised, Overburden's measured rule.
 
 ## Where things stand
 
-**2026-10-31: M1a is built; M1b is next.** The buggy drives on the plain with the chase camera, and
-all four oracles are inside M1-PLAN's targets (the figures are in the worklog). Two changes from the
-plan: the friction circle is a dial, `forwardPriority`, because the keyboard is what gets tuned (**there's
-no pad here**; the pad is an owed check); and damping is 1,400/2,100 after the drop oracle. **Nobody has
-driven it yet.** Matthew can now (`start.cmd`), and his first impressions are worth taking before M1b.
-**M1b is telemetry (F3), the tuning panel (F2) and recorded runs (F4)**, the tools the tuning sessions
-need.
+**2026-11-17: M1a and M1b are built; M1c is next.** The buggy drives on the plain with the chase
+camera, all four oracles are inside M1-PLAN's targets (fingerprint `f4559570`), and the tuning tools
+exist: F2 sliders, F3 telemetry, F4 recorded runs (worklog, M1b). From M1a: the friction circle is a
+dial, `forwardPriority`, because the keyboard is what gets tuned (**there's no pad here**; the pad is an
+owed check); damping is 1,400/2,100. **His first drive, 2026-11-17: "seems ok"**. The power oversteer
+is *"exactly what i was hoping for"*; the steering is *"a little slow but at the same time its
+difficult"* and **is to be left alone at his word**; it's a little difficult overall, but untried on
+bumps. Nobody has clicked the panel's Save or Reset yet. **M1c is the sweep mesher and the test
+ground**: a jump, a slope, a banked 180°, a loop, and the bump patch his drive is waiting for.

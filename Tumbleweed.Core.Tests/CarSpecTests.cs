@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using Tumbleweed.Core.Cars;
 
@@ -26,7 +27,8 @@ public class CarSpecTests
         using JsonDocument file = JsonDocument.Parse(ShippedBuggy());
         int fields = file.RootElement.EnumerateObject().Count();
 
-        Assert.Equal(typeof(CarSpec).GetProperties().Length, fields);
+        int properties = typeof(CarSpec).GetProperties(BindingFlags.Public | BindingFlags.Instance).Length;
+        Assert.Equal(properties, fields);
     }
 
     [Fact]

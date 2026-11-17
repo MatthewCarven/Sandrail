@@ -152,6 +152,10 @@ changes from this plan are in the worklog entry of that date. Also built and not
 
 ## M1b — telemetry, the tuning panel, recorded runs
 
+**Built 2026-11-17**, as below. The oracles are unchanged (`f4559570`). Added beyond the plan: each
+run saves its spec beside it, the panel refuses a change the spec would refuse and says why, and
+`--panels=` and `--record` open the tools at start. The worklog entry has the checks.
+
 - **F3, telemetry:** speed, engine force, and per wheel its load, compression, slip angle,
   surface and whether it's grounded, as bars and numbers.
 - **F2, the tuning panel:** a slider for every number in `CarSpec`, grouped (suspension, tyres, engine,
@@ -195,6 +199,12 @@ Each is a number in `CarSpec`, where 0 means off, so the panel can switch it on 
 His, in as many sittings as it takes. Each verdict goes into the worklog verbatim with the spec it was
 given on, and each round of numbers is committed, so any one of them can be got back. **M1 passes on his
 word that it feels right**, on the plain, over the bumps, and through every piece.
+
+**First drive, 2026-11-17**, M1a on the plain, spec `f4559570`, keyboard. "Seems ok." Power oversteer
+is *"exactly what i was hoping for"*, so `forwardPriority` 0.3 stays. Steering is *"a little slow but at
+the same time its difficult"*, and he said to leave it alone for now. It's a little difficult overall,
+but the bumps haven't been tried. Verbatim in the worklog. **Not a pass yet**: the plain is one of the
+three places the pass names.
 
 ---
 

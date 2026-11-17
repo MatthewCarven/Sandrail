@@ -6,19 +6,24 @@ using Tumbleweed.Core.Cars;
 using Tumbleweed.Core.Generation;
 using Tumbleweed.Game.Cars;
 using Tumbleweed.Game.Oracles;
+using Tumbleweed.Game.Ui;
 
 namespace Tumbleweed.Game;
 
 /// <summary>
-/// M1a entry point: the buggy on a 640 m plain (one 32 × 32 map of 20 m tiles), the chase camera, a
-/// speedometer, and the oracles.
+/// The entry point: the buggy on a 640 m plain (one 32 × 32 map of 20 m tiles), the chase camera, the
+/// HUD with its F2 tuning panel, F3 telemetry and F4 recorder, and the oracles.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Game flags, after the bare <c>--</c>: <c>--surface=road|dirt|grass|sand</c> (road by default, so the
 /// first drive and the oracles' targets agree; M1c makes the plain sand once the pieces bring the
 /// road), <c>--oracle=straight|drop|brake|circle</c>, and <c>--spec=&lt;path&gt;</c> to drive another spec
-/// file than the shipped buggy, so a variant can be tried without touching what plays.
+/// file than the shipped buggy, so a variant can be tried without touching what plays. The tuning
+/// panel saves to whichever file was loaded.
+/// </para>
+/// <para>
+/// <c>--panels=tuning,telemetry</c> opens either at start, and <c>--record</c> starts a run at start.
 /// <c>--screenshot=&lt;path.png&gt;</c> is Claude's eyes, since headless draws nothing: it saves one frame
 /// at rest and one turning (<c>-rest</c>, <c>-turn</c>), then quits.
 /// </para>
@@ -58,7 +63,10 @@ public partial class Main : Node3D
 
     private Buggy? _car;
     private ChaseCamera? _camera;
-    private Label? _speed;
+    private Hud? _hud;
+    private TelemetryOverlay? _telemetry;
+    private TuningPanel? _tuning;
+    private RunRecorder? _recorder;
     private bool _oracle;
     private Transform3D _spawn;
     private string? _screenshot;
@@ -78,6 +86,7 @@ public partial class Main : Node3D
         string surfaceName = Flag(args, "--surface=") ?? "road";
         string? oracle = Flag(args, "--oracle=");
         string specPath = Flag(args, "--spec=") ?? BuggyPath;
+        string[] panels = (Flag(args, "--panels=") ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries);
         _screenshot = Flag(args, "--screenshot=");
 
         Surface? surface = Surfaces.Find(surfaceName);
@@ -117,12 +126,26 @@ public partial class Main : Node3D
 
         _camera = new ChaseCamera { Target = _car };
         AddChild(_camera);
-        BuildHud();
+
+        _recorder = new RunRecorder { Car = _car };
+        AddChild(_recorder);
+
+        _hud = new Hud { Car = _car, Recorder = _recorder };
+        AddChild(_hud);
+        _telemetry = new TelemetryOverlay { Car = _car, Visible = panels.Contains("telemetry") };
+        _hud.AddChild(_telemetry);
+        _tuning = new TuningPanel { Car = _car, SpecPath = specPath, Hud = _hud, Visible = panels.Contains("tuning") };
+        _hud.AddChild(_tuning);
 
         if (oracle is not null)
         {
             _oracle = true;
             AddChild(new Oracle { Kind = oracle, Car = _car });
+        }
+
+        if (args.Contains("--record"))
+        {
+            Recording(_recorder.Start());
         }
 
         GD.Print($"Driving {spec.Id} {spec.Fingerprint()} on {surface.Id}");
@@ -169,15 +192,52 @@ public partial class Main : Node3D
             _camera?.ToggleView();
         }
 
-        if (_speed is not null)
+        if (Input.IsActionJustPressed(Controls.Tuning))
         {
-            _speed.Text = $"{_car.LinearVelocity.Length() * 3.6f:F0} km/h";
+            _tuning?.Toggle();
+        }
+
+        if (Input.IsActionJustPressed(Controls.Telemetry) && _telemetry is not null)
+        {
+            _telemetry.Visible = !_telemetry.Visible;
+        }
+
+        if (Input.IsActionJustPressed(Controls.Record))
+        {
+            ToggleRecording();
         }
 
         if (_screenshot is not null)
         {
             TakeScreenshots(_screenshot);
         }
+    }
+
+    private void ToggleRecording()
+    {
+        if (_recorder is null || _hud is null)
+        {
+            return;
+        }
+
+        if (_recorder.Recording)
+        {
+            float seconds = _recorder.Seconds;
+            string path = _recorder.Stop()!;
+            GD.Print($"Run saved: {path}");
+            _hud.Flash($"Saved a {seconds:F1} s run: runs/{System.IO.Path.GetFileName(path)}", 10.0);
+        }
+        else
+        {
+            Recording(_recorder.Start());
+        }
+    }
+
+    /// <summary>The whole path goes to the log, where it can be copied; the HUD gets just the file's name.</summary>
+    private void Recording(string path)
+    {
+        GD.Print($"Recording to {path}");
+        _hud?.Flash($"Recording to runs/{System.IO.Path.GetFileName(path)}");
     }
 
     private void TakeScreenshots(string path)
@@ -194,6 +254,12 @@ public partial class Main : Node3D
         {
             GetViewport().GetTexture().GetImage().SavePng(stem + "-turn.png");
             GD.Print($"Screenshots saved: {stem}-rest.png, {stem}-turn.png");
+            string? run = _recorder?.Stop();
+            if (run is not null)
+            {
+                GD.Print($"Run saved: {run}");
+            }
+
             GetTree().Quit();
         }
     }
@@ -215,27 +281,6 @@ public partial class Main : Node3D
         var material = new ShaderMaterial { Shader = new Shader { Code = GroundShader } };
         material.SetShaderParameter("base_colour", colour);
         ground.GetNode<MeshInstance3D>("Mesh").MaterialOverride = material;
-    }
-
-    private void BuildHud()
-    {
-        var hud = new CanvasLayer();
-        _speed = new Label
-        {
-            Position = new Vector2(24.0f, 16.0f),
-            LabelSettings = new LabelSettings { FontSize = 40, OutlineSize = 6, OutlineColor = Colors.Black },
-        };
-        hud.AddChild(_speed);
-
-        var hint = new Label
-        {
-            Text = "W/S or arrows: throttle, brake and reverse  ·  A/D: steer  ·  R: respawn  ·  C: camera",
-            LabelSettings = new LabelSettings { FontSize = 16, OutlineSize = 4, OutlineColor = Colors.Black },
-        };
-        hint.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
-        hint.Position = new Vector2(24.0f, -40.0f);
-        hud.AddChild(hint);
-        AddChild(hud);
     }
 
     private void Refuse(string message)

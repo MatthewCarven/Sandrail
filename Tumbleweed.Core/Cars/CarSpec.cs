@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -32,66 +33,90 @@ public sealed record CarSpec
 
     // The body.
 
+    [Tune("Body", 300.0f, 1500.0f)]
     public float MassKg { get; init; } = 650.0f;
 
+    [Tune("Body", 2.0f, 5.0f)]
     public float ChassisLengthM { get; init; } = 3.2f;
 
+    [Tune("Body", 1.0f, 2.5f)]
     public float ChassisWidthM { get; init; } = 1.5f;
 
+    [Tune("Body", 0.3f, 1.2f)]
     public float ChassisHeightM { get; init; } = 0.6f;
 
     /// <summary>How far below the chassis's middle the centre of mass sits: the first anti-roll fix.</summary>
+    [Tune("Body", 0.0f, 0.6f)]
     public float CentreOfMassDropM { get; init; } = 0.3f;
 
     /// <summary>Godot's angular damping, replacing the project default rather than adding to it.</summary>
+    [Tune("Body", 0.0f, 3.0f)]
     public float AngularDamping { get; init; } = 0.1f;
 
     // Wheels and suspension.
 
+    [Tune("Wheels", 1.8f, 3.6f)]
     public float WheelbaseM { get; init; } = 2.6f;
 
+    [Tune("Wheels", 1.2f, 2.4f)]
     public float TrackM { get; init; } = 1.7f;
 
+    [Tune("Wheels", 0.25f, 0.6f)]
     public float WheelRadiusM { get; init; } = 0.38f;
 
     /// <summary>Height of the suspension mounts above the chassis's middle; the rays start here.</summary>
+    [Tune("Wheels", -0.4f, 0.4f)]
     public float MountHeightM { get; init; } = 0.0f;
 
+    [Tune("Suspension", 0.1f, 0.6f)]
     public float SuspensionTravelM { get; init; } = 0.35f;
 
+    [Tune("Suspension", 4000.0f, 60000.0f)]
     public float SpringNPerM { get; init; } = 16_000.0f;
 
+    [Tune("Suspension", 0.0f, 6000.0f)]
     public float BumpDampingNsPerM { get; init; } = 1_400.0f;
 
+    [Tune("Suspension", 0.0f, 8000.0f)]
     public float ReboundDampingNsPerM { get; init; } = 2_100.0f;
 
     /// <summary>The last fraction of travel, where the bump stop starts pushing.</summary>
+    [Tune("Suspension", 0.0f, 0.4f)]
     public float BumpStopFraction { get; init; } = 0.1f;
 
     /// <summary>The bump stop's stiffness as a multiple of the spring's.</summary>
+    [Tune("Suspension", 0.0f, 40.0f)]
     public float BumpStopStiffness { get; init; } = 10.0f;
 
+    [Tune("Suspension", 0.0f, 20000.0f)]
     public float AntiRollFrontNPerM { get; init; } = 4_000.0f;
 
+    [Tune("Suspension", 0.0f, 20000.0f)]
     public float AntiRollRearNPerM { get; init; } = 2_000.0f;
 
     // Tyres.
 
     /// <summary>Friction coefficient on road; a surface multiplies it.</summary>
+    [Tune("Tyres", 0.3f, 2.0f)]
     public float Grip { get; init; } = 1.1f;
 
+    [Tune("Tyres", 2.0f, 20.0f)]
     public float PeakSlipDeg { get; init; } = 8.0f;
 
     /// <summary>The share of peak grip left once the slip angle is twice the peak: the slide.</summary>
+    [Tune("Tyres", 0.3f, 1.0f)]
     public float SlideGripFraction { get; init; } = 0.8f;
 
     /// <summary>The slip angle is taken against at least this forward speed, so it can't blow up near a standstill.</summary>
+    [Tune("Tyres", 0.5f, 10.0f)]
     public float SlipSpeedFloorMps { get; init; } = 3.0f;
 
     /// <summary>Below this speed sideways motion is cancelled directly, or a parked car creeps down a slope.</summary>
+    [Tune("Tyres", 0.0f, 5.0f)]
     public float LowSpeedCancelMps { get; init; } = 2.0f;
 
     /// <summary>How far grip forces are raised from the contact toward the centre of mass, 0..1: a roll lever.</summary>
+    [Tune("Tyres", 0.0f, 1.0f)]
     public float GripForceHeight { get; init; } = 0.3f;
 
     /// <summary>
@@ -103,46 +128,61 @@ public sealed record CarSpec
     /// is all or nothing: at 1, a held throttle below about 24 m/s spends all of a rear tyre's grip on
     /// pushing and the car spins whenever it turns. See the 2026-10-31 worklog.
     /// </remarks>
+    [Tune("Tyres", 0.0f, 1.0f)]
     public float ForwardPriority { get; init; } = 0.3f;
 
     // Engine and brakes.
 
     /// <summary>The most the engine pushes, off the line.</summary>
+    [Tune("Engine and brakes", 1000.0f, 12000.0f)]
     public float DriveForceN { get; init; } = 4_500.0f;
 
     /// <summary>Above the speed where power ÷ speed falls below the force limit, power is what limits.</summary>
+    [Tune("Engine and brakes", 20000.0f, 400000.0f)]
     public float PowerW { get; init; } = 110_000.0f;
 
     /// <summary>Share of the drive on the rear wheels: 1 is rear-wheel drive.</summary>
+    [Tune("Engine and brakes", 0.0f, 1.0f)]
     public float RearDriveShare { get; init; } = 1.0f;
 
+    [Tune("Engine and brakes", 0.0f, 1.0f)]
     public float ReverseForceFraction { get; init; } = 0.4f;
 
+    [Tune("Engine and brakes", 0.0f, 30.0f)]
     public float ReverseTopSpeedMps { get; init; } = 10.0f;
 
+    [Tune("Engine and brakes", 2000.0f, 20000.0f)]
     public float BrakeForceN { get; init; } = 9_000.0f;
 
+    [Tune("Engine and brakes", 0.0f, 1.0f)]
     public float BrakeFrontShare { get; init; } = 0.6f;
 
     /// <summary>Drag is this times speed squared. With 110 kW it sets top speed near 50 m/s.</summary>
+    [Tune("Engine and brakes", 0.2f, 3.0f)]
     public float DragNPerMps2 { get; init; } = 0.86f;
 
     // Steering and pedals.
 
+    [Tune("Steering and pedals", 10.0f, 45.0f)]
     public float MaxSteerDeg { get; init; } = 30.0f;
 
     /// <summary>The steering lock left at <see cref="SteerFadeSpeedMps"/> and above.</summary>
+    [Tune("Steering and pedals", 1.0f, 30.0f)]
     public float MinSteerDeg { get; init; } = 8.0f;
 
+    [Tune("Steering and pedals", 10.0f, 100.0f)]
     public float SteerFadeSpeedMps { get; init; } = 50.0f;
 
     /// <summary>How fast the wheels turn toward the input. A keyboard tap is otherwise a jerk.</summary>
+    [Tune("Steering and pedals", 30.0f, 600.0f)]
     public float SteerRateDegPerS { get; init; } = 120.0f;
 
     /// <summary>How fast they come back to centre, which wants to be quicker than turning in.</summary>
+    [Tune("Steering and pedals", 30.0f, 900.0f)]
     public float SteerReturnRateDegPerS { get; init; } = 240.0f;
 
     /// <summary>How fast throttle and brake go from nothing to full: keyboard easing.</summary>
+    [Tune("Steering and pedals", 1.0f, 20.0f)]
     public float PedalRatePerS { get; init; } = 5.0f;
 
     private static readonly JsonSerializerOptions Options = new()
@@ -155,6 +195,30 @@ public sealed record CarSpec
     };
 
     private static readonly JsonSerializerOptions CompactOptions = new(Options) { WriteIndented = false };
+
+    /// <summary>
+    /// Every number in the spec, in the order it's declared, with its panel group and slider range.
+    /// </summary>
+    /// <remarks>
+    /// Built by reflection, so a new number reaches the tuning panel and the recorder by being added.
+    /// One without a <see cref="TuneAttribute"/> still gets a slider (group "Other", 0 to three times its
+    /// default); <c>EveryNumberHasATuneRange</c> asks for a proper one.
+    /// </remarks>
+    public static IReadOnlyList<Tunable> Tunables { get; } = BuildTunables();
+
+    /// <summary>A copy with one number changed, by property name. Not validated: ask <see cref="Problems"/>.</summary>
+    /// <exception cref="ArgumentException">No number has that name.</exception>
+    public CarSpec WithValue(string name, float value)
+    {
+        Tunable tunable = Tunables.FirstOrDefault(t => t.Name == name)
+            ?? throw new ArgumentException($"A car spec has no number called {name}.", nameof(name));
+
+        // The copy constructor, then the one init-only setter. Reflection may call an init accessor, and
+        // the copy is private to this method until it's returned, so nothing ever sees it half-made.
+        CarSpec copy = this with { };
+        tunable.Property.SetValue(copy, value);
+        return copy;
+    }
 
     /// <summary>Reads a spec, refusing one with an unknown field or any number out of range.</summary>
     /// <exception cref="InvalidDataException">The file is not JSON, or names a field that doesn't exist, or fails <see cref="Problems"/>.</exception>
@@ -209,6 +273,18 @@ public sealed record CarSpec
         }
 
         return (hash >> 32).ToString("x8");
+    }
+
+    private static List<Tunable> BuildTunables()
+    {
+        var defaults = new CarSpec();
+        return typeof(CarSpec).GetProperties()
+            .Where(p => p.PropertyType == typeof(float))
+            .OrderBy(p => p.MetadataToken)
+            .Select(p => p.GetCustomAttribute<TuneAttribute>() is TuneAttribute tune
+                ? new Tunable(p.Name, tune.Group, tune.Min, tune.Max, p)
+                : new Tunable(p.Name, "Other", 0.0f, MathF.Max(1.0f, 3.0f * (float)p.GetValue(defaults)!), p))
+            .ToList();
     }
 
     /// <summary>Every number out of range, in words. Empty means the spec is drivable.</summary>

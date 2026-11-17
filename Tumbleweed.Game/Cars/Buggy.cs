@@ -65,8 +65,11 @@ public partial class Buggy : RigidBody3D
     private readonly Node3D[] _wheelPivots = new Node3D[4];
     private readonly Node3D[] _wheelSpinners = new Node3D[4];
     private readonly Dictionary<ulong, Surface> _surfaceCache = new();
+    private readonly List<Node> _looks = new();
 
     private CarSpec _spec = new();
+    private CollisionShape3D? _shape;
+    private Vector3 _lastVelocity;
     private PhysicsRayQueryParameters3D _ray = new();
     private float _throttle;
     private float _brake;
@@ -86,6 +89,18 @@ public partial class Buggy : RigidBody3D
 
     public float Brake => _brake;
 
+    /// <summary>The steering lock allowed at the current speed, degrees.</summary>
+    public float SteerLimitDeg { get; private set; }
+
+    /// <summary>Last tick's total drive, newtons; negative is reverse.</summary>
+    public float DriveForce { get; private set; }
+
+    /// <summary>Last tick's brake, 0..1.</summary>
+    public float BrakeAmount { get; private set; }
+
+    /// <summary>World acceleration over the last tick, from the change in velocity.</summary>
+    public Vector3 Acceleration { get; private set; }
+
     public int GroundedCount { get; private set; }
 
     public float Compression(int wheel) => _compression[wheel];
@@ -101,40 +116,20 @@ public partial class Buggy : RigidBody3D
     public Surface SurfaceUnder(int wheel) => _surface[wheel];
 
     /// <summary>
-    /// Builds the body, its collider and its grey-box looks from a spec. Call before adding the car to
-    /// the tree.
+    /// Sets up the body and applies a spec to it. Call before adding the car to the tree.
     /// </summary>
     public void Configure(CarSpec spec)
     {
-        _spec = spec;
-
-        Mass = spec.MassKg;
         CenterOfMassMode = CenterOfMassModeEnum.Custom;
-        CenterOfMass = new Vector3(0.0f, -spec.CentreOfMassDropM, 0.0f);
         LinearDampMode = DampMode.Replace;
         LinearDamp = 0.0f;
         AngularDampMode = DampMode.Replace;
-        AngularDamp = spec.AngularDamping;
         CanSleep = false;
         CollisionLayer = CarLayer;
         CollisionMask = WorldLayer;
 
         // Low friction on the chassis, so a car on its belly slides rather than sticking.
         PhysicsMaterialOverride = new PhysicsMaterial { Friction = 0.3f };
-
-        var chassisSize = new Vector3(spec.ChassisWidthM, spec.ChassisHeightM, spec.ChassisLengthM);
-        AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = chassisSize } });
-
-        float halfTrack = spec.TrackM / 2.0f;
-        float halfBase = spec.WheelbaseM / 2.0f;
-
-        // Godot's forward is -Z, so the front axle is at -Z.
-        _mounts[FrontLeft] = new Vector3(-halfTrack, spec.MountHeightM, -halfBase);
-        _mounts[FrontRight] = new Vector3(halfTrack, spec.MountHeightM, -halfBase);
-        _mounts[RearLeft] = new Vector3(-halfTrack, spec.MountHeightM, halfBase);
-        _mounts[RearRight] = new Vector3(halfTrack, spec.MountHeightM, halfBase);
-
-        BuildLooks(spec, chassisSize);
 
         for (int i = 0; i < 4; i++)
         {
@@ -147,7 +142,69 @@ public partial class Buggy : RigidBody3D
             CollideWithAreas = false,
             CollideWithBodies = true,
         };
+
+        ApplySpec(spec);
     }
+
+    /// <summary>
+    /// Drives on a new spec from the next tick: the tuning panel's way in, and its Reset's.
+    /// </summary>
+    /// <remarks>
+    /// The numbers the model reads take effect by being swapped in. The body's own properties are set
+    /// here, and the collider and grey boxes are rebuilt only when a dimension changed, so dragging a
+    /// grip slider doesn't rebuild the car sixty times a second.
+    /// </remarks>
+    public void ApplySpec(CarSpec spec)
+    {
+        bool reshape = _shape is null || ShapeDiffers(_spec, spec);
+        _spec = spec;
+
+        Mass = spec.MassKg;
+        CenterOfMass = new Vector3(0.0f, -spec.CentreOfMassDropM, 0.0f);
+        AngularDamp = spec.AngularDamping;
+
+        float halfTrack = spec.TrackM / 2.0f;
+        float halfBase = spec.WheelbaseM / 2.0f;
+
+        // Godot's forward is -Z, so the front axle is at -Z.
+        _mounts[FrontLeft] = new Vector3(-halfTrack, spec.MountHeightM, -halfBase);
+        _mounts[FrontRight] = new Vector3(halfTrack, spec.MountHeightM, -halfBase);
+        _mounts[RearLeft] = new Vector3(-halfTrack, spec.MountHeightM, halfBase);
+        _mounts[RearRight] = new Vector3(halfTrack, spec.MountHeightM, halfBase);
+
+        if (!reshape)
+        {
+            return;
+        }
+
+        var chassisSize = new Vector3(spec.ChassisWidthM, spec.ChassisHeightM, spec.ChassisLengthM);
+        if (_shape is null)
+        {
+            _shape = new CollisionShape3D();
+            AddChild(_shape);
+        }
+
+        _shape.Shape = new BoxShape3D { Size = chassisSize };
+
+        foreach (Node look in _looks)
+        {
+            RemoveChild(look);
+            look.QueueFree();
+        }
+
+        _looks.Clear();
+        BuildLooks(spec, chassisSize);
+    }
+
+    private static bool ShapeDiffers(CarSpec a, CarSpec b) =>
+        a.ChassisLengthM != b.ChassisLengthM
+        || a.ChassisWidthM != b.ChassisWidthM
+        || a.ChassisHeightM != b.ChassisHeightM
+        || a.WheelRadiusM != b.WheelRadiusM
+        || a.WheelbaseM != b.WheelbaseM
+        || a.TrackM != b.TrackM
+        || a.MountHeightM != b.MountHeightM
+        || a.SuspensionTravelM != b.SuspensionTravelM;
 
     /// <summary>The height of the body's origin above flat ground with the car at rest.</summary>
     public static float RestHeight(CarSpec spec) =>
@@ -198,6 +255,8 @@ public partial class Buggy : RigidBody3D
             _throttle = 0.0f;
             _brake = 0.0f;
             _steerDeg = 0.0f;
+            _lastVelocity = Vector3.Zero;
+            Acceleration = Vector3.Zero;
             _pendingRespawn = null;
             _resetInterpolation = true;
             return;
@@ -212,17 +271,22 @@ public partial class Buggy : RigidBody3D
         Vector3 velocity = state.LinearVelocity;
         float speed = velocity.Length();
         float forwardSpeed = velocity.Dot(forward);
+        Acceleration = (velocity - _lastVelocity) / dt;
+        _lastVelocity = velocity;
 
         DriverInput input = Driver;
         _throttle = Mathf.MoveToward(_throttle, Math.Clamp(input.Throttle, 0.0f, 1.0f), spec.PedalRatePerS * dt);
         _brake = Mathf.MoveToward(_brake, Math.Clamp(input.Brake, 0.0f, 1.0f), spec.PedalRatePerS * dt);
 
-        float steerTarget = Math.Clamp(input.Steer, -1.0f, 1.0f) * WheelModel.SteerLimitDeg(spec, speed);
+        SteerLimitDeg = WheelModel.SteerLimitDeg(spec, speed);
+        float steerTarget = Math.Clamp(input.Steer, -1.0f, 1.0f) * SteerLimitDeg;
         bool returning = MathF.Abs(steerTarget) < MathF.Abs(_steerDeg) || MathF.Sign(steerTarget) != MathF.Sign(_steerDeg);
         float steerRate = returning ? spec.SteerReturnRateDegPerS : spec.SteerRateDegPerS;
         _steerDeg = Mathf.MoveToward(_steerDeg, steerTarget, steerRate * dt);
 
         (float drive, float brakeAmount) = WheelModel.ResolvePedals(spec, _throttle, _brake, forwardSpeed);
+        DriveForce = drive;
+        BrakeAmount = brakeAmount;
 
         PhysicsDirectSpaceState3D space = state.GetSpaceState();
         float rayLength = spec.SuspensionTravelM + spec.WheelRadiusM;
@@ -336,16 +400,16 @@ public partial class Buggy : RigidBody3D
         var dark = new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.12f, 0.13f), Roughness = 0.9f };
         var nose = new StandardMaterial3D { AlbedoColor = new Color(0.95f, 0.45f, 0.1f), Roughness = 0.5f };
 
-        AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = chassisSize }, MaterialOverride = body });
+        Look(new MeshInstance3D { Mesh = new BoxMesh { Size = chassisSize }, MaterialOverride = body });
 
         // A cockpit hoop, and an orange nose so the front is never in doubt.
-        AddChild(new MeshInstance3D
+        Look(new MeshInstance3D
         {
             Mesh = new BoxMesh { Size = new Vector3(chassisSize.X * 0.8f, 0.7f, 0.15f) },
             MaterialOverride = dark,
             Position = new Vector3(0.0f, (chassisSize.Y / 2.0f) + 0.35f, chassisSize.Z * 0.1f),
         });
-        AddChild(new MeshInstance3D
+        Look(new MeshInstance3D
         {
             Mesh = new BoxMesh { Size = new Vector3(chassisSize.X * 0.6f, 0.2f, 0.4f) },
             MaterialOverride = nose,
@@ -373,9 +437,16 @@ public partial class Buggy : RigidBody3D
                 Rotation = new Vector3(0.0f, 0.0f, Mathf.Pi / 2.0f),
             });
             pivot.AddChild(spinner);
-            AddChild(pivot);
+            Look(pivot);
             _wheelPivots[i] = pivot;
             _wheelSpinners[i] = spinner;
         }
+    }
+
+    /// <summary>Adds a grey-box part, remembered so a reshape can take it away again.</summary>
+    private void Look(Node3D node)
+    {
+        AddChild(node);
+        _looks.Add(node);
     }
 }

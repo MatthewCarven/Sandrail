@@ -19,6 +19,9 @@ public static class Controls
     public const string Handbrake = "handbrake";
     public const string Respawn = "respawn";
     public const string Camera = "camera";
+    public const string Tuning = "tuning";
+    public const string Telemetry = "telemetry";
+    public const string Record = "record";
 
     public static void Register()
     {
@@ -29,6 +32,17 @@ public static class Controls
         Add(Handbrake, Key.Space, JoyButton.A);
         Add(Respawn, Key.R, JoyButton.Y);
         Add(Camera, Key.C, JoyButton.Back);
+
+        // The tuning tools are keyboard only: they're for the desk, not the sofa.
+        Add(Tuning, Key.F2);
+        Add(Telemetry, Key.F3);
+        Add(Record, Key.F4);
+    }
+
+    private static void Add(string action, Key key)
+    {
+        Begin(action);
+        InputMap.ActionAddEvent(action, new InputEventKey { PhysicalKeycode = key });
     }
 
     private static void Add(string action, Key key, Key alternate, JoyAxis axis, float direction)
