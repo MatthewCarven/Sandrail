@@ -18,8 +18,12 @@ namespace Sandrail.Game.Oracles;
 /// </para>
 /// <para>
 /// Run them with <c>--fixed-fps 120</c> so every frame is exactly one physics tick and a run takes
-/// however long the CPU needs, not the seconds it simulates. <c>tools/oracles.ps1</c> runs all four.
+/// however long the CPU needs, not the seconds it simulates. <c>tools/oracles.ps1</c> runs them all.
 /// Every line ends with the spec's ID and fingerprint, so a figure says which numbers it came from.
+/// </para>
+/// <para>
+/// Straight, drop, brake and circle run on the bare plain with road grip, as they did at M1a, so their
+/// figures stay comparable; jump, loop and bumps run on the test ground (<c>Oracle.Ground.cs</c>).
 /// </para>
 /// </remarks>
 public partial class Oracle : Node
@@ -65,12 +69,15 @@ public partial class Oracle : Node
     private float _steerAtBest;
     private float _steerDegAtBest;
 
-    /// <summary>One of <see cref="Straight"/>, <see cref="Drop"/>, <see cref="Brake"/>, <see cref="Circle"/>.</summary>
+    /// <summary>
+    /// One of <see cref="Straight"/>, <see cref="Drop"/>, <see cref="Brake"/>, <see cref="Circle"/>,
+    /// <see cref="Jump"/>, <see cref="Loop"/>, <see cref="Bumps"/>.
+    /// </summary>
     public required string Kind { get; init; }
 
     public required Buggy Car { get; init; }
 
-    public static bool IsKnown(string kind) => kind is Straight or Drop or Brake or Circle;
+    public static bool IsKnown(string kind) => kind is Straight or Drop or Brake or Circle || NeedsTestGround(kind);
 
     private float Time => _tick / (float)Engine.PhysicsTicksPerSecond;
 
@@ -99,6 +106,15 @@ public partial class Oracle : Node
                 break;
             case Circle:
                 RunCircle();
+                break;
+            case Jump:
+                RunJump();
+                break;
+            case Loop:
+                RunLoop();
+                break;
+            case Bumps:
+                RunBumps();
                 break;
         }
     }

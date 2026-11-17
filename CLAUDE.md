@@ -76,13 +76,17 @@ pwsh tools/oracles.ps1
 ```
 
 `-Oracles drop` runs one; `-Spec variant.json` drives a variant file instead of the shipped buggy, which
-is how to try numbers without touching what plays. The 2026-10-31 worklog entry has the figures they
-read at M1a.
+is how to try numbers without touching what plays. There are seven: `straight`, `drop`, `brake` and
+`circle` on the bare plain with road grip (their M1a figures are in the 2026-10-31 worklog entry), and
+`jump`, `loop` and `bumps` on the test ground (figures in the M1c entry).
 
-Game flags, after `--` (or passed to `start.cmd`): `--surface=road|dirt|grass|sand`, `--spec=<path>`,
+Game flags, after `--` (or passed to `start.cmd`): `--ground=test|bare`, `--station=1..5`,
+`--surface=road|dirt|grass|sand` (sand by default on the test ground), `--spec=<path>`,
 `--oracle=<name>`, `--panels=tuning,telemetry` (opens either at start), `--record` (starts a run at
-start), and `--screenshot=<path.png>`, which saves a frame at rest and one turning, then quits. It opens
-a window for a few seconds, and it is how Claude sees anything at all.
+start), and `--screenshot=<path.png>`, which saves a frame at rest and one driving, then quits; with it,
+`--drive=throttle,steer` sets how it drives and `--camera=x,y,z:x,y,z` looks at the ground from a fixed
+point instead of following the car. It opens a window for a few seconds, and it is how Claude sees
+anything at all.
 
 **A tuning session** (M1b): Matthew drives with F3 (telemetry) up, presses F4 to record the bit that
 feels wrong, and says what felt wrong. Runs land in `%APPDATA%\Godot\app_userdata\Sandrail\runs\` as
@@ -92,26 +96,30 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 
 ## Layout
 
-- `Sandrail.Core/` — no Godot. `Generation/` holds `Hash64` and `GradientNoise`. `Cars/` holds
-  `CarSpec`, `Surfaces` and `WheelModel`, the car's laws as plain functions; the track model, generator
-  and formats land beside them.
+- `Sandrail.Core/` — no Godot. `Generation/` holds `Hash64`, `GradientNoise` and the `BumpField`.
+  `Cars/` holds `CarSpec`, `Surfaces` and `WheelModel`, the car's laws as plain functions. `Pieces/` is
+  the road: `Frame`, the centrelines (line, pitch, banked turn, loop), `Chain`, `Profile`, the `Sweep`
+  mesher and the `TestGroundLayout`. The track grid, generator and formats land beside them.
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
   physics interpolation. `Cars/` is the `Buggy`, its `ChaseCamera`, `CarReadout` and the `RunRecorder`;
-  `Ui/` the `Hud`, `TelemetryOverlay` and `TuningPanel`; `Oracles/` the headless drives;
-  `content/base/cars/buggy.json` the shipped spec.
+  `Ui/` the `Hud`, `TelemetryOverlay` and `TuningPanel`; `World/` builds the test ground's meshes and
+  colliders; `Oracles/` the headless drives; `content/base/cars/buggy.json` the shipped spec.
 - `tools/godot-sln/` — the solution Godot's editor builds from (`project/solution_directory`).
 - `Directory.Build.props` — Debug builds are JIT-optimised, Overburden's measured rule.
 
 ## Where things stand
 
-**2026-11-17: M1a and M1b are built; M1c is next.** The buggy drives on the plain with the chase
-camera, all four oracles are inside M1-PLAN's targets (fingerprint `f4559570`), and the tuning tools
-exist: F2 sliders, F3 telemetry, F4 recorded runs (worklog, M1b). From M1a: the friction circle is a
-dial, `forwardPriority`, because the keyboard is what gets tuned (**there's no pad here**; the pad is an
-owed check); damping is 1,400/2,100. **His first drive, 2026-11-17: "seems ok"**. The power oversteer
-is *"exactly what i was hoping for"*; the steering is *"a little slow but at the same time its
-difficult"* and **is to be left alone at his word**; it's a little difficult overall, but untried on
-bumps. Nobody has clicked the panel's Save or Reset yet. **M1c is the sweep mesher and the test
-ground**: a jump, a slope, a banked 180°, a loop, and the bump patch his drive is waiting for.
+**2026-11-17: M1a, M1b and M1c are built; M1d is next, and his drive of the test ground before it.**
+The buggy drives a test ground on a sand plain: a tabletop jump, a slope and plateau with a crest, a
+30° banked hairpin, a tall loop driven with the wheels straight, and a dirt bump patch, on stations 1-5.
+Seven oracles (fingerprint `f4559570`): the M1a four unchanged, the loop goes through 0.1 m off centre,
+but **the suspension bottoms out on the jump's landing and through the loop** (worklog, M1c). No
+number has changed since M1a: the friction circle is a dial, `forwardPriority`, because the keyboard
+is what gets tuned (**there's no pad here**; the pad is an owed check); damping is 1,400/2,100. **His
+first drive: "seems ok"**. The power oversteer is *"exactly what i was hoping for"*; the steering is
+*"a little slow but at the same time its difficult"* and **is to be left alone at his word**. Nobody
+has clicked the panel's Save or Reset yet. **M1d is the extras the pieces ask for** (handbrake,
+downforce, air control, auto-respawn), and the bottoming is a lever to bring to his play rather than to
+change unasked.

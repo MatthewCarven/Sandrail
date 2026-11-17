@@ -2,6 +2,70 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-17 — M1c: the sweep mesher and the test ground
+
+Built on his "lets continue":
+
+- **Core, `Pieces/`:** a `Frame` (position, forward, up, right, in Godot's axes); four centrelines
+  (`Line`, `Pitch` for ramps and crests, `Turn` with an eased bank that pivots on its inside edge,
+  `Loop`); `Chain` to lay them end to end; `Profile.Slab` (a flat top with rounded lips); `Sweep`, which
+  places the profile along a centreline and returns a closed mesh as plain arrays; and
+  `TestGroundLayout`, the whole test ground as data. `Generation/BumpField` is the bump patch, the
+  first use of the ported noise. 74 tests: every piece is closed and wound outward, a right turn of 90°
+  ends where geometry says, the bank keeps its inner edge on the ground, the loop comes out level and
+  offset by exactly its offset, the stations are 30 m apart and fit the plain.
+- **Game, `World/TestGround`:** each run swept into one mesh and one collider (the same triangles),
+  with a road shader (edge lines, a dashed centre line, a band every 10 m). The bump patch is a
+  129 × 129 height field. The plain is now sand when the test ground is up.
+- **Stations 1-5** on the number keys: jump, slope, banked hairpin, loop, bumps. R respawns at the last
+  station, and each shows its hint as it's reached.
+- **Three oracles on the test ground:** `jump` (86 km/h at the lip), `loop` (97 km/h in), `bumps`
+  (72 km/h across). The M1a four run on the bare plain on road grip, as before.
+- **Flags:** `--ground=test|bare`, `--station=1..5`, and for Claude's screenshots `--drive=throttle,steer`
+  and `--camera=x,y,z:x,y,z`, a fixed view of the ground.
+
+**Two departures from the plan, both forced by arithmetic:**
+1. **The loop is tall, not round.** At the least speed that gets a car over the top of a circle, its
+   foot pulls 6 g whatever the radius, and this suspension holds about 7 g a corner before it runs out
+   of travel. So the radius runs from 18 m at the foot to 7 m at the top, as real stunt loops do. It's
+   24 m tall.
+2. **Its offset grows with distance round, and the road arrives at an angle (11.6°).** A loop has to
+   put its exit beside its entry, and an offset that grows with the *angle* would need steering
+   mid-loop. The loop is an extrusion of its outline along one fixed right, so unrolled it's a flat
+   strip, and an offset that grows evenly with *distance* is a straight line on it: straight wheels
+   follow it. The run-up and run-out are built along the same skewed frame so they meet it square.
+
+**The figures**, spec `f4559570`:
+
+```
+straight  unchanged from M1a (0-100 5.17 s, top 49.11 m/s); drop, brake, circle unchanged too
+jump      off the lip at 82 km/h: 1.84 s in the air, landed 39.7 m out, on the down-ramp (20-46 m),
+          pitch -8° | deepest compression 0.350 of 0.35 m (on the bump stop) | upright
+loop      in at 96 km/h: THROUGH, +0.1 m off the exit road's centre | slowest over the top 79 km/h |
+          deepest compression 0.350, 2.89 s on the bump stop | all four wheels off 0.00 s
+bumps     through at 70 km/h: a wheel off the ground 46% of the time, all four 10% (longest 0.18 s) |
+          deepest compression 0.291, bump stop 0% | worst roll 9°, pitch 13°
+```
+
+**What they say, for M1d and his play:**
+- **The loop works with the wheels straight**: 0.1 m off the exit's centre after 79 m of loop. The
+  design held.
+- **The suspension bottoms out on the jump's landing and through the loop.** The jump lands at the
+  ramp's own angle (-8°), which is the right landing, and still uses all 0.35 m. The loop spends
+  2.9 s of about 3.5 on the bump stop, because the oracle holds 97 km/h with the throttle and the
+  engine nearly cancels gravity on the way up: 79 km/h over a 7 m top is about 6 g. That's what a driver
+  holding W gets. **No numbers were changed**: springs, travel and the bump stop are M1d's levers and
+  his play's question.
+- **The first bumps run read 32 km/h**, because the station put the car only 25 m before the patch, on
+  sand. It now starts 60 m out.
+
+**Seen:** overview shots of all five stations from `--camera`, plus a chase shot on the loop's run-up.
+The loop is tall with its exit beside its entry; the kicker is a curved ramp onto a flat table; the
+hairpin's outside edge lifts; the plateau reads as earthworks. The bump patch looks smoother on screen
+than it drives, because the light flattens it; the oracle's 46% says it isn't.
+
+**Unverified:** how any of it feels, which is his.
+
 ## 2026-11-17 — Sandrail
 
 Asked for a name, Matthew picked **Sandrail** from Claude's list ("Sandrail please"). A sandrail is the

@@ -4,28 +4,34 @@ using System.Reflection;
 using Godot;
 using Sandrail.Core.Cars;
 using Sandrail.Core.Generation;
+using Sandrail.Core.Pieces;
 using Sandrail.Game.Cars;
 using Sandrail.Game.Oracles;
 using Sandrail.Game.Ui;
+using Sandrail.Game.World;
 
 namespace Sandrail.Game;
 
 /// <summary>
-/// The entry point: the buggy on a 640 m plain (one 32 × 32 map of 20 m tiles), the chase camera, the
-/// HUD with its F2 tuning panel, F3 telemetry and F4 recorder, and the oracles.
+/// The entry point: the buggy on a 640 m plain (one 32 × 32 map of 20 m tiles) with M1c's test ground
+/// on it, the chase camera, the HUD with its F2 tuning panel, F3 telemetry and F4 recorder, and the
+/// oracles.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Game flags, after the bare <c>--</c>: <c>--surface=road|dirt|grass|sand</c> (road by default, so the
-/// first drive and the oracles' targets agree; M1c makes the plain sand once the pieces bring the
-/// road), <c>--oracle=straight|drop|brake|circle</c>, and <c>--spec=&lt;path&gt;</c> to drive another spec
-/// file than the shipped buggy, so a variant can be tried without touching what plays. The tuning
-/// panel saves to whichever file was loaded.
+/// Game flags, after the bare <c>--</c>: <c>--ground=test|bare</c> (the test ground, or the empty plain the
+/// first four oracles drive), <c>--station=1..5</c> to start at one of the test ground's stations,
+/// <c>--surface=road|dirt|grass|sand</c> for the plain (sand with the test ground, road on the bare
+/// plain, so the M1a oracles' targets still hold), <c>--oracle=</c> any of the seven, and
+/// <c>--spec=&lt;path&gt;</c> to drive another spec file than the shipped buggy, so a variant can be tried
+/// without touching what plays. The tuning panel saves to whichever file was loaded.
 /// </para>
 /// <para>
 /// <c>--panels=tuning,telemetry</c> opens either at start, and <c>--record</c> starts a run at start.
 /// <c>--screenshot=&lt;path.png&gt;</c> is Claude's eyes, since headless draws nothing: it saves one frame
-/// at rest and one turning (<c>-rest</c>, <c>-turn</c>), then quits.
+/// at rest and one driving (<c>-rest</c>, <c>-turn</c>), then quits; <c>--drive=throttle,steer</c> sets
+/// how it drives (0.7,0.6 by default), and <c>--camera=x,y,z:x,y,z</c> looks from one point at another
+/// instead of following the car.
 /// </para>
 /// <para>
 /// The plain is drawn with a 10 m grid and a 100 m one, because a plain of one colour gives the eye
@@ -70,7 +76,10 @@ public partial class Main : Node3D
     private bool _oracle;
     private Transform3D _spawn;
     private string? _screenshot;
+    private DriverInput _screenshotDrive = new() { Throttle = 0.7f, Steer = 0.6f };
     private int _ticks;
+    private Shader? _groundShader;
+    private TestGroundLayout? _layout;
 
     public override void _Ready()
     {
@@ -83,11 +92,22 @@ public partial class Main : Node3D
         GD.Print($"Core linked: Hash64.Mix(0) = 0x{Hash64.Mix(0UL):X16} (expected 0xE220A8397B1DCDAF)");
 
         string[] args = OS.GetCmdlineUserArgs();
-        string surfaceName = Flag(args, "--surface=") ?? "road";
         string? oracle = Flag(args, "--oracle=");
         string specPath = Flag(args, "--spec=") ?? BuggyPath;
         string[] panels = (Flag(args, "--panels=") ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries);
         _screenshot = Flag(args, "--screenshot=");
+
+        if (oracle is not null && !Oracle.IsKnown(oracle))
+        {
+            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle, jump, loop, bumps.");
+            return;
+        }
+
+        // The first four oracles drive the bare plain on road grip, exactly as at M1a, so their figures
+        // stay comparable; everything else gets the test ground on sand.
+        bool bareOracle = oracle is not null && !Oracle.NeedsTestGround(oracle);
+        bool testGround = (Flag(args, "--ground=") ?? (bareOracle ? "bare" : "test")) == "test";
+        string surfaceName = Flag(args, "--surface=") ?? (testGround ? "sand" : "road");
 
         Surface? surface = Surfaces.Find(surfaceName);
         if (surface is null)
@@ -96,10 +116,23 @@ public partial class Main : Node3D
             return;
         }
 
-        if (oracle is not null && !Oracle.IsKnown(oracle))
+        int station = oracle is not null && Oracle.NeedsTestGround(oracle)
+            ? Oracle.StationFor(oracle)
+            : int.TryParse(Flag(args, "--station="), out int n) ? n : 1;
+        if (testGround && station is < 1 or > 5)
         {
-            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle.");
+            Refuse($"Unknown station {station}. They're 1 to 5.");
             return;
+        }
+
+        if (Flag(args, "--drive=") is string drive)
+        {
+            string[] parts = drive.Split(',');
+            _screenshotDrive = new DriverInput
+            {
+                Throttle = float.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture),
+                Steer = parts.Length > 1 ? float.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) : 0.0f,
+            };
         }
 
         CarSpec spec;
@@ -115,10 +148,20 @@ public partial class Main : Node3D
 
         Controls.Register();
         GetNode<DirectionalLight3D>("Sun").RotationDegrees = new Vector3(-50.0f, 30.0f, 0.0f);
+        _groundShader = new Shader { Code = GroundShader };
         SetUpGround(surface);
 
-        float lift = oracle == Oracle.Drop ? Oracle.DropHeight : 0.02f;
-        _spawn = new Transform3D(Basis.Identity, new Vector3(0.0f, Buggy.RestHeight(spec) + lift, 0.0f));
+        if (testGround)
+        {
+            _layout = new TestGroundLayout();
+            TestGround.Build(this, _layout, _groundShader);
+            _spawn = SpawnAt(_layout.Stations[station - 1].Start, spec);
+        }
+        else
+        {
+            float lift = oracle == Oracle.Drop ? Oracle.DropHeight : 0.02f;
+            _spawn = new Transform3D(Basis.Identity, new Vector3(0.0f, Buggy.RestHeight(spec) + lift, 0.0f));
+        }
 
         _car = new Buggy { Transform = _spawn };
         _car.Configure(spec);
@@ -140,7 +183,7 @@ public partial class Main : Node3D
         if (oracle is not null)
         {
             _oracle = true;
-            AddChild(new Oracle { Kind = oracle, Car = _car });
+            AddChild(new Oracle { Kind = oracle, Car = _car, Layout = _layout });
         }
 
         if (args.Contains("--record"))
@@ -148,7 +191,45 @@ public partial class Main : Node3D
             Recording(_recorder.Start());
         }
 
-        GD.Print($"Driving {spec.Id} {spec.Fingerprint()} on {surface.Id}");
+        // A fixed camera for looking at the ground rather than the car: x,y,z:x,y,z, from and at.
+        if (Flag(args, "--camera=") is string view)
+        {
+            float[] v = view.Replace(':', ',').Split(',')
+                .Select(s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+            var overview = new Camera3D { Far = 2000.0f };
+            AddChild(overview);
+            overview.LookAtFromPosition(new Vector3(v[0], v[1], v[2]), new Vector3(v[3], v[4], v[5]), Vector3.Up);
+            overview.Current = true;
+        }
+
+        GD.Print($"Driving {spec.Id} {spec.Fingerprint()} on {surface.Id}{(testGround ? $", from station {station}" : string.Empty)}");
+        if (testGround && oracle is null && _screenshot is null)
+        {
+            Station first = _layout!.Stations[station - 1];
+            _hud.Flash($"{first.Number}. {first.Name}: {first.Hint}", 8.0);
+        }
+    }
+
+    /// <summary>Where the car goes to start from a frame on the road: resting on its wheels, facing along it.</summary>
+    private static Transform3D SpawnAt(Frame start, CarSpec spec)
+    {
+        Vector3 up = start.Up.ToGodot().Normalized();
+        Vector3 right = start.Forward.ToGodot().Cross(up).Normalized();
+        Vector3 forward = up.Cross(right).Normalized();
+        return new Transform3D(new Basis(right, up, -forward), start.Position.ToGodot() + (up * (Buggy.RestHeight(spec) + 0.02f)));
+    }
+
+    private void GoToStation(int number)
+    {
+        if (_layout is null || _car is null)
+        {
+            return;
+        }
+
+        Station station = _layout.Stations[number - 1];
+        _spawn = SpawnAt(station.Start, _car.Spec);
+        _car.Respawn(_spawn);
+        _hud?.Flash($"{station.Number}. {station.Name}: {station.Hint}", 8.0);
     }
 
     public override void _PhysicsProcess(double delta)
@@ -161,9 +242,17 @@ public partial class Main : Node3D
         _ticks++;
         if (_screenshot is not null)
         {
-            bool turning = _ticks > 2 * Engine.PhysicsTicksPerSecond;
-            _car.Driver = turning ? new DriverInput { Throttle = 0.7f, Steer = 0.6f } : default;
+            bool driving = _ticks > 2 * Engine.PhysicsTicksPerSecond;
+            _car.Driver = driving ? _screenshotDrive : default;
             return;
+        }
+
+        for (int number = 1; number <= 5; number++)
+        {
+            if (Input.IsActionJustPressed(Controls.Station(number)))
+            {
+                GoToStation(number);
+            }
         }
 
         _car.Driver = new DriverInput
@@ -278,7 +367,7 @@ public partial class Main : Node3D
             _ => new Color(0.36f, 0.36f, 0.38f),
         };
 
-        var material = new ShaderMaterial { Shader = new Shader { Code = GroundShader } };
+        var material = new ShaderMaterial { Shader = _groundShader };
         material.SetShaderParameter("base_colour", colour);
         ground.GetNode<MeshInstance3D>("Mesh").MaterialOverride = material;
     }

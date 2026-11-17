@@ -37,7 +37,16 @@ public static class Controls
         Add(Tuning, Key.F2);
         Add(Telemetry, Key.F3);
         Add(Record, Key.F4);
+
+        Key[] numbers = [Key.Key1, Key.Key2, Key.Key3, Key.Key4, Key.Key5];
+        for (int i = 0; i < numbers.Length; i++)
+        {
+            Add(Station(i + 1), numbers[i]);
+        }
     }
+
+    /// <summary>The action that puts the car at a test-ground station: 1 to 5.</summary>
+    public static string Station(int number) => $"station_{number}";
 
     private static void Add(string action, Key key)
     {

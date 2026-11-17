@@ -167,6 +167,14 @@ run saves its spec beside it, the panel refuses a change the spec would refuse a
 
 ## M1c — the sweep mesher and the test ground
 
+**Built 2026-11-17**, with two departures the arithmetic forced (worklog): **the loop is tall rather
+than round** (18 m radius at the foot, 7 m at the top), because a round loop pulls 6 g at its foot
+even at the least speed that gets over the top; and **its offset grows with distance round, so it's
+driven with the wheels straight**, arrived at along an 11.6° skewed run-up. Also built beyond the plan:
+the layout as data in Core (`TestGroundLayout`), stations on keys 1-5, three oracles that drive the
+pieces (`jump`, `loop`, `bumps`), and `--camera` and `--drive` for Claude's screenshots. The bump
+patch is 128 m (a 129 × 129 height field), not 100.
+
 - **Core:** `Sweep`. A centreline is something that gives a frame (position, forward, up) at any
   distance along it; a profile is a closed 2D cross-section. The sweep places the profile at frames along
   the centreline and joins them into triangles with normals and UVs, as plain arrays with no Godot types,
