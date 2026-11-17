@@ -18,13 +18,13 @@ $ErrorActionPreference = "Stop"
 $specPath = if ($Spec) { (Resolve-Path $Spec).Path } else { "" }
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
-dotnet build Tumbleweed.Game --nologo -v q
+dotnet build Sandrail.Game --nologo -v q
 if ($LASTEXITCODE -ne 0) { throw "Build failed - not running stale code." }
 
 foreach ($oracle in $Oracles) {
     $flags = @("--oracle=$oracle")
     if ($specPath) { $flags += "--spec=$specPath" }
-    $output = & $Godot --path Tumbleweed.Game --headless --fixed-fps 120 -- @flags 2>&1
+    $output = & $Godot --path Sandrail.Game --headless --fixed-fps 120 -- @flags 2>&1
     $line = $output | Where-Object { "$_" -match "^oracle " }
     if ($line) { $line } else { "oracle ${oracle}: NO RESULT"; $output | Select-Object -Last 15 }
 }

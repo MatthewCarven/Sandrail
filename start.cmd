@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-rem Launch Tumbleweed in the pinned Godot 4.7.1 mono editor build.
+rem Launch Sandrail in the pinned Godot 4.7.1 mono editor build.
 rem Prefers the copy beside this repo; falls back to Overburden's.
 
 set "EXE=Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64_console.exe"
@@ -22,6 +22,6 @@ rem Godot launched with --path does not rebuild: it loads whatever DLL is in .go
 rem so a change made while the game was closed would play the previous binary (Overburden,
 rem 2026-09-22). Build first, and refuse to launch stale code.
 rem Everything you pass to start.cmd lands after the bare "--" as a game flag.
-dotnet build Tumbleweed.Game --nologo -v q || (echo. & echo Build failed - not launching. & pause & exit /b 1)
-"%EXE%" --path Tumbleweed.Game -- %*
+dotnet build Sandrail.Game --nologo -v q || (echo. & echo Build failed - not launching. & pause & exit /b 1)
+"%EXE%" --path Sandrail.Game -- %*
 pause

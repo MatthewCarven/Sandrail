@@ -1,6 +1,8 @@
-# Tumbleweed — orientation
+# Sandrail — orientation
 
-**Tumbleweed is a codename.** A buggy stunt racer in Godot 4.7.1 + C#: a dune buggy with a high top
+**Sandrail** (named 2026-11-17; until then the codename was Tumbleweed, which the worklog's older
+entries still use). Repository: https://github.com/MatthewCarven/Sandrail. A buggy stunt racer in Godot
+4.7.1 + C#: a dune buggy with a high top
 speed on tracks of snap-together pieces (ramps, jumps, banked turns, loops) laid over noise terrain you
 can drive on. Tracks are generated from a seed and shared as a short code; later an editor opens any
 track. In the genre of the late-80s tile-track stunt racers, but our own name, pieces, car and look, not
@@ -20,7 +22,7 @@ free of Godot. Its generator's `Hash64` and `GradientNoise` are ported here unch
 
 ## Non-negotiables
 
-1. **`Tumbleweed.Core` never references Godot.** It holds what every player must agree on (the track,
+1. **`Sandrail.Core` never references Godot.** It holds what every player must agree on (the track,
    the generator, the file formats), and that absence is what lets tests and the bench run headless.
    **The car's physics is the exception, on purpose**: it lives in Game on Godot's Jolt, because one
    rigid body and four raycasts don't justify a solver of our own (PLAN, Architecture).
@@ -29,8 +31,9 @@ free of Godot. Its generator's `Hash64` and `GradientNoise` are ported here unch
    while looking right within each one. `KnownInputsHashToKnownOutputs` pins it.
 3. **Content IDs are namespaced strings, never enums, and the base game's namespace is `base:`, not the
    game's name.** Piece IDs go into every track file, and Overburden carries `minercraft:` as an alias
-   forever because a name was baked into its save format. With `base:` the codename can change by a
-   search-and-replace over the code, and no saved track ever notices.
+   forever because a name was baked into its save format. With `base:`, renaming the game is a
+   search-and-replace over the code and no saved track ever notices, which is how Tumbleweed became
+   Sandrail.
 4. **One derived seed per generator stage** (terrain, route, stunts, scenery), so turning one dial
    can't reshape what an earlier stage made.
 5. **Dials are calibrated against what the noise actually reaches, measured with the bench**, not
@@ -39,27 +42,27 @@ free of Godot. Its generator's `Hash64` and `GradientNoise` are ported here unch
 ## Commands
 
 ```bash
-dotnet test Tumbleweed.slnx
+dotnet test Sandrail.slnx
 ```
 
 ```bash
 start.cmd
 ```
 
-`start.cmd` builds `Tumbleweed.Game` first and refuses to launch a failed build, because Godot run with
+`start.cmd` builds `Sandrail.Game` first and refuses to launch a failed build, because Godot run with
 `--path` loads whatever DLL is already built. Anything you pass lands after `--` as a game flag. It uses
 the Godot copied into this folder (gitignored) and falls back to Overburden's.
 
 Benches are **Release only**:
 
 ```bash
-dotnet run --project Tumbleweed.Bench -c Release -- --noise
+dotnet run --project Sandrail.Bench -c Release -- --noise
 ```
 
 Headless check, which catches scene and script errors (`--quit-after` counts **frames**):
 
 ```bash
-Godot_v4.7.1-stable_mono_win64/Godot_v4.7.1-stable_mono_win64_console.exe --path Tumbleweed.Game --headless --quit-after 240
+Godot_v4.7.1-stable_mono_win64/Godot_v4.7.1-stable_mono_win64_console.exe --path Sandrail.Game --headless --quit-after 240
 ```
 
 The pass prints `Core linked: Hash64.Mix(0) = 0xE220A8397B1DCDAF`. After a fresh clone, import once
@@ -82,19 +85,19 @@ start), and `--screenshot=<path.png>`, which saves a frame at rest and one turni
 a window for a few seconds, and it is how Claude sees anything at all.
 
 **A tuning session** (M1b): Matthew drives with F3 (telemetry) up, presses F4 to record the bit that
-feels wrong, and says what felt wrong. Runs land in `%APPDATA%\Godot\app_userdata\Tumbleweed\runs\` as
+feels wrong, and says what felt wrong. Runs land in `%APPDATA%\Godot\app_userdata\Sandrail\runs\` as
 `<time>-<fingerprint>.csv` with the spec beside them as `.spec.json`. Read the CSV (47 columns, units
 in the headers), change numbers in a `-Spec` variant, run the oracles, and only then touch
 `buggy.json`. He can also change numbers live with F2, whose Save writes the loaded spec file.
 
 ## Layout
 
-- `Tumbleweed.Core/` — no Godot. `Generation/` holds `Hash64` and `GradientNoise`. `Cars/` holds
+- `Sandrail.Core/` — no Godot. `Generation/` holds `Hash64` and `GradientNoise`. `Cars/` holds
   `CarSpec`, `Surfaces` and `WheelModel`, the car's laws as plain functions; the track model, generator
   and formats land beside them.
-- `Tumbleweed.Core.Tests/` — xunit.
-- `Tumbleweed.Bench/` — headless measurements, one arm per flag.
-- `Tumbleweed.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
+- `Sandrail.Core.Tests/` — xunit.
+- `Sandrail.Bench/` — headless measurements, one arm per flag.
+- `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
   physics interpolation. `Cars/` is the `Buggy`, its `ChaseCamera`, `CarReadout` and the `RunRecorder`;
   `Ui/` the `Hud`, `TelemetryOverlay` and `TuningPanel`; `Oracles/` the headless drives;
   `content/base/cars/buggy.json` the shipped spec.

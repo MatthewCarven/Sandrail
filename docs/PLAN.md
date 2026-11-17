@@ -1,6 +1,7 @@
-# The plan — a stunt-track buggy racer (working title wanted)
+# The plan — Sandrail, a stunt-track buggy racer
 
-2026-10-31. **A draft; M0 built the same day under the codename Tumbleweed.** Written with Matthew in the first session; his answers are the
+2026-10-31. **A draft; M0 built the same day under the codename Tumbleweed, named Sandrail
+2026-11-17.** Written with Matthew in the first session; his answers are the
 decisions below, and the "speaking up" section is Claude's, each one his to veto.
 
 ## The game in one paragraph
@@ -51,7 +52,9 @@ remake of any one game. Cheap physics, not the Taj Mahal.
    carries `minercraft:` as an alias forever because of a rename. A neutral codename is fine if the real
    name isn't ready. Ideas, none checked for clashes: *Hang Time*, *Dustline*, *Gravel Rash*, *Airtime*.
    **Taken 2026-10-31: the codename Tumbleweed**, and content IDs use `base:` rather than any name, so a
-   later rename touches code only and never a saved track (CLAUDE.md non-negotiable 3).
+   later rename touches code only and never a saved track (CLAUDE.md non-negotiable 3). **Named
+   2026-11-17: Sandrail**, after a sandrail, the stripped-down long-travel dune buggy that is exactly
+   this game's car. The rename was that search-and-replace.
 
 ## What carries over from Overburden's generator
 
@@ -70,10 +73,10 @@ there are no chunks, no streaming and no stage barrier. A whole track generates 
 
 ## Architecture
 
-- **`Tumbleweed.Core`**, no Godot: the tile grid, the piece catalogue, the generator, the track file, track
+- **`Sandrail.Core`**, no Godot: the tile grid, the piece catalogue, the generator, the track file, track
   codes, the replay format, the speed estimate.
-- **`Tumbleweed.Core.Tests`** and **`Tumbleweed.Bench`**, as in Overburden.
-- **`Tumbleweed.Game`**, Godot: the car, the piece mesher, the terrain mesh, cameras, the HUD, the editor,
+- **`Sandrail.Core.Tests`** and **`Sandrail.Bench`**, as in Overburden.
+- **`Sandrail.Game`**, Godot: the car, the piece mesher, the terrain mesh, cameras, the HUD, the editor,
   ghosts and replays.
 
 **The car's physics lives in Game, on Godot's physics (Jolt), not in Core.** It's one rigid body and four
@@ -173,7 +176,7 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
 
 ## Decisions that are his
 
-1. ~~**The name**, or a codename, before M0.~~ **Codename Tumbleweed, 2026-10-31.** The real name is still his, whenever.
+1. ~~**The name**, or a codename, before M0.~~ **Codename Tumbleweed, 2026-10-31; named Sandrail, 2026-11-17.**
 2. **Ghosts before the editor** (M4 before M5)? Recommended, because he named ghosts as "better" and they
    make generated tracks worth replaying before there's an editor.
 3. **Where Godot lives:** share MinerCraft's `Godot_v4.7.1-stable_mono_win64\`, or copy it into this

@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Sandrail.Bench/Sandrail.Bench.csproj" />
+  <Project Path="Sandrail.Core/Sandrail.Core.csproj" />
+  <Project Path="Sandrail.Core.Tests/Sandrail.Core.Tests.csproj" />
+  <Project Path="Sandrail.Game/Sandrail.Game.csproj">
+    <BuildType Project="Debug" />
+  </Project>
+</Solution>

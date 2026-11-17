@@ -9,7 +9,7 @@
 
        Empty counts as Debug. This file is imported before the SDK defaults Configuration, so a
        project built with no configuration given (Core as the Game's reference under
-       `dotnet build Tumbleweed.Game`, which is what start.cmd runs) sees '' here, and without the
+       `dotnet build Sandrail.Game`, which is what start.cmd runs) sees '' here, and without the
        second test would be built unoptimised while the Game itself was not - Overburden's
        2026-09-28 finding. -->
   <PropertyGroup Condition="'$(Configuration)' == 'Debug' or '$(Configuration)' == ''">

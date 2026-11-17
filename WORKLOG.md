@@ -2,6 +2,23 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-17 — Sandrail
+
+Asked for a name, Matthew picked **Sandrail** from Claude's list ("Sandrail please"). A sandrail is the
+stripped-down, long-travel dune buggy that is this game's car. The repository is
+https://github.com/MatthewCarven/Sandrail, and he said to push "as and when you please".
+
+**The rename was the search-and-replace CLAUDE.md's third non-negotiable promised**: folders, project
+files, the two solutions, namespaces, `project.godot`'s name and assembly, `start.cmd`, the oracle script
+and the living docs. **No content ID changed**, because they're all `base:`, so the spec's fingerprint
+is still `f4559570` and no file the game reads needed touching. The build caches (`bin/`, `obj/`,
+`.godot/`) were deleted rather than moved, since they hold paths to the old names.
+
+**The entries below this one still say Tumbleweed**, because that's what it was called when they
+happened; read `Tumbleweed.*` there as `Sandrail.*`. One thing moves with the name: Godot's user
+folder, so recorded runs now land in `%APPDATA%\Godot\app_userdata\Sandrail\runs\`. The old
+`...\Tumbleweed\` folder holds only logs and caches from before, and nothing reads it.
+
 ## 2026-11-17 — M1b: the tuning tools
 
 Built as M1-PLAN's M1b describes, on his "M1b as planned" (he was offered the bump patch first):
