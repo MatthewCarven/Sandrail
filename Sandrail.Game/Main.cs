@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using Godot;
 using Sandrail.Core.Cars;
+using Sandrail.Core.Driving;
 using Sandrail.Core.Generation;
 using Sandrail.Core.Pieces;
 using Sandrail.Game.Cars;
@@ -80,6 +81,9 @@ public partial class Main : Node3D
     private int _ticks;
     private Shader? _groundShader;
     private TestGroundLayout? _layout;
+    private RacingLine? _lapLine;
+    private Autodriver? _autodriver;
+    private MeshInstance3D? _lineView;
 
     public override void _Ready()
     {
@@ -116,7 +120,7 @@ public partial class Main : Node3D
 
         if (oracle is not null && !Oracle.IsKnown(oracle))
         {
-            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle, jump, loop, bumps.");
+            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle, jump, loop, bumps, lap.");
             return;
         }
 
@@ -173,6 +177,11 @@ public partial class Main : Node3D
         {
             _layout = new TestGroundLayout();
             TestGround.Build(this, _layout, _groundShader);
+
+            // The corner lap's racing line, for the autodriver (P), drawn on the road by planned speed (L).
+            _lapLine = TestGround.CornerLapLine(_layout, spec);
+            _lineView = RacingLineView.Build(_lapLine, _lapLine.SpeedProfile(spec, Autodriver.DefaultCaution));
+            AddChild(_lineView);
             _spawn = SpawnAt(_layout.Stations[station - 1].Start, spec);
         }
         else
@@ -201,12 +210,20 @@ public partial class Main : Node3D
         if (oracle is not null)
         {
             _oracle = true;
-            AddChild(new Oracle { Kind = oracle, Car = _car, Layout = _layout });
+            float caution = float.TryParse(Flag(args, "--caution="), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out float c) ? c : Autodriver.DefaultCaution;
+            AddChild(new Oracle { Kind = oracle, Car = _car, Layout = _layout, Caution = caution });
         }
 
         if (args.Contains("--record"))
         {
             Recording(_recorder.Start());
+        }
+
+        // The autodriver from the start, for watching it or for a screenshot of it: station 6 makes sense.
+        if (args.Contains("--autodrive"))
+        {
+            ToggleAutodriver();
         }
 
         // A fixed camera for looking at the ground rather than the car: x,y,z:x,y,z, from and at.
@@ -261,7 +278,7 @@ public partial class Main : Node3D
         if (_screenshot is not null)
         {
             bool driving = _ticks > 2 * Engine.PhysicsTicksPerSecond;
-            _car.Driver = driving ? _screenshotDrive : default;
+            _car.Driver = !driving ? default : _autodriver is not null ? AutodriverInput(_autodriver) : _screenshotDrive;
             return;
         }
 
@@ -281,6 +298,11 @@ public partial class Main : Node3D
             Handbrake = Input.IsActionPressed(Controls.Handbrake),
             WideLock = Input.IsActionPressed(Controls.WideLock),
         };
+
+        if (_autodriver is not null)
+        {
+            _car.Driver = AutodriverInput(_autodriver);
+        }
 
         if (Input.IsActionJustPressed(Controls.Respawn))
         {
@@ -315,10 +337,72 @@ public partial class Main : Node3D
             ToggleRecording();
         }
 
+        if (Input.IsActionJustPressed(Controls.Autodrive))
+        {
+            ToggleAutodriver();
+        }
+
+        if (Input.IsActionJustPressed(Controls.ShowLine) && _lineView is not null)
+        {
+            _lineView.Visible = !_lineView.Visible;
+        }
+
         if (_screenshot is not null)
         {
             TakeScreenshots(_screenshot);
         }
+    }
+
+    /// <summary>
+    /// P: hands the car to the autodriver on the corner lap, or takes it back. It drives the line built for
+    /// the car's numbers as they are now, so a tune made on the panel is a tune it drives.
+    /// </summary>
+    private void ToggleAutodriver()
+    {
+        if (_car is null || _hud is null)
+        {
+            return;
+        }
+
+        if (_autodriver is not null)
+        {
+            _autodriver = null;
+            _hud.Banner = null;
+            _hud.Flash("You're driving.");
+            return;
+        }
+
+        if (_layout is null || _lapLine is null)
+        {
+            _hud.Flash("The autodriver needs the test ground's corner lap.");
+            return;
+        }
+
+        int nearest = _lapLine.Nearest(_car.GlobalPosition.ToCore());
+        if (_lapLine.PositionAt(nearest).ToGodot().DistanceTo(_car.GlobalPosition) > 15.0f)
+        {
+            _hud.Flash("The autodriver drives the corner lap: press 6 to go there first.");
+            return;
+        }
+
+        _lapLine = TestGround.CornerLapLine(_layout, _car.Spec);
+        _autodriver = new Autodriver(_lapLine, _car.Spec);
+        _hud.Banner = "AUTODRIVER   (P to take over)";
+        _hud.Flash("The autodriver has the car, on the corner lap's racing line.");
+    }
+
+    /// <summary>What the autodriver asks for, from where the car is and how it's moving.</summary>
+    private DriverInput AutodriverInput(Autodriver driver)
+    {
+        Basis basis = _car!.GlobalBasis;
+        Vector3 up = basis.Y.Normalized();
+        DriveCommand cmd = driver.Drive(
+            _car.GlobalPosition.ToCore(),
+            (-basis.Z).Normalized().ToCore(),
+            up.ToCore(),
+            _car.LinearVelocity.ToCore(),
+            -_car.AngularVelocity.Dot(up));
+        return new DriverInput { Throttle = cmd.Throttle, Brake = cmd.Brake, Steer = cmd.Steer };
     }
 
     private void ToggleRecording()

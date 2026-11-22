@@ -1,5 +1,7 @@
+using System.Linq;
 using Godot;
 using Sandrail.Core.Cars;
+using Sandrail.Core.Driving;
 using Sandrail.Core.Pieces;
 using Num = System.Numerics;
 
@@ -68,6 +70,20 @@ public static class TestGround
 
     /// <summary>A Core vector as Godot's.</summary>
     public static Vector3 ToGodot(this Num.Vector3 v) => new(v.X, v.Y, v.Z);
+
+    /// <summary>A Godot vector as Core's.</summary>
+    public static Num.Vector3 ToCore(this Vector3 v) => new(v.X, v.Y, v.Z);
+
+    /// <summary>
+    /// The corner lap's racing line for a car: the line that turns least while keeping its tyres on the
+    /// flat of the road, half its track and half a tyre in from each edge (his ask, 2026-11-23).
+    /// </summary>
+    public static RacingLine CornerLapLine(TestGroundLayout layout, CarSpec spec)
+    {
+        RoadRun lap = layout.Runs.Single(r => r.Name == "corners");
+        return new RacingLine(lap.Pieces, closed: true)
+            .MinimumCurvature(lap.Profile.SurfaceWidth / 2.0f, (spec.TrackM / 2.0f) + 0.15f, 0.5f);
+    }
 
     private static StaticBody3D Body(string name, Mesh mesh, Shape3D shape, Material material, Surface surface)
     {

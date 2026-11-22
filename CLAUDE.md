@@ -76,14 +76,17 @@ pwsh tools/oracles.ps1
 ```
 
 `-Oracles drop` runs one; `-Spec variant.json` drives a variant file instead of the shipped buggy, which
-is how to try numbers without touching what plays. There are seven: `straight`, `drop`, `brake` and
-`circle` on the bare plain with road grip (their M1a figures are in the 2026-10-31 worklog entry), and
-`jump`, `loop` and `bumps` on the test ground (figures in the M1c entry).
+is how to try numbers without touching what plays. There are eight: `straight`, `drop`, `brake` and
+`circle` on the bare plain with road grip (their M1a figures are in the 2026-10-31 worklog entry),
+`jump`, `loop` and `bumps` on the test ground (figures in the M1c entry), and `lap`, the autodriver
+lapping station 6 (figures in the 2026-11-23 autodriver entry). **`lap` is how a tune is compared**: run
+it on two specs and read the flying lap, the corner speeds and where it left the road.
 
 Game flags, after `--` (or passed to `start.cmd`): `--ground=test|bare`, `--station=1..6`,
 `--surface=road|dirt|grass|sand` (sand by default on the test ground), `--spec=<path>`,
-`--oracle=<name>`, `--panels=tuning,telemetry` (opens either at start), `--record` (starts a run at
-start), and `--screenshot=<path.png>`, which saves a frame at rest and one driving, then quits; with it,
+`--oracle=<name>` (with `--caution=` for `lap`), `--panels=tuning,telemetry` (opens either at start),
+`--record` (starts a run at start), `--autodrive` (the autodriver from the start; with `--station=6`),
+and `--screenshot=<path.png>`, which saves a frame at rest and one driving, then quits; with it,
 `--drive=throttle,steer` sets how it drives and `--camera=x,y,z:x,y,z` looks at the ground from a fixed
 point instead of following the car. It opens a window for a few seconds, and it is how Claude sees
 anything at all. `--padcheck` is a sensor run on a gamepad instead of a drive: it waits for a touch,
@@ -103,7 +106,10 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 - `Sandrail.Core/` — no Godot. `Generation/` holds `Hash64`, `GradientNoise` and the `BumpField`.
   `Cars/` holds `CarSpec`, `Surfaces` and `WheelModel`, the car's laws as plain functions. `Pieces/` is
   the road: `Frame`, the centrelines (line, pitch, banked turn, loop), `Chain`, `Profile`, the `Sweep`
-  mesher and the `TestGroundLayout`. The track grid, generator and formats land beside them.
+  mesher and the `TestGroundLayout`. `Driving/` is the autodriver: `RacingLine` (samples, curvature,
+  bank, speed plan, and `MinimumCurvature`, the racing line inside the wheels' room) and `Autodriver`
+  (a front-axle Stanley tracker with yaw damping and slip guards). `Pads/` is `PadProfile`. The track
+  grid, generator and formats land beside them.
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
@@ -115,11 +121,14 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 
 ## Where things stand
 
-**2026-11-23: M1a, M1b and M1c are built, plus wide lock, his pad's layout and a lap of corners; M1d is
-next.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop jump, a slope and
-plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels straight, a dirt bump
-patch, and a 526 m lap of six different corners (flat to 35° bank, 18 to 60 m radius, one left-hander),
-which is also the shortlist for M2's corner tiles. Seven oracles (committed spec `a2e24a2b`): the loop
+**2026-11-23: M1a, M1b and M1c are built, plus wide lock, his pad's layout, a lap of corners and the
+autodriver; M1d is next.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
+jump, a slope and plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels
+straight, a dirt bump patch, and a 526 m lap of six different corners (flat to 35° bank, 18 to 60 m
+radius, one left-hander), which is also the shortlist for M2's corner tiles. **The autodriver** (his
+idea) laps it on a minimum-curvature racing line drawn on the road (P to hand over, L for the line):
+the shipped car does 24.5 s clean, and his tune 24.0 s but about 2 m wide into corner 1 under braking.
+Eight oracles (committed spec `a2e24a2b`): the loop
 goes through 0.1 m off centre, but **the suspension bottoms out on the jump's landing and through the
 loop** (worklog, M1c). **Steering is his to open**: Shift doubles the lock (`wideLockFactor`), with
 Ackermann steering (`ackermannShare`) to make 60° work. **He drives with his mum's clone pad**, with a

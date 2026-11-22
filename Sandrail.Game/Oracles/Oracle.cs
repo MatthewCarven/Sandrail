@@ -116,6 +116,9 @@ public partial class Oracle : Node
             case Bumps:
                 RunBumps();
                 break;
+            case Lap:
+                RunLap();
+                break;
         }
     }
 

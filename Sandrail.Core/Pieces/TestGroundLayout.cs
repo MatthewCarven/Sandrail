@@ -123,6 +123,9 @@ public sealed class TestGroundLayout
     /// <summary>Where the corner lap starts and ends: the station's frame.</summary>
     public Frame CornerLapStart { get; }
 
+    /// <summary>The share of each banked corner the bank takes to come in, and again to go out.</summary>
+    public const float BankEase = 0.5f;
+
     /// <summary>
     /// Builds the lap with its middle near <paramref name="centre"/>. Straights add their length times a
     /// fixed direction to where the lap ends, so the end is linear in the two unknown lengths: three trial
@@ -168,7 +171,10 @@ public sealed class TestGroundLayout
         {
             float straight = i == 0 ? firstStraight : i == 2 ? thirdStraight : Straights[i];
             (float angle, float radius, float bank) = Corners[i];
-            chain.Line(straight).Turn(angle, radius, bank, bank > 0.0f ? 5.0f : 0.0f);
+            // Banks ease in and out over half the corner each way, not the usual quarter: the bank pivots
+            // on its inside edge, so its outside stands high, and easing a 35° bank flat in 12 m dropped a
+            // wide exit 4.8 m over a crest that launched the autodriver at 68 km/h (2026-11-23).
+            chain.Line(straight).Turn(angle, radius, bank, bank > 0.0f ? 5.0f : 0.0f, BankEase);
         }
 
         return chain;

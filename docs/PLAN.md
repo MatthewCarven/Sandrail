@@ -182,7 +182,9 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
   so a ghost or a leaderboard entry can name the exact car. Open questions for when it's planned:
   limits or trade-offs so freedom doesn't mean exploits (grip at maximum, mass at minimum); leaderboards
   by power class; what levelling is earned by.
-- **An autodriver** (same day: *"how do you feel about an autodriver?"*). It follows a centreline,
+- **An autodriver** (same day: *"how do you feel about an autodriver?"*). **Built 2026-11-23** on the
+  corner lap, on a minimum-curvature racing line that keeps the wheels on the road (his addition), with
+  a lap oracle; worklog, that date. Still to come: opponents, track checking, the demo. It follows a centreline,
   steering at a point ahead and planning speed from each corner's radius and bank, through the same
   `DriverInput` a player uses. Its first job would be **lap times for tuning** (an oracle that laps
   station 6, so a setup can be compared by numbers); then AI opponents, whose caution setting is their

@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Godot;
+using Sandrail.Core.Driving;
 using Sandrail.Core.Pieces;
 using Sandrail.Game.Cars;
 using Sandrail.Game.World;
@@ -25,6 +28,7 @@ public partial class Oracle
     public const string Jump = "jump";
     public const string Loop = "loop";
     public const string Bumps = "bumps";
+    public const string Lap = "lap";
 
     private const float JumpSpeed = 24.0f;
     private const float LoopSpeed = 27.0f;
@@ -59,15 +63,151 @@ public partial class Oracle
     /// <summary>The test ground the ground oracles drive; null for the four on the bare plain.</summary>
     public TestGroundLayout? Layout { get; init; }
 
-    public static bool NeedsTestGround(string kind) => kind is Jump or Loop or Bumps;
+    /// <summary>The share of grip the lap oracle's autodriver plans for (<c>--caution=</c>).</summary>
+    public float Caution { get; init; } = Autodriver.DefaultCaution;
+
+    private string? _firstSpin;
+
+    public static bool NeedsTestGround(string kind) => kind is Jump or Loop or Bumps or Lap;
 
     /// <summary>The station a ground oracle starts from.</summary>
     public static int StationFor(string kind) => kind switch
     {
         Loop => 4,
         Bumps => 5,
+        Lap => 6,
         _ => 1,
     };
+
+    // lap
+    private RacingLine? _lapLine;
+    private Autodriver? _autodriver;
+    private float[] _planned = [];
+    private int _lastIndex = -1;
+    private float _lapFrom;
+    private readonly List<float> _lapTimes = new();
+    private readonly float[] _cornerSlowest = new float[TestGroundLayout.Corners.Length];
+    private readonly float[] _cornerPlanned = new float[TestGroundLayout.Corners.Length];
+    private int _offRoadTicks;
+    private float _worstFromLine;
+    private float _worstSlip;
+    private int _spins;
+    private bool _spinning;
+
+    /// <summary>
+    /// The autodriver laps the corner lap twice from station 6: a standing lap, then a flying one, which is
+    /// the one measured. The figures are what a tune buys: lap time, and where it's won or lost.
+    /// </summary>
+    private void RunLap()
+    {
+        TestGroundLayout layout = Layout!;
+        if (_autodriver is null)
+        {
+            RoadRun lap = layout.Runs.Single(r => r.Name == "corners");
+            _lapLine = TestGround.CornerLapLine(layout, Car.Spec);
+            _autodriver = new Autodriver(_lapLine, Car.Spec, Caution);
+            _planned = Enumerable.Range(0, _lapLine.Count).Select(_autodriver.SpeedAt).ToArray();
+            Array.Fill(_cornerSlowest, float.MaxValue);
+            Array.Fill(_cornerPlanned, float.MaxValue);
+            for (int i = 0; i < _lapLine.Count; i++)
+            {
+                if (_lapLine.PieceAt(i) % 2 == 1)
+                {
+                    int corner = _lapLine.PieceAt(i) / 2;
+                    _cornerPlanned[corner] = MathF.Min(_cornerPlanned[corner], _planned[i]);
+                }
+            }
+
+            _roadHalf = lap.Profile.SurfaceWidth / 2.0f;
+        }
+
+        RacingLine line = _lapLine!;
+        Basis basis = Car.GlobalBasis;
+        Vector3 forward = (-basis.Z).Normalized();
+        Vector3 up = basis.Y.Normalized();
+        DriveCommand cmd = _autodriver.Drive(
+            Car.GlobalPosition.ToCore(), forward.ToCore(), up.ToCore(), Car.LinearVelocity.ToCore(), -Car.AngularVelocity.Dot(up));
+        Car.Driver = new DriverInput { Throttle = cmd.Throttle, Brake = cmd.Brake, Steer = cmd.Steer };
+
+        int index = _autodriver.Index;
+        if (_lastIndex > line.Count * 3 / 4 && index < line.Count / 4)
+        {
+            _lapTimes.Add(Time - _lapFrom);
+            _lapFrom = Time;
+        }
+
+        _lastIndex = index;
+
+        // Below 5 m/s a slide angle means nothing: pulling away with the wheels turned reads as 30° at walking pace.
+        bool moving = Car.LinearVelocity.Length() > 5.0f;
+        float slide = moving ? MathF.Abs(CarReadout.Of(Car).BodySlipDeg) : 0.0f;
+        if (_firstSpin is null && slide > 30.0f)
+        {
+            int at = line.PieceAt(index);
+            _firstSpin = $"first spin on lap {_lapTimes.Count + 1}, {(at % 2 == 1 ? $"in corner {(at / 2) + 1}" : $"on the straight before corner {((at / 2) % TestGroundLayout.Corners.Length) + 1}")}, "
+                + $"at {Car.LinearVelocity.Length() * 3.6f:F0} km/h with throttle {Car.Throttle:F2} and brake {Car.Brake:F2}";
+        }
+
+        // Measured on the flying lap only.
+        if (_lapTimes.Count == 1)
+        {
+            float speed = Car.LinearVelocity.Length();
+            int piece = line.PieceAt(index);
+            if (piece % 2 == 1)
+            {
+                _cornerSlowest[piece / 2] = MathF.Min(_cornerSlowest[piece / 2], speed);
+            }
+
+            float carHalf = (Car.Spec.TrackM / 2.0f) + 0.15f;
+            if (MathF.Abs(line.OffsetFromMiddle(index, Car.GlobalPosition.ToCore())) > _roadHalf - carHalf)
+            {
+                _offRoadTicks++;
+                _offRoadByPiece[piece]++;
+            }
+
+            if (MathF.Abs(_autodriver.Lateral) > _worstFromLine)
+            {
+                _worstFromLine = MathF.Abs(_autodriver.Lateral);
+                _worstFromLinePiece = piece;
+            }
+
+            _worstSlip = MathF.Max(_worstSlip, slide);
+            bool spinning = slide > 30.0f;
+            if (spinning && !_spinning)
+            {
+                _spins++;
+            }
+
+            _spinning = spinning;
+        }
+
+        if (_lapTimes.Count >= 2)
+        {
+            string corners = string.Join(", ", Enumerable.Range(0, _cornerSlowest.Length)
+                .Select(c => $"{c + 1}: {_cornerSlowest[c] * 3.6f:F0}/{_cornerPlanned[c] * 3.6f:F0}"));
+            float tps = Engine.PhysicsTicksPerSecond;
+            string offWhere = string.Join(", ", Enumerable.Range(0, _offRoadByPiece.Length)
+                .Where(p => _offRoadByPiece[p] > 0)
+                .Select(p => $"{PieceName(p)} {_offRoadByPiece[p] / tps:F2} s"));
+            Finish(
+                $"caution {Caution:F2}: standing lap {_lapTimes[0]:F2} s, flying lap {_lapTimes[1]:F2} s | slowest in each corner, km/h driven/planned: {corners} | "
+                + $"wheels off the road {_offRoadTicks / tps:F2} s{(offWhere.Length > 0 ? $" ({offWhere})" : string.Empty)}, "
+                + $"widest off the line {_worstFromLine:F2} m ({PieceName(_worstFromLinePiece)}), "
+                + $"worst slide {_worstSlip:F0}°, spins {_spins}{(_firstSpin is null ? string.Empty : $" | {_firstSpin}")}");
+        }
+        else if (Time > 150.0f)
+        {
+            Finish($"didn't finish two laps in 150 s: {_lapTimes.Count} done, stuck {line.DistanceAt(index):F0} m round, {Car.LinearVelocity.Length() * 3.6f:F0} km/h");
+        }
+    }
+
+    private float _roadHalf;
+    private readonly int[] _offRoadByPiece = new int[2 * TestGroundLayout.Corners.Length];
+    private int _worstFromLinePiece;
+
+    /// <summary>A lap piece in words: odd pieces are corners, even ones the straights before them.</summary>
+    private static string PieceName(int piece) =>
+        piece % 2 == 1 ? $"corner {(piece / 2) + 1}" : $"into corner {(piece / 2) + 1}";
 
     private float BumpStopStart => Car.Spec.SuspensionTravelM * (1.0f - Car.Spec.BumpStopFraction);
 

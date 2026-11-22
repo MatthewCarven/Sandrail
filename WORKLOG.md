@@ -2,6 +2,63 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — the autodriver, on a minimum-curvature racing line
+
+His ask was an autodriver (PLAN, "His ideas"), and mid-build he added: *"draw a line around the track
+that minimizes the cornering and aim for this position taking into account the wheel positions"*.
+
+**Built, in Core (`Driving/`):**
+- `RacingLine`: a road sampled every metre, with curvature, bank and a speed plan (the banked-curve
+  formula at a share of grip, the caution, then a backward braking pass).
+- `RacingLine.MinimumCurvature`: each point moves only across the road, to where the sum of squared
+  second differences is least, `(4(p₋₁+p₊₁) − (p₋₂+p₊₂)) / 6`, clamped to the room left once **the wheels
+  are kept on**: half the flat road, less half the track and half a tyre, less a margin (0.5 m). It's
+  coarse to fine: every 16th point, then 8, 4, 2 and 1. One level at one metre took 40,000 sweeps and
+  still used only 3 of the 3.6 m of room; coarse to fine uses all of it in 29 ms. On the corner lap it
+  cuts total squared curvature by 21%, and every corner's slowest point rises (55→61, 86→100, 48→55,
+  60→69, 63→73, 71→87 km/h at caution 0.85).
+- `Autodriver`: a Stanley tracker at the front axle with a curvature feed-forward, a yaw damper, a speed
+  plan held with throttle and brake, and slip guards that ease throttle and brakes as the tail steps
+  out. It drives through the same `DriverInput` a player does.
+
+**What the building found, in order:**
+1. **Pure pursuit cut inside every bend**, and on a line already at the inside edge that put the inside
+   tyres on the sand: the kinematic lap test strayed 4.55 m from the middle, against 3.85 m allowed.
+   Hence the front-axle tracker.
+2. **Reading the line a little ahead of the axle left a steady offset**: on a 30 m circle the car sat a
+   metre inside at 15 m/s. Reading it at the axle, turning the direction by the bend over the
+   half-sample gap, and comparing the body with the line at its middle (where a body on a bend is square
+   to it) brought it to 1-3 cm. `ItHoldsACircleToAFewCentimetres` pins it.
+3. **The 35° bank launched the car.** It pivots on its inside edge, so its outside stands 5-6 m up, and it
+   eased flat over the last quarter of the corner, 12 m: a wide exit dropped 4.8 m over a crest, and at
+   68 km/h all four wheels left the road for 0.3 s and it landed in a spin. **The corner lap's banks now
+   ease over half the corner each way** (`TestGroundLayout.BankEase`). A player taking a wide exit would
+   have flown too.
+4. **Caution matters most**: at 0.85 of grip the shipped car spun five times a lap. This car's real
+   limit sits below the textbook's, because throttle takes rear grip. Swept: 0.80 is clean and fastest.
+5. **A yaw damper** (steer against turning faster or slower than the line asks) calmed a weave at speed
+   and a turn-in under braking, both seen in a recorded run of his tuned car.
+
+**The lap oracle** (`--oracle=lap`, `--caution=`): a standing lap from station 6, then a flying one.
+
+```
+shipped a2e24a2b  caution 0.80  flying 24.52 s  standing 26.90  off-road 0.00 s  widest off line 1.43 m  slide 16°  spins 0
+  corners driven/planned km/h: 58/59, 82/96, 52/52, 64/65, 68/67, 81/84
+his tune 128eb3c6 caution 0.80  flying 24.03 s  standing 26.67  off-road 1.53 s (1.23 into corner 1, 0.31 into 3)
+                                widest 2.11 m  slide 16°  spins 0
+```
+
+**So his tune is half a second a lap quicker, but runs about 2 m wide under braking into corner 1**,
+where the shipped car doesn't, with the same driver. His tune has the front anti-roll bar at 0 and much
+more power. That's the comparison the autodriver was built to make. Corner 2 is driven well under plan
+(82 against 96) on both: the fast kink comes after a short straight, and the car can't reach its plan's
+speed in time.
+
+**In the game:** the racing line is drawn on the corner lap, coloured by planned speed (red slow,
+green fast), and L hides it. P hands the car to the autodriver when it's within 15 m of the lap, and
+gives it back; `--autodrive` starts with it. The oracles on the committed spec: the M1a four, jump, loop
+and bumps read exactly as before. 99 tests.
+
 ## 2026-11-23 — station 6, a lap of corners; and the panel's mouse wheel
 
 His ask: *"for me to really feel this out any further like i'll need corners and stuff of varying

@@ -44,6 +44,8 @@ public static class Controls
     public const string Tuning = "tuning";
     public const string Telemetry = "telemetry";
     public const string Record = "record";
+    public const string Autodrive = "autodrive";
+    public const string ShowLine = "show_line";
 
     public static void Register()
     {
@@ -62,6 +64,8 @@ public static class Controls
         Add(Tuning, Key.F2);
         Add(Telemetry, Key.F3);
         Add(Record, Key.F4);
+        Add(Autodrive, Key.P);
+        Add(ShowLine, Key.L);
 
         Key[] numbers = [Key.Key1, Key.Key2, Key.Key3, Key.Key4, Key.Key5, Key.Key6];
         for (int i = 0; i < numbers.Length; i++)

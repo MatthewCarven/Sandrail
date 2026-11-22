@@ -11,12 +11,16 @@ public partial class Hud : CanvasLayer
 {
     private Label _speed = null!;
     private Label _recording = null!;
+    private Label _banner = null!;
     private Label _message = null!;
     private double _messageLeft;
 
     public required Buggy Car { get; init; }
 
     public RunRecorder? Recorder { get; set; }
+
+    /// <summary>A standing line under the recording light, such as the autodriver's; null hides it.</summary>
+    public string? Banner { get; set; }
 
     public override void _Ready()
     {
@@ -32,14 +36,22 @@ public partial class Hud : CanvasLayer
         Pin(_recording, 0.5f, 0.0f, new Vector2(-60.0f, 20.0f));
         AddChild(_recording);
 
+        _banner = new Label
+        {
+            LabelSettings = new LabelSettings { FontSize = 22, FontColor = new Color(0.45f, 0.85f, 1.0f), OutlineSize = 6, OutlineColor = Colors.Black },
+            Visible = false,
+        };
+        Pin(_banner, 0.5f, 0.0f, new Vector2(-110.0f, 56.0f));
+        AddChild(_banner);
+
         _message = new Label { LabelSettings = Settings(18), Visible = false };
-        Pin(_message, 0.0f, 1.0f, new Vector2(24.0f, -52.0f), growUp: true);
+        Pin(_message, 0.0f, 1.0f, new Vector2(24.0f, -74.0f), growUp: true);
         AddChild(_message);
 
         var keys = new Label
         {
-            Text = "W/S: throttle, brake, reverse  ·  A/D: steer (Shift: wide lock)  ·  R: respawn  ·  1-6: stations  ·  C: camera  ·  "
-                + "F2: tuning  ·  F3: telemetry  ·  F4: record",
+            Text = "W/S: throttle, brake, reverse  ·  A/D: steer (Shift: wide lock)  ·  R: respawn  ·  1-6: stations  ·  C: camera\n"
+                + "P: autodriver  ·  L: racing line  ·  F2: tuning  ·  F3: telemetry  ·  F4: record",
             LabelSettings = Settings(16),
         };
         Pin(keys, 0.0f, 1.0f, new Vector2(24.0f, -16.0f), growUp: true);
@@ -65,6 +77,9 @@ public partial class Hud : CanvasLayer
         {
             _recording.Text = $"REC {Recorder!.Seconds:F1} s";
         }
+
+        _banner.Visible = Banner is not null;
+        _banner.Text = Banner ?? string.Empty;
 
         if (_messageLeft > 0.0)
         {
