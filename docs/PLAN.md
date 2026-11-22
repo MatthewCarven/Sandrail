@@ -174,6 +174,21 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
 - **Later:** multiplayer on the snapshot stream, AI opponents following the centreline, more cars, a daily
   seed.
 
+## His ideas, not yet scheduled
+
+- **Tuning as part of the game** (2026-11-23, while tuning the car on the F2 panel himself): *"you have
+  complete freedom over everything except the engine power and wattage settings like and increase those
+  as you level"*. Most of it exists: the panel is the garage, `CarSpec` is in Core with a fingerprint,
+  so a ghost or a leaderboard entry can name the exact car. Open questions for when it's planned:
+  limits or trade-offs so freedom doesn't mean exploits (grip at maximum, mass at minimum); leaderboards
+  by power class; what levelling is earned by.
+- **An autodriver** (same day: *"how do you feel about an autodriver?"*). It follows a centreline,
+  steering at a point ahead and planning speed from each corner's radius and bank, through the same
+  `DriverInput` a player uses. Its first job would be **lap times for tuning** (an oracle that laps
+  station 6, so a setup can be compared by numbers); then AI opponents, whose caution setting is their
+  difficulty; then **proof that a generated track can be finished** (PLAN suggestion 4); and a title-screen
+  demo.
+
 ## Decisions that are his
 
 1. ~~**The name**, or a codename, before M0.~~ **Codename Tumbleweed, 2026-10-31; named Sandrail, 2026-11-17.**
