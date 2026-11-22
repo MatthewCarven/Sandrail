@@ -2,6 +2,32 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-22 — the pad check, on his pad
+
+He fetched a PlayStation-style pad to catch oversteer with, and asked for *"a sensor run on my
+gamepad/dual joystick"*. Built `--padcheck` (`Diagnostics/PadCheck.cs`): it lists every pad Godot sees,
+waits for a first touch, records each axis's range and each button's presses for 30 s, takes the
+sticks' drift over 3 s hands-off, checks the game's own controls, and writes `user://padcheck.txt`.
+
+**What it found:**
+- **The pad is a generic clone**: "Microntek USB Joystick", vendor 0x0079 (DragonRise), product 0x0006,
+  GUID `0300be79790000000600000000000000`. Not a real DualShock.
+- **The left stick works**: −1 to 1 both ways, 0.008 of drift at rest. The 0.15 dead zone is ten
+  times what it needs.
+- **The right stick and both triggers never moved as axes**, while the four face buttons took 10-12
+  presses each against 1-2 for everything else. That's the signature of these pads in *digital*
+  mode, where the right stick presses the face buttons. Rolling it round "all the way, slowly"
+  would press them over and over. Their ANALOG button should switch it.
+- **L2 and R2 look like plain buttons on this pad**, not pressure triggers, so analogue throttle has to
+  come from the right stick's up and down, if anywhere.
+- **The game's controls read "OK" for wide lock, handbrake, respawn and camera, but that only means
+  *something* produced those button numbers.** Godot has no layout for this pad, so its button
+  numbers are the pad's raw ones, and the PlayStation names in the report are guesses. Throttle and
+  brake read NEVER.
+
+**Next, his choice:** press ANALOG and run it again; then, if it's still confused, a guided version that
+asks for each control in turn and writes a layout Godot can load for this pad.
+
 ## 2026-11-22 — wide lock on Shift, and Ackermann steering
 
 His ask, verbatim, after driving the test ground: *"Ok can we try shift doubles the lock to lock of the

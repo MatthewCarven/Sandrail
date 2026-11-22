@@ -92,6 +92,15 @@ public partial class Main : Node3D
         GD.Print($"Core linked: Hash64.Mix(0) = 0x{Hash64.Mix(0UL):X16} (expected 0xE220A8397B1DCDAF)");
 
         string[] args = OS.GetCmdlineUserArgs();
+
+        // A sensor run on a gamepad instead of a drive (Diagnostics/PadCheck.cs).
+        if (args.Contains("--padcheck"))
+        {
+            Controls.Register();
+            AddChild(new Diagnostics.PadCheck());
+            return;
+        }
+
         string? oracle = Flag(args, "--oracle=");
         string specPath = Flag(args, "--spec=") ?? BuggyPath;
         string[] panels = (Flag(args, "--panels=") ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries);
