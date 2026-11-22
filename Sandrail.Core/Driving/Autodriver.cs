@@ -30,6 +30,11 @@ public readonly record struct DriveCommand(float Throttle, float Brake, float St
 /// starts braking before the car arrives, held with throttle and brake. <b>The slip guard</b> eases the
 /// throttle off as the tail steps out, which is the one thing a driver of this car has to learn.
 /// </para>
+/// <para>
+/// <b>Its aggression is <see cref="Caution"/></b>, the share of grip the speed plan uses, and it can be
+/// turned while it drives. Steering doesn't change with it: a bolder driver here is one that carries more
+/// speed into the same line.
+/// </para>
 /// </remarks>
 public sealed class Autodriver
 {
@@ -44,12 +49,18 @@ public sealed class Autodriver
 
     private readonly RacingLine _line;
     private readonly CarSpec _spec;
-    private readonly float[] _speeds;
+    private float[] _speeds = [];
+    private float _caution;
     private int _index = -1;
     private int _frontIndex = -1;
 
     /// <summary>The share of grip it plans for unless told otherwise.</summary>
     public const float DefaultCaution = 0.8f;
+
+    /// <summary>The range its caution is held to, and the step the game's keys move it by.</summary>
+    public const float MinCaution = 0.5f;
+    public const float MaxCaution = 1.0f;
+    public const float CautionStep = 0.05f;
 
     /// <param name="caution">The share of the car's grip it plans corners for: lower is slower and safer.</param>
     public Autodriver(RacingLine line, CarSpec spec, float caution = DefaultCaution)
@@ -57,10 +68,22 @@ public sealed class Autodriver
         _line = line;
         _spec = spec;
         Caution = caution;
-        _speeds = line.SpeedProfile(spec, caution);
     }
 
-    public float Caution { get; }
+    /// <summary>
+    /// The share of the car's grip it plans corners and braking for, held to <see cref="MinCaution"/> to
+    /// <see cref="MaxCaution"/>: what the game calls its aggression (his ask, 2026-11-23). Setting it replans
+    /// the whole lap's speeds at once, so it can be turned while it drives; the line itself doesn't move.
+    /// </summary>
+    public float Caution
+    {
+        get => _caution;
+        set
+        {
+            _caution = Math.Clamp(value, MinCaution, MaxCaution);
+            _speeds = _line.SpeedProfile(_spec, _caution);
+        }
+    }
 
     /// <summary>The sample the car's middle was nearest last time it drove.</summary>
     public int Index => _index;

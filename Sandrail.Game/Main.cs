@@ -35,6 +35,11 @@ namespace Sandrail.Game;
 /// instead of following the car.
 /// </para>
 /// <para>
+/// <c>--autodrive</c> hands the car to the autodriver at start (with <c>--station=6</c>), and
+/// <c>--caution=</c> sets its aggression, the share of grip it plans for (0.5 to 1; 0.8 by default), for
+/// the game and the lap oracle alike. In the game - and + change it while it drives.
+/// </para>
+/// <para>
 /// The plain is drawn with a 10 m grid and a 100 m one, because a plain of one colour gives the eye
 /// nothing to judge speed by, and speed is half of feel.
 /// </para>
@@ -83,6 +88,7 @@ public partial class Main : Node3D
     private TestGroundLayout? _layout;
     private RacingLine? _lapLine;
     private Autodriver? _autodriver;
+    private float _caution = Autodriver.DefaultCaution;
     private MeshInstance3D? _lineView;
 
     public override void _Ready()
@@ -157,6 +163,12 @@ public partial class Main : Node3D
             };
         }
 
+        if (float.TryParse(Flag(args, "--caution="), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out float caution))
+        {
+            _caution = Math.Clamp(caution, Autodriver.MinCaution, Autodriver.MaxCaution);
+        }
+
         CarSpec spec;
         try
         {
@@ -180,8 +192,7 @@ public partial class Main : Node3D
 
             // The corner lap's racing line, for the autodriver (P), drawn on the road by planned speed (L).
             _lapLine = TestGround.CornerLapLine(_layout, spec);
-            _lineView = RacingLineView.Build(_lapLine, _lapLine.SpeedProfile(spec, Autodriver.DefaultCaution));
-            AddChild(_lineView);
+            DrawLine(spec);
             _spawn = SpawnAt(_layout.Stations[station - 1].Start, spec);
         }
         else
@@ -210,9 +221,7 @@ public partial class Main : Node3D
         if (oracle is not null)
         {
             _oracle = true;
-            float caution = float.TryParse(Flag(args, "--caution="), System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out float c) ? c : Autodriver.DefaultCaution;
-            AddChild(new Oracle { Kind = oracle, Car = _car, Layout = _layout, Caution = caution });
+            AddChild(new Oracle { Kind = oracle, Car = _car, Layout = _layout, Caution = _caution });
         }
 
         if (args.Contains("--record"))
@@ -342,6 +351,16 @@ public partial class Main : Node3D
             ToggleAutodriver();
         }
 
+        if (Input.IsActionJustPressed(Controls.Bolder))
+        {
+            ChangeAggression(1);
+        }
+
+        if (Input.IsActionJustPressed(Controls.Calmer))
+        {
+            ChangeAggression(-1);
+        }
+
         if (Input.IsActionJustPressed(Controls.ShowLine) && _lineView is not null)
         {
             _lineView.Visible = !_lineView.Visible;
@@ -386,9 +405,56 @@ public partial class Main : Node3D
         }
 
         _lapLine = TestGround.CornerLapLine(_layout, _car.Spec);
-        _autodriver = new Autodriver(_lapLine, _car.Spec);
-        _hud.Banner = "AUTODRIVER   (P to take over)";
-        _hud.Flash("The autodriver has the car, on the corner lap's racing line.");
+        _autodriver = new Autodriver(_lapLine, _car.Spec, _caution);
+        DrawLine(_car.Spec);
+        _hud.Banner = AutodriverBanner();
+        _hud.Flash("The autodriver has the car, on the corner lap's racing line. - and + change its aggression.");
+    }
+
+    private string AutodriverBanner() => $"AUTODRIVER   aggression {_caution * 100.0f:F0}%   (-/+ to change, P to take over)";
+
+    /// <summary>
+    /// - and +: the autodriver's aggression, the share of the tyres' grip it plans corners and braking for,
+    /// a step at a time. It holds between handovers, and the drawn line recolours to the new plan, so it can
+    /// be set before pressing P as well as while it drives.
+    /// </summary>
+    private void ChangeAggression(int steps)
+    {
+        if (_car is null || _hud is null || _lapLine is null)
+        {
+            return;
+        }
+
+        // Rounded to the step, so a dozen presses each way land back on 80% exactly.
+        float wanted = MathF.Round((_caution + (steps * Autodriver.CautionStep)) / Autodriver.CautionStep) * Autodriver.CautionStep;
+        _caution = Math.Clamp(wanted, Autodriver.MinCaution, Autodriver.MaxCaution);
+        if (_autodriver is not null)
+        {
+            _autodriver.Caution = _caution;
+            _hud.Banner = AutodriverBanner();
+        }
+
+        DrawLine(_car.Spec);
+        string edge = _caution >= Autodriver.MaxCaution ? " (the most)" : _caution <= Autodriver.MinCaution ? " (the least)" : string.Empty;
+        _hud.Flash($"Autodriver aggression {_caution * 100.0f:F0}%{edge}: it plans corners for that share of the tyres' grip.", 3.0);
+    }
+
+    /// <summary>
+    /// Draws the lap's racing line with the plan at the current aggression, coloured on the scale of the
+    /// default plan, replacing what was drawn and keeping whether it was shown.
+    /// </summary>
+    private void DrawLine(CarSpec spec)
+    {
+        if (_lapLine is null)
+        {
+            return;
+        }
+
+        bool visible = _lineView?.Visible ?? true;
+        _lineView?.QueueFree();
+        _lineView = RacingLineView.Build(_lapLine, _lapLine.SpeedProfile(spec, _caution), _lapLine.SpeedProfile(spec, Autodriver.DefaultCaution));
+        _lineView.Visible = visible;
+        AddChild(_lineView);
     }
 
     /// <summary>What the autodriver asks for, from where the car is and how it's moving.</summary>

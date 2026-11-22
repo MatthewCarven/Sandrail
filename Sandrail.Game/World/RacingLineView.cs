@@ -10,20 +10,29 @@ namespace Sandrail.Game.World;
 /// where it's slowest through green where it's fastest. L shows and hides it.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Unshaded, so it reads the same in sun or shadow, and drawn from both sides, so the strip's winding
 /// never matters. Lifted a few centimetres along the road's own up, so it lies on a bank as it does on
 /// the flat.
+/// </para>
+/// <para>
+/// <b>The colours are scaled to a reference plan</b>, the autodriver's default, not to whichever plan is
+/// drawn. So turning its aggression up turns the corners greener and down turns them redder, which is
+/// the point of showing it.
+/// </para>
 /// </remarks>
 public static class RacingLineView
 {
     private const float HalfWidth = 0.18f;
     private const float Lift = 0.04f;
 
-    public static MeshInstance3D Build(RacingLine line, float[] speeds)
+    /// <param name="speeds">The plan drawn, m/s for each sample.</param>
+    /// <param name="reference">The plan whose slowest is red and fastest green; speeds outside it clamp.</param>
+    public static MeshInstance3D Build(RacingLine line, float[] speeds, float[] reference)
     {
         int n = line.Count;
-        float slowest = speeds.Min();
-        float fastest = speeds.Max();
+        float slowest = reference.Min();
+        float fastest = reference.Max();
         var vertices = new Vector3[n * 2];
         var colours = new Color[n * 2];
 
@@ -33,7 +42,7 @@ public static class RacingLineView
             Vector3 forward = line.ForwardAt(i).ToGodot();
             Vector3 right = forward.Cross(up).Normalized();
             Vector3 centre = line.PositionAt(i).ToGodot() + (up * Lift);
-            float t = fastest > slowest ? (speeds[i] - slowest) / (fastest - slowest) : 1.0f;
+            float t = fastest > slowest ? Math.Clamp((speeds[i] - slowest) / (fastest - slowest), 0.0f, 1.0f) : 1.0f;
             Color colour = t < 0.5f
                 ? new Color(0.95f, 0.15f, 0.1f).Lerp(new Color(1.0f, 0.85f, 0.1f), t * 2.0f)
                 : new Color(1.0f, 0.85f, 0.1f).Lerp(new Color(0.2f, 0.9f, 0.3f), (t - 0.5f) * 2.0f);

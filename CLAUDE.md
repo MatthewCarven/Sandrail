@@ -84,8 +84,10 @@ it on two specs and read the flying lap, the corner speeds and where it left the
 
 Game flags, after `--` (or passed to `start.cmd`): `--ground=test|bare`, `--station=1..6`,
 `--surface=road|dirt|grass|sand` (sand by default on the test ground), `--spec=<path>`,
-`--oracle=<name>` (with `--caution=` for `lap`), `--panels=tuning,telemetry` (opens either at start),
+`--oracle=<name>`, `--panels=tuning,telemetry` (opens either at start),
 `--record` (starts a run at start), `--autodrive` (the autodriver from the start; with `--station=6`),
+`--caution=` (the autodriver's aggression, the share of grip it plans for, 0.5 to 1, 0.8 by default:
+for the game and the `lap` oracle alike; in the game - and + change it),
 and `--screenshot=<path.png>`, which saves a frame at rest and one driving, then quits; with it,
 `--drive=throttle,steer` sets how it drives and `--camera=x,y,z:x,y,z` looks at the ground from a fixed
 point instead of following the car. It opens a window for a few seconds, and it is how Claude sees
@@ -126,8 +128,10 @@ autodriver; M1d is next.** The buggy drives a test ground on a sand plain, stati
 jump, a slope and plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels
 straight, a dirt bump patch, and a 526 m lap of six different corners (flat to 35° bank, 18 to 60 m
 radius, one left-hander), which is also the shortlist for M2's corner tiles. **The autodriver** (his
-idea) laps it on a minimum-curvature racing line drawn on the road (P to hand over, L for the line):
-the shipped car does 24.5 s clean, and his tune 24.0 s but about 2 m wide into corner 1 under braking.
+idea) laps it on a minimum-curvature racing line drawn on the road (P to hand over, L for the line,
+- and + for its aggression, 50-100%): at 80% the shipped car does 24.5 s clean, and his tune 24.0 s but
+about 2 m wide into corner 1 under braking, **at every aggression down to 60%**, so that's his car's
+braking, not its speed. His tune is quickest at 85% (23.7 s); the shipped car spins from 90%.
 Eight oracles (committed spec `a2e24a2b`): the loop
 goes through 0.1 m off centre, but **the suspension bottoms out on the jump's landing and through the
 loop** (worklog, M1c). **Steering is his to open**: Shift doubles the lock (`wideLockFactor`), with

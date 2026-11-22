@@ -45,6 +45,8 @@ public static class Controls
     public const string Telemetry = "telemetry";
     public const string Record = "record";
     public const string Autodrive = "autodrive";
+    public const string Bolder = "autodrive_bolder";
+    public const string Calmer = "autodrive_calmer";
     public const string ShowLine = "show_line";
 
     public static void Register()
@@ -66,6 +68,11 @@ public static class Controls
         Add(Record, Key.F4);
         Add(Autodrive, Key.P);
         Add(ShowLine, Key.L);
+
+        // The autodriver's aggression, - and + (the = key), on the number pad too, and the D-pad, which no
+        // pad layout rebinds: watching it lap is a sofa thing as much as a desk one.
+        Add(Bolder, Key.Equal, Key.KpAdd, JoyButton.DpadUp);
+        Add(Calmer, Key.Minus, Key.KpSubtract, JoyButton.DpadDown);
 
         Key[] numbers = [Key.Key1, Key.Key2, Key.Key3, Key.Key4, Key.Key5, Key.Key6];
         for (int i = 0; i < numbers.Length; i++)
@@ -183,6 +190,12 @@ public static class Controls
         Begin(action);
         InputMap.ActionAddEvent(action, new InputEventKey { PhysicalKeycode = key });
         InputMap.ActionAddEvent(action, new InputEventJoypadButton { ButtonIndex = button });
+    }
+
+    private static void Add(string action, Key key, Key alternate, JoyButton button)
+    {
+        Add(action, key, button);
+        InputMap.ActionAddEvent(action, new InputEventKey { PhysicalKeycode = alternate });
     }
 
     private static void Begin(string action)

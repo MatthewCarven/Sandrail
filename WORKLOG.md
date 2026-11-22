@@ -2,6 +2,49 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — the autodriver's aggression, on - and +
+
+His word, after driving with it: *"i like the autodriver i only wish i could tune the aggressiveness"*.
+
+**Built:** its aggression is its caution, the share of the tyres' grip the speed plan uses for corners
+and braking, **50% to 100% in steps of 5%**. `-` and `+` (the `=` key, the number pad's too, and the
+D-pad, which no pad layout rebinds) change it, while it drives or before P. The banner shows it, and the
+drawn racing line recolours: **its colours are now scaled to the default plan (80%)**, not to whichever
+plan is drawn, so bolder turns the corners greener and calmer turns them redder. It holds between
+handovers, and `--caution=` sets it at start for the game as for the lap oracle. Steering doesn't change
+and the line doesn't move: bolder means more speed on the same line. `Autodriver.Caution` is now
+settable and replans the whole lap at once. The line is also redrawn at each handover, for the car's
+numbers then; before, it stayed as drawn for the spec loaded at start, so after a panel tune the line
+shown and the line driven could differ.
+
+**Swept with the lap oracle** (flying lap):
+
+```
+aggression  shipped a2e24a2b                           his tune 128eb3c6
+60%         27.16 s  clean, worst slide 7°             26.33 s  1.48 s off the road
+70%         25.61    clean                             24.98    1.41
+75%         25.00    clean                             24.47    1.45
+80%         24.52    clean, slide 16°                  24.03    1.53
+85%         24.31    0.75 s off into corner 1, 22°     23.68    1.62, no spins   (his quickest)
+90%         27.56    spins twice on lap 2              23.75    1.47, no spins
+100%        48.30    9 spins, 11 s off the road        37.66    22 s off the road, 2 spins
+```
+
+**What it says:**
+- **His tune runs wide into corners 1 and 3 at every aggression, even 60%**, by about the same 1.5 s.
+  So it isn't speed that takes it off the road there, it's how his car brakes: still the first suspect
+  is the front anti-roll bar at 0, and the brake balance is the second.
+- **His tune takes more aggression than the shipped car**: quickest at 85%, 0.35 s faster than at 80%,
+  and no spin even at 90%. The shipped car's edge is between 85% and 90%. (At 85% it spun five times a
+  lap before the bank ease, the yaw damper and the brake guard; now it only runs wide.)
+- **100% is a crash show for both**, kept as the top of the range so he can see where the edge is.
+- **The default stays 80%**, the shipped car's quickest clean lap.
+
+Checked: the oracles on the committed spec read exactly as before (lap 24.52 s at 80%), 100 tests
+(`TurningUpItsAggressionReplansFasterCornersWithinItsRange`), and screenshots of corner 1 at 60% (red)
+and 100% (yellow-orange), and of the banner while it drives. Not checked: the D-pad on his pad, where
+Godot's names for the buttons don't match the clone's; the pad check saw all four D-pad directions.
+
 ## 2026-11-23 — the autodriver, on a minimum-curvature racing line
 
 His ask was an autodriver (PLAN, "His ideas"), and mid-build he added: *"draw a line around the track

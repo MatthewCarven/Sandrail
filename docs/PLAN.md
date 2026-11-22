@@ -184,7 +184,8 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
   by power class; what levelling is earned by.
 - **An autodriver** (same day: *"how do you feel about an autodriver?"*). **Built 2026-11-23** on the
   corner lap, on a minimum-curvature racing line that keeps the wheels on the road (his addition), with
-  a lap oracle; worklog, that date. Still to come: opponents, track checking, the demo. It follows a centreline,
+  a lap oracle; worklog, that date. **Its aggression** (the share of grip it plans for, 50-100%) is on -
+  and + since the same day, at his wish to tune it. Still to come: opponents, track checking, the demo. It follows a centreline,
   steering at a point ahead and planning speed from each corner's radius and bank, through the same
   `DriverInput` a player uses. Its first job would be **lap times for tuning** (an oracle that laps
   station 6, so a setup can be compared by numbers); then AI opponents, whose caution setting is their

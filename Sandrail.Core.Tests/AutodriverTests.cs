@@ -239,6 +239,26 @@ public class AutodriverTests
     }
 
     [Fact]
+    public void TurningUpItsAggressionReplansFasterCornersWithinItsRange()
+    {
+        // The game's -/+ keys set Caution while it drives: the plan must follow at once, and stay in range.
+        RacingLine line = Fast();
+        var driver = new Autodriver(line, Spec);
+        int corner = MiddleOfCorner(line, 0);
+        float before = driver.SpeedAt(corner);
+
+        driver.Caution += 2 * Autodriver.CautionStep;
+
+        Assert.True(driver.SpeedAt(corner) > before + 0.5f, $"{before:F2} m/s became {driver.SpeedAt(corner):F2}");
+        Assert.Equal(line.SpeedProfile(Spec, 0.9f)[corner], driver.SpeedAt(corner), 3);
+
+        driver.Caution = 5.0f;
+        Assert.Equal(Autodriver.MaxCaution, driver.Caution);
+        driver.Caution = 0.0f;
+        Assert.Equal(Autodriver.MinCaution, driver.Caution);
+    }
+
+    [Fact]
     public void ACarThatGoesWhereItsPointedLapsTheFastLineWithItsWheelsOnTheRoad()
     {
         // A kinematic car: no slip, the bicycle model's turn rate, the spec's engine and drag, the same
