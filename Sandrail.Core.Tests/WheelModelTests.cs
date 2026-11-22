@@ -191,6 +191,49 @@ public class WheelModelTests
     }
 
     [Fact]
+    public void WideLockMultipliesTheLockAtEverySpeed()
+    {
+        foreach (float speed in new[] { 0.0f, 25.0f, 80.0f })
+        {
+            Assert.Equal(
+                WheelModel.SteerLimitDeg(Spec, speed) * Spec.WideLockFactor,
+                WheelModel.SteerLimitDeg(Spec, speed, wideLock: true),
+                4);
+        }
+
+        Assert.Equal(60.0f, WheelModel.SteerLimitDeg(Spec, 0.0f, wideLock: true), 4);
+        Assert.Equal(1.0f, WheelModel.SteerScale(Spec, wideLock: false));
+        Assert.Equal(1.0f, WheelModel.SteerScale(Spec with { WideLockFactor = 1.0f }, wideLock: true));
+    }
+
+    [Fact]
+    public void AckermannTurnsTheInsideWheelMoreAndBothRoundOneCentre()
+    {
+        foreach (float steer in new[] { 10.0f, 28.4f, 60.0f })
+        {
+            (float left, float right) = WheelModel.FrontWheelsDeg(Spec, steer);
+            Assert.True(right > steer && steer > left, $"at {steer}°: left {left}°, right {right}°");
+
+            // Both wheels' axles pass through the same point on the rear axle's line.
+            float half = Spec.TrackM / 2.0f;
+            float fromLeft = (Spec.WheelbaseM / MathF.Tan(left * MathF.PI / 180.0f)) - half;
+            float fromRight = (Spec.WheelbaseM / MathF.Tan(right * MathF.PI / 180.0f)) + half;
+            Assert.Equal(fromLeft, fromRight, 3);
+
+            (float mirrorLeft, float mirrorRight) = WheelModel.FrontWheelsDeg(Spec, -steer);
+            Assert.Equal(-right, mirrorLeft, 4);
+            Assert.Equal(-left, mirrorRight, 4);
+        }
+    }
+
+    [Fact]
+    public void AckermannShareZeroIsParallelSteering()
+    {
+        Assert.Equal((25.0f, 25.0f), WheelModel.FrontWheelsDeg(Spec with { AckermannShare = 0.0f }, 25.0f));
+        Assert.Equal((0.0f, 0.0f), WheelModel.FrontWheelsDeg(Spec, 0.0f));
+    }
+
+    [Fact]
     public void TheStartingNumbersTopOutNearFiftyMetresASecondOnRoad()
     {
         // The plan's target for the straight oracle, checked before Godot is involved. Traction can

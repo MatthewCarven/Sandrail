@@ -65,11 +65,53 @@ public static class WheelModel
     public static float AntiRollForce(float stiffness, float leftCompression, float rightCompression) =>
         stiffness * (leftCompression - rightCompression);
 
-    /// <summary>The steering lock allowed at this speed: full at rest, narrowing to the minimum at the fade speed.</summary>
-    public static float SteerLimitDeg(CarSpec spec, float speed)
+    /// <summary>
+    /// The steering lock allowed at this speed: full at rest, narrowing to the minimum at the fade speed,
+    /// and multiplied by <see cref="CarSpec.WideLockFactor"/> while the wide-lock key is held.
+    /// </summary>
+    public static float SteerLimitDeg(CarSpec spec, float speed, bool wideLock = false)
     {
         float t = Math.Clamp(MathF.Abs(speed) / spec.SteerFadeSpeedMps, 0.0f, 1.0f);
-        return spec.MaxSteerDeg + ((spec.MinSteerDeg - spec.MaxSteerDeg) * t);
+        float limit = spec.MaxSteerDeg + ((spec.MinSteerDeg - spec.MaxSteerDeg) * t);
+        return limit * SteerScale(spec, wideLock);
+    }
+
+    /// <summary>
+    /// What the wide-lock key scales steering by: the lock, and with it both turn rates, so full lock
+    /// takes the same time to reach either way and the bigger lock never feels slower.
+    /// </summary>
+    public static float SteerScale(CarSpec spec, bool wideLock) => wideLock ? spec.WideLockFactor : 1.0f;
+
+    /// <summary>
+    /// Each front wheel's angle for a steering angle, degrees, positive right: the inside wheel turns
+    /// more than the outside one, by <see cref="CarSpec.AckermannShare"/> of the way to true geometry.
+    /// </summary>
+    /// <remarks>
+    /// True geometry puts both wheels' axles through one point on the line of the rear axle, the turn's
+    /// centre, so neither scrubs. The steering angle is the one a wheel in the middle of the axle would
+    /// need. Past about 72°, where the centre would fall inside the car's own track, the inside wheel
+    /// is held at 89° rather than wrapping round.
+    /// </remarks>
+    public static (float LeftDeg, float RightDeg) FrontWheelsDeg(CarSpec spec, float steerDeg)
+    {
+        float magnitude = MathF.Abs(steerDeg);
+        if (magnitude < 1e-3f || spec.AckermannShare <= 0.0f)
+        {
+            return (steerDeg, steerDeg);
+        }
+
+        const float Degrees = 180.0f / MathF.PI;
+        float wheelbase = spec.WheelbaseM;
+        float half = spec.TrackM / 2.0f;
+        float radius = wheelbase / MathF.Tan(magnitude / Degrees);
+
+        float inner = MathF.Min(MathF.Atan2(wheelbase, radius - half) * Degrees, 89.0f);
+        float outer = MathF.Atan2(wheelbase, radius + half) * Degrees;
+        inner = magnitude + ((inner - magnitude) * spec.AckermannShare);
+        outer = magnitude + ((outer - magnitude) * spec.AckermannShare);
+
+        // Turning right, the right wheel is the inside one.
+        return steerDeg > 0.0f ? (outer, inner) : (-inner, -outer);
     }
 
     /// <summary>What the engine can push at this speed: the force limit off the line, power ÷ speed above it.</summary>

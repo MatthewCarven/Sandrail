@@ -2,6 +2,44 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-22 — wide lock on Shift, and Ackermann steering
+
+His ask, verbatim, after driving the test ground: *"Ok can we try shift doubles the lock to lock of the
+angle?"* So the steering he'd said to leave alone is his to open, and he has.
+
+**Built:** holding Shift multiplies the steering lock by `wideLockFactor` (2, a new spec number on the
+F2 panel), at every speed, so 30° at a standstill becomes 60° and 8° at top speed becomes 16°. **The
+turn rates scale with it**, so full lock takes the same time to reach either way; the bigger lock would
+otherwise arrive twice as slowly, against his "a little slow". Telemetry says WIDE LOCK while it's held,
+runs get a `key_wide_lock` column, and the pad's left shoulder is bound to it (untested, no pad).
+
+**Found on the way, and fixed:** at 60° the car barely moved. At a quarter throttle on full lock it
+managed 0.8 km/h after 3 s, against 13 km/h at the normal 28°. Turning the low-speed sideways cancel
+off only got it to 3 km/h, so that wasn't the whole cause. The rest was geometry: both front wheels were
+steered to the same angle, and on the 1.5 m radius that 60° gives, the inside wheel wants about 76° and
+the outside 48°. They scrubbed against each other. **So the front wheels now have Ackermann steering**:
+the inside one turns more, both rolling round one centre on the rear axle's line. `ackermannShare` (1,
+true geometry; 0 is the old parallel steering) is on the panel. Tests pin it: the inside wheel turns
+more, both axles meet at one point, a left turn mirrors a right one.
+
+Full lock from rest, five seconds, bare plain:
+
+```
+                       before             with Ackermann
+0.25 throttle, normal  13.2 km/h          14.9 km/h, front scrub 6.5° -> 3.6°
+0.25 throttle, wide     0.8 km/h stuck     9.3 km/h, pivoting at 42°/s, front slip 5.5°
+0.6 throttle, wide     19.6 km/h          21.4 km/h, the front ploughs (49°): too fast for 1.5 m
+full throttle, wide    spinning           spinning, tail out 72°
+```
+
+**The oracles**, now spec `a2e24a2b` (the two new numbers moved the fingerprint): straight, drop,
+brake, jump, loop and bumps read exactly as before, because their wheels are straight. The circle moved
+from 1.07 g at 5.4° to 1.06 g at 5.5°: a little less front scrub with Ackermann.
+
+**Worth him knowing:** wide lock at speed is a lot of lock. 16° at top speed is twice what the tyres
+can use there, so Shift at speed means a spin or a plough. Whether that's a feature is his call, and
+the panel's `wideLockFactor` and the speed fade (`minSteerDeg`, `steerFadeSpeedMps`) are the levers.
+
 ## 2026-11-17 — M1c: the sweep mesher and the test ground
 
 Built on his "lets continue":

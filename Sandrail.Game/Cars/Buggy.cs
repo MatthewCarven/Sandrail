@@ -18,6 +18,9 @@ public struct DriverInput
     public float Steer;
 
     public bool Handbrake;
+
+    /// <summary>Shift: the steering lock times <see cref="CarSpec.WideLockFactor"/> while held.</summary>
+    public bool WideLock;
 }
 
 /// <summary>
@@ -62,6 +65,9 @@ public partial class Buggy : RigidBody3D
     private readonly bool[] _saturated = new bool[4];
     private readonly Surface[] _surface = new Surface[4];
     private readonly float[] _spin = new float[4];
+
+    /// <summary>Each wheel's own steering angle: Ackermann turns the inside front more. The rears stay at 0.</summary>
+    private readonly float[] _wheelSteerDeg = new float[4];
     private readonly Node3D[] _wheelPivots = new Node3D[4];
     private readonly Node3D[] _wheelSpinners = new Node3D[4];
     private readonly Dictionary<ulong, Surface> _surfaceCache = new();
@@ -233,8 +239,7 @@ public partial class Buggy : RigidBody3D
             float droop = _spec.SuspensionTravelM - (_grounded[i] ? _compression[i] : 0.0f);
             _wheelPivots[i].Position = _mounts[i] + (Vector3.Down * droop);
 
-            bool front = i == FrontLeft || i == FrontRight;
-            _wheelPivots[i].Rotation = new Vector3(0.0f, front ? -Mathf.DegToRad(_steerDeg) : 0.0f, 0.0f);
+            _wheelPivots[i].Rotation = new Vector3(0.0f, -Mathf.DegToRad(_wheelSteerDeg[i]), 0.0f);
 
             // Visual only: a wheel pushed past its grip spins half as fast again.
             float spinSpeed = _wheelSpeed[i] * (_saturated[i] && _throttle > 0.0f ? 1.5f : 1.0f);
@@ -255,6 +260,7 @@ public partial class Buggy : RigidBody3D
             _throttle = 0.0f;
             _brake = 0.0f;
             _steerDeg = 0.0f;
+            Array.Clear(_wheelSteerDeg);
             _lastVelocity = Vector3.Zero;
             Acceleration = Vector3.Zero;
             _pendingRespawn = null;
@@ -278,10 +284,11 @@ public partial class Buggy : RigidBody3D
         _throttle = Mathf.MoveToward(_throttle, Math.Clamp(input.Throttle, 0.0f, 1.0f), spec.PedalRatePerS * dt);
         _brake = Mathf.MoveToward(_brake, Math.Clamp(input.Brake, 0.0f, 1.0f), spec.PedalRatePerS * dt);
 
-        SteerLimitDeg = WheelModel.SteerLimitDeg(spec, speed);
+        SteerLimitDeg = WheelModel.SteerLimitDeg(spec, speed, input.WideLock);
         float steerTarget = Math.Clamp(input.Steer, -1.0f, 1.0f) * SteerLimitDeg;
         bool returning = MathF.Abs(steerTarget) < MathF.Abs(_steerDeg) || MathF.Sign(steerTarget) != MathF.Sign(_steerDeg);
-        float steerRate = returning ? spec.SteerReturnRateDegPerS : spec.SteerRateDegPerS;
+        float steerRate = (returning ? spec.SteerReturnRateDegPerS : spec.SteerRateDegPerS)
+            * WheelModel.SteerScale(spec, input.WideLock);
         _steerDeg = Mathf.MoveToward(_steerDeg, steerTarget, steerRate * dt);
 
         (float drive, float brakeAmount) = WheelModel.ResolvePedals(spec, _throttle, _brake, forwardSpeed);
@@ -290,7 +297,7 @@ public partial class Buggy : RigidBody3D
 
         PhysicsDirectSpaceState3D space = state.GetSpaceState();
         float rayLength = spec.SuspensionTravelM + spec.WheelRadiusM;
-        Vector3 frontWheelForward = forward.Rotated(up, -Mathf.DegToRad(_steerDeg));
+        (_wheelSteerDeg[FrontLeft], _wheelSteerDeg[FrontRight]) = WheelModel.FrontWheelsDeg(spec, _steerDeg);
         int grounded = 0;
 
         for (int i = 0; i < 4; i++)
@@ -323,7 +330,7 @@ public partial class Buggy : RigidBody3D
             state.ApplyForce(up * load, mount - xf.Origin);
 
             bool front = i == FrontLeft || i == FrontRight;
-            Vector3 heading = front ? frontWheelForward : forward;
+            Vector3 heading = front ? forward.Rotated(up, -Mathf.DegToRad(_wheelSteerDeg[i])) : forward;
             Vector3 f = (heading - (normal * heading.Dot(normal))).Normalized();
             Vector3 right = f.Cross(normal);
             Vector3 v = state.GetVelocityAtLocalPosition(point - xf.Origin);

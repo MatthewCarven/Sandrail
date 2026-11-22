@@ -214,6 +214,10 @@ the same time its difficult"*, and he said to leave it alone for now. It's a lit
 but the bumps haven't been tried. Verbatim in the worklog. **Not a pass yet**: the plain is one of the
 three places the pass names.
 
+**2026-11-22, after driving the test ground:** *"can we try shift doubles the lock to lock of the
+angle?"*. Built as wide lock on Shift (`wideLockFactor` 2, with the turn rates scaled to match), and it
+needed Ackermann steering (`ackermannShare` 1) to work at 60°. Worklog, that date.
+
 ---
 
 ## Order and why

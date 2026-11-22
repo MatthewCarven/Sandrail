@@ -85,7 +85,7 @@ public partial class RunRecorder : Node
             F(Seconds), F(at.X), F(at.Y), F(at.Z),
             F(r.SpeedKmh), F(r.ForwardMps), F(r.LateralG), F(r.LongitudinalG),
             F(r.YawDps), F(r.BodySlipDeg), F(r.RollDeg), F(r.PitchDeg),
-            F(input.Throttle), F(input.Brake), F(input.Steer), input.Handbrake ? "1" : "0",
+            F(input.Throttle), F(input.Brake), F(input.Steer), input.Handbrake ? "1" : "0", input.WideLock ? "1" : "0",
             F(Car.Throttle), F(Car.Brake), F(Car.SteerDeg), F(Car.SteerLimitDeg),
             F(Car.DriveForce), F(Car.BrakeAmount), Car.GroundedCount.ToString(CultureInfo.InvariantCulture),
         };
@@ -112,7 +112,7 @@ public partial class RunRecorder : Node
         {
             "t_s", "x_m", "y_m", "z_m",
             "speed_kmh", "forward_mps", "lat_g_right", "lon_g", "yaw_dps_left", "body_slip_deg_right", "roll_deg_right_down", "pitch_deg_up",
-            "key_throttle", "key_brake", "key_steer_right", "key_handbrake",
+            "key_throttle", "key_brake", "key_steer_right", "key_handbrake", "key_wide_lock",
             "throttle", "brake", "steer_deg_right", "steer_limit_deg",
             "drive_n", "brake_amount", "wheels_grounded",
         };

@@ -181,6 +181,24 @@ public sealed record CarSpec
     [Tune("Steering and pedals", 30.0f, 900.0f)]
     public float SteerReturnRateDegPerS { get; init; } = 240.0f;
 
+    /// <summary>
+    /// What holding the wide-lock key (Shift) multiplies the steering lock by, at every speed. The turn
+    /// rates scale with it, so full lock arrives in the same time either way. His ask, 2026-11-22.
+    /// </summary>
+    [Tune("Steering and pedals", 1.0f, 3.0f)]
+    public float WideLockFactor { get; init; } = 2.0f;
+
+    /// <summary>
+    /// How much the inside front wheel turns more than the outside one, 0..1: 1 is true Ackermann
+    /// geometry, both wheels rolling round one centre; 0 is both at the same angle.
+    /// </summary>
+    /// <remarks>
+    /// Added with wide lock: at 60° the two wheels want 76° and 48°, and at the same angle they scrub
+    /// each other to a near standstill (worklog 2026-11-22).
+    /// </remarks>
+    [Tune("Steering and pedals", 0.0f, 1.0f)]
+    public float AckermannShare { get; init; } = 1.0f;
+
     /// <summary>How fast throttle and brake go from nothing to full: keyboard easing.</summary>
     [Tune("Steering and pedals", 1.0f, 20.0f)]
     public float PedalRatePerS { get; init; } = 5.0f;
@@ -360,6 +378,8 @@ public sealed record CarSpec
         Positive(nameof(SteerFadeSpeedMps), SteerFadeSpeedMps, 500.0f);
         Positive(nameof(SteerRateDegPerS), SteerRateDegPerS, 100_000.0f);
         Positive(nameof(SteerReturnRateDegPerS), SteerReturnRateDegPerS, 100_000.0f);
+        Within(nameof(WideLockFactor), WideLockFactor, 1.0f, 4.0f);
+        Within(nameof(AckermannShare), AckermannShare, 0.0f, 1.0f);
         Positive(nameof(PedalRatePerS), PedalRatePerS, 1_000.0f);
 
         if (MinSteerDeg > MaxSteerDeg)

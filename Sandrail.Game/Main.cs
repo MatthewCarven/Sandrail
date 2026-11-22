@@ -29,7 +29,7 @@ namespace Sandrail.Game;
 /// <para>
 /// <c>--panels=tuning,telemetry</c> opens either at start, and <c>--record</c> starts a run at start.
 /// <c>--screenshot=&lt;path.png&gt;</c> is Claude's eyes, since headless draws nothing: it saves one frame
-/// at rest and one driving (<c>-rest</c>, <c>-turn</c>), then quits; <c>--drive=throttle,steer</c> sets
+/// at rest and one driving (<c>-rest</c>, <c>-turn</c>), then quits; <c>--drive=throttle,steer[,1]</c> (the 1 holds wide lock) sets
 /// how it drives (0.7,0.6 by default), and <c>--camera=x,y,z:x,y,z</c> looks from one point at another
 /// instead of following the car.
 /// </para>
@@ -132,6 +132,7 @@ public partial class Main : Node3D
             {
                 Throttle = float.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture),
                 Steer = parts.Length > 1 ? float.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) : 0.0f,
+                WideLock = parts.Length > 2 && parts[2] == "1",
             };
         }
 
@@ -261,6 +262,7 @@ public partial class Main : Node3D
             Brake = Input.GetActionStrength(Controls.Brake),
             Steer = Input.GetActionStrength(Controls.SteerRight) - Input.GetActionStrength(Controls.SteerLeft),
             Handbrake = Input.IsActionPressed(Controls.Handbrake),
+            WideLock = Input.IsActionPressed(Controls.WideLock),
         };
 
         if (Input.IsActionJustPressed(Controls.Respawn))

@@ -38,5 +38,7 @@
   "steerFadeSpeedMps": 50,
   "steerRateDegPerS": 120,
   "steerReturnRateDegPerS": 240,
+  "wideLockFactor": 2,
+  "ackermannShare": 1,
   "pedalRatePerS": 5
 }

@@ -111,15 +111,16 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 
 ## Where things stand
 
-**2026-11-17: M1a, M1b and M1c are built; M1d is next, and his drive of the test ground before it.**
-The buggy drives a test ground on a sand plain: a tabletop jump, a slope and plateau with a crest, a
-30° banked hairpin, a tall loop driven with the wheels straight, and a dirt bump patch, on stations 1-5.
-Seven oracles (fingerprint `f4559570`): the M1a four unchanged, the loop goes through 0.1 m off centre,
-but **the suspension bottoms out on the jump's landing and through the loop** (worklog, M1c). No
-number has changed since M1a: the friction circle is a dial, `forwardPriority`, because the keyboard
-is what gets tuned (**there's no pad here**; the pad is an owed check); damping is 1,400/2,100. **His
-first drive: "seems ok"**. The power oversteer is *"exactly what i was hoping for"*; the steering is
-*"a little slow but at the same time its difficult"* and **is to be left alone at his word**. Nobody
+**2026-11-22: M1a, M1b and M1c are built, plus wide lock; M1d is next.** The buggy drives a test
+ground on a sand plain: a tabletop jump, a slope and plateau with a crest, a 30° banked hairpin, a tall
+loop driven with the wheels straight, and a dirt bump patch, on stations 1-5. Seven oracles
+(fingerprint `a2e24a2b`): the loop goes through 0.1 m off centre, but **the suspension bottoms out on
+the jump's landing and through the loop** (worklog, M1c). **Steering is his to open now**: after driving
+the test ground he asked for Shift to double the lock, which is built (`wideLockFactor` 2, turn rates
+scaled with it) and needed **Ackermann steering** (`ackermannShare` 1) to work at 60° (worklog,
+2026-11-22). Otherwise unchanged since M1a: the friction circle is a dial, `forwardPriority`, because
+the keyboard is what gets tuned (**there's no pad here**; the pad is an owed check); damping is
+1,400/2,100. His first drive: "seems ok", the power oversteer *"exactly what i was hoping for"*. Nobody
 has clicked the panel's Save or Reset yet. **M1d is the extras the pieces ask for** (handbrake,
 downforce, air control, auto-respawn), and the bottoming is a lever to bring to his play rather than to
 change unasked.

@@ -17,6 +17,7 @@ public static class Controls
     public const string SteerLeft = "steer_left";
     public const string SteerRight = "steer_right";
     public const string Handbrake = "handbrake";
+    public const string WideLock = "wide_lock";
     public const string Respawn = "respawn";
     public const string Camera = "camera";
     public const string Tuning = "tuning";
@@ -30,6 +31,9 @@ public static class Controls
         Add(SteerLeft, Key.A, Key.Left, JoyAxis.LeftX, -1.0f);
         Add(SteerRight, Key.D, Key.Right, JoyAxis.LeftX, 1.0f);
         Add(Handbrake, Key.Space, JoyButton.A);
+
+        // Shift with no side given matches either Shift key.
+        Add(WideLock, Key.Shift, JoyButton.LeftShoulder);
         Add(Respawn, Key.R, JoyButton.Y);
         Add(Camera, Key.C, JoyButton.Back);
 
