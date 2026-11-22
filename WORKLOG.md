@@ -25,8 +25,16 @@ sticks' drift over 3 s hands-off, checks the game's own controls, and writes `us
   numbers are the pad's raw ones, and the PlayStation names in the report are guesses. Throttle and
   brake read NEVER.
 
-**Next, his choice:** press ANALOG and run it again; then, if it's still confused, a guided version that
-asks for each control in turn and writes a layout Godot can load for this pad.
+**Second run, with ANALOG pressed (23:46): the digital-mode reading was right.** Both sticks now read
+the full −1 to 1 both ways with no drift at all, the face buttons dropped from 10-12 presses to 0-3,
+and all four D-pad directions register. **L2 and R2 still never move as axes**, so on this pad they
+are plain buttons. Triangle and R1 read no presses although he went round every button, so the
+button names the report prints are not the physical buttons: Godot has a mapping for this GUID, but
+it doesn't match this clone's layout. The first report is kept as `padcheck-digital.txt`.
+
+**So for this pad:** steering on the left stick works now, and analogue throttle and brake can only
+come from the right stick (up and down). Which physical button lands on which game control can only be
+found by asking for them one at a time.
 
 ## 2026-11-22 — wide lock on Shift, and Ackermann steering
 
