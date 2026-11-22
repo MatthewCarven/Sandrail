@@ -43,7 +43,7 @@ public class TestGroundLayoutTests
     public void TheStationsAreWellApart()
     {
         // Each station's roads, by name prefix, kept at least 30 m from every other station's.
-        string[][] groups = [["kicker", "table"], ["slope"], ["banked"], ["loop run-up", "loop", "loop run-out"]];
+        string[][] groups = [["kicker", "table"], ["slope"], ["banked"], ["loop run-up", "loop", "loop run-out"], ["corners"]];
         for (int i = 0; i < groups.Length; i++)
         {
             for (int j = i + 1; j < groups.Length; j++)
@@ -80,9 +80,41 @@ public class TestGroundLayoutTests
     }
 
     [Fact]
-    public void TheStationsAreNumberedOneToFive()
+    public void TheCornerLapClosesExactly()
     {
-        Assert.Equal([1, 2, 3, 4, 5], Layout.Stations.Select(s => s.Number));
+        RoadRun lap = Layout.Runs.Single(r => r.Name == "corners");
+        ICentreline last = lap.Pieces[^1];
+        Frame end = last.FrameAt(last.Length);
+
+        CentrelineTests.Near(Layout.CornerLapStart.Position, end.Position, 0.001f, "lap end");
+        CentrelineTests.Near(Layout.CornerLapStart.Forward, end.Forward, 1e-4f, "lap heading");
+        Assert.Equal(360.0f, TestGroundLayout.Corners.Sum(c => c.AngleDeg), 3);
+    }
+
+    [Fact]
+    public void TheCornerLapsSolvedStraightsAreRealStraights()
+    {
+        // The two lengths solved to close the lap: a negative one would mean the corners can't make a lap
+        // in this order, and a very short one a corner straight into the next.
+        RoadRun lap = Layout.Runs.Single(r => r.Name == "corners");
+
+        Assert.InRange(lap.Pieces[0].Length, 15.0f, 200.0f);
+        Assert.InRange(lap.Pieces[4].Length, 15.0f, 200.0f);
+    }
+
+    [Fact]
+    public void EveryCornerOnTheLapIsDifferent()
+    {
+        Assert.Equal(TestGroundLayout.Corners.Length, TestGroundLayout.Corners.Distinct().Count());
+        Assert.Contains(TestGroundLayout.Corners, c => c.AngleDeg < 0.0f);
+        Assert.Contains(TestGroundLayout.Corners, c => c.BankDeg == 0.0f);
+        Assert.Contains(TestGroundLayout.Corners, c => c.BankDeg >= 30.0f);
+    }
+
+    [Fact]
+    public void TheStationsAreNumberedOneToSix()
+    {
+        Assert.Equal([1, 2, 3, 4, 5, 6], Layout.Stations.Select(s => s.Number));
         Assert.All(Layout.Stations, s => Assert.True(MathF.Abs(s.Start.Up.Y - 1.0f) < 1e-4f, $"{s.Name} doesn't start level"));
     }
 }

@@ -63,7 +63,7 @@ public static class Controls
         Add(Telemetry, Key.F3);
         Add(Record, Key.F4);
 
-        Key[] numbers = [Key.Key1, Key.Key2, Key.Key3, Key.Key4, Key.Key5];
+        Key[] numbers = [Key.Key1, Key.Key2, Key.Key3, Key.Key4, Key.Key5, Key.Key6];
         for (int i = 0; i < numbers.Length; i++)
         {
             Add(Station(i + 1), numbers[i]);

@@ -20,7 +20,7 @@ namespace Sandrail.Game;
 /// <remarks>
 /// <para>
 /// Game flags, after the bare <c>--</c>: <c>--ground=test|bare</c> (the test ground, or the empty plain the
-/// first four oracles drive), <c>--station=1..5</c> to start at one of the test ground's stations,
+/// first four oracles drive), <c>--station=1..6</c> to start at one of the test ground's stations,
 /// <c>--surface=road|dirt|grass|sand</c> for the plain (sand with the test ground, road on the bare
 /// plain, so the M1a oracles' targets still hold), <c>--oracle=</c> any of the seven, and
 /// <c>--spec=&lt;path&gt;</c> to drive another spec file than the shipped buggy, so a variant can be tried
@@ -136,9 +136,9 @@ public partial class Main : Node3D
         int station = oracle is not null && Oracle.NeedsTestGround(oracle)
             ? Oracle.StationFor(oracle)
             : int.TryParse(Flag(args, "--station="), out int n) ? n : 1;
-        if (testGround && station is < 1 or > 5)
+        if (testGround && station is < 1 or > 6)
         {
-            Refuse($"Unknown station {station}. They're 1 to 5.");
+            Refuse($"Unknown station {station}. They're 1 to 6.");
             return;
         }
 
@@ -265,7 +265,7 @@ public partial class Main : Node3D
             return;
         }
 
-        for (int number = 1; number <= 5; number++)
+        for (int number = 1; number <= 6; number++)
         {
             if (Input.IsActionJustPressed(Controls.Station(number)))
             {

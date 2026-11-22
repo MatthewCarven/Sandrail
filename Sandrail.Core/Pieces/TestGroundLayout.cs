@@ -76,6 +76,13 @@ public sealed class TestGroundLayout
         Bumps = new BumpField(seed: 1);
         BumpCentre = new Vector3(200.0f, 0.0f, -190.0f);
 
+        // 6. A closed lap of six different corners, to feel out radius and bank: his ask, 2026-11-23, with
+        // "dont go overboard its all going to mean more tiles". Which of these feel right is what M2's
+        // corner tiles should be made of.
+        Chain lap = CornerLap(new Vector3(-190.0f, Lift, -150.0f));
+        runs.Add(new RoadRun("corners", lap.Pieces, Profile.Slab(10.0f, 8.0f)));
+        CornerLapStart = lap.Start;
+
         Runs = runs;
         Frame loopStart = runUp.FrameAt(0.0f);
         Stations =
@@ -87,7 +94,84 @@ public sealed class TestGroundLayout
                 "arrive at 90-105 km/h with the wheels straight; much faster bottoms the suspension out"),
             new Station(5, "Bumps", Frame.Level(new Vector3(BumpCentre.X, 0.0f, BumpCentre.Z + (Bumps.SizeM / 2.0f) + 60.0f), 0.0f),
                 "128 m of dirt bumps up to 1.5 m"),
+            new Station(6, "Corners", lap.Start,
+                "a lap of six: 90° flat, 45° fast kink at 10°, 135° tight at 20°, 60° left flat, 90° at 35°, 60° at 15°"),
         ];
+    }
+
+    /// <summary>
+    /// The corners, in order round the lap: angle (positive right), radius, bank. Banks pivot on the
+    /// inside edge, and their sum of angles is 360°, so the lap comes back facing the way it started.
+    /// </summary>
+    public static readonly (float AngleDeg, float RadiusM, float BankDeg)[] Corners =
+    [
+        (90.0f, 25.0f, 0.0f),
+        (45.0f, 60.0f, 10.0f),
+        (135.0f, 18.0f, 20.0f),
+        (-60.0f, 30.0f, 0.0f),
+        (90.0f, 30.0f, 35.0f),
+        (60.0f, 40.0f, 15.0f),
+    ];
+
+    /// <summary>
+    /// The lap's straights before each corner, metres. The two marked NaN are solved for, so the lap
+    /// closes exactly instead of nearly: they're the first and third, whose headings (0° and 135°) are far
+    /// enough apart for the two equations to have a clear answer.
+    /// </summary>
+    private static readonly float[] Straights = [float.NaN, 30.0f, float.NaN, 25.0f, 25.0f, 25.0f];
+
+    /// <summary>Where the corner lap starts and ends: the station's frame.</summary>
+    public Frame CornerLapStart { get; }
+
+    /// <summary>
+    /// Builds the lap with its middle near <paramref name="centre"/>. Straights add their length times a
+    /// fixed direction to where the lap ends, so the end is linear in the two unknown lengths: three trial
+    /// builds give the gap and each unknown's effect on it, and a 2 × 2 solve closes it.
+    /// </summary>
+    public static Chain CornerLap(Vector3 centre)
+    {
+        Vector2 Gap(float a, float b)
+        {
+            Chain c = BuildLap(Frame.Level(Vector3.Zero, 0.0f), a, b);
+            return new Vector2(c.End.Position.X, c.End.Position.Z);
+        }
+
+        Vector2 gap = Gap(0.0f, 0.0f);
+        Vector2 perA = Gap(1.0f, 0.0f) - gap;
+        Vector2 perB = Gap(0.0f, 1.0f) - gap;
+        float det = (perA.X * perB.Y) - (perA.Y * perB.X);
+        float a = ((-gap.X * perB.Y) - (-gap.Y * perB.X)) / det;
+        float b = ((perA.X * -gap.Y) - (perA.Y * -gap.X)) / det;
+
+        // Centre it: build once at the origin, measure its extent, and start it offset by the difference.
+        Chain atOrigin = BuildLap(Frame.Level(Vector3.Zero, 0.0f), a, b);
+        var low = new Vector2(float.MaxValue);
+        var high = new Vector2(float.MinValue);
+        foreach (ICentreline piece in atOrigin.Pieces)
+        {
+            for (int k = 0; k <= 20; k++)
+            {
+                Vector3 p = piece.FrameAt(piece.Length * k / 20.0f).Position;
+                low = Vector2.Min(low, new Vector2(p.X, p.Z));
+                high = Vector2.Max(high, new Vector2(p.X, p.Z));
+            }
+        }
+
+        Vector2 middle = (low + high) / 2.0f;
+        return BuildLap(Frame.Level(new Vector3(centre.X - middle.X, centre.Y, centre.Z - middle.Y), 0.0f), a, b);
+    }
+
+    private static Chain BuildLap(Frame start, float firstStraight, float thirdStraight)
+    {
+        var chain = new Chain(start);
+        for (int i = 0; i < Corners.Length; i++)
+        {
+            float straight = i == 0 ? firstStraight : i == 2 ? thirdStraight : Straights[i];
+            (float angle, float radius, float bank) = Corners[i];
+            chain.Line(straight).Turn(angle, radius, bank, bank > 0.0f ? 5.0f : 0.0f);
+        }
+
+        return chain;
     }
 
     public IReadOnlyList<RoadRun> Runs { get; }
