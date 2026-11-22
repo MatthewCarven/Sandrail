@@ -87,7 +87,10 @@ start), and `--screenshot=<path.png>`, which saves a frame at rest and one drivi
 `--drive=throttle,steer` sets how it drives and `--camera=x,y,z:x,y,z` looks at the ground from a fixed
 point instead of following the car. It opens a window for a few seconds, and it is how Claude sees
 anything at all. `--padcheck` is a sensor run on a gamepad instead of a drive: it waits for a touch,
-records 30 s, and writes `user://padcheck.txt` (worklog 2026-11-22 has his pad's).
+records 30 s, and writes `user://padcheck.txt` (worklog 2026-11-22 has his pad's). `--bindpad` asks
+for each control on the pad and saves the pad's own layout to `user://pads/<guid>.json`, which then
+replaces the default pad bindings for that pad. **His pad (a generic clone) has one**: throttle and
+brake on the right stick, since its L2/R2 are only buttons.
 
 **A tuning session** (M1b): Matthew drives with F3 (telemetry) up, presses F4 to record the bit that
 feels wrong, and says what felt wrong. Runs land in `%APPDATA%\Godot\app_userdata\Sandrail\runs\` as

@@ -1,4 +1,5 @@
 using Godot;
+using Sandrail.Core.Pads;
 
 namespace Sandrail.Game;
 
@@ -7,11 +8,31 @@ namespace Sandrail.Game;
 /// each one is a serialised object nobody can read (M1-PLAN decision 1).
 /// </summary>
 /// <remarks>
-/// Keys are bound by physical position, so WASD is WASD on any layout. <b>The pad bindings are
-/// untested</b>: there's no pad here yet, which is an owed check, not a finished one.
+/// <para>
+/// Keys are bound by physical position, so WASD is WASD on any layout. The default pad bindings
+/// assume a standard layout, which a real PlayStation or Xbox pad has.
+/// </para>
+/// <para>
+/// <b>A pad with a saved layout gets that instead.</b> The binding run (<c>--bindpad</c>) records what a
+/// pad actually sends for each control into <c>user://pads/&lt;guid&gt;.json</c>; when a pad with that GUID
+/// is connected, its layout replaces every default pad binding, so a clone whose button numbers don't
+/// match their labels can't fire the wrong control. One pad at a time: the layout's bindings answer to
+/// any pad, which is right for one player.
+/// </para>
 /// </remarks>
 public static class Controls
 {
+    public const string PadFolder = "user://pads";
+
+    private static bool _listening;
+
+    /// <summary>The layout loaded for a connected pad, if any.</summary>
+    public static PadProfile? Layout { get; private set; }
+
+    /// <summary>The actions a pad drives, and so the ones a layout rebinds.</summary>
+    public static readonly string[] PadActions =
+        [SteerLeft, SteerRight, Throttle, Brake, WideLock, Handbrake, Respawn, Camera];
+
     public const string Throttle = "throttle";
     public const string Brake = "brake";
     public const string SteerLeft = "steer_left";
@@ -47,10 +68,97 @@ public static class Controls
         {
             Add(Station(i + 1), numbers[i]);
         }
+
+        Layout = ApplyPadLayout();
+        if (!_listening)
+        {
+            // A pad plugged in later gets its layout too: register afresh, which applies it.
+            Input.JoyConnectionChanged += (_, _) => Register();
+            _listening = true;
+        }
     }
 
     /// <summary>The action that puts the car at a test-ground station: 1 to 5.</summary>
     public static string Station(int number) => $"station_{number}";
+
+    /// <summary>Where a pad's layout lives, by its GUID.</summary>
+    public static string LayoutPath(string guid) => $"{PadFolder}/{PadProfile.FileName(guid)}";
+
+    /// <summary>Loads a pad's saved layout, or null if it has none or the file is refused.</summary>
+    public static PadProfile? LoadLayout(string guid)
+    {
+        string path;
+        try
+        {
+            path = LayoutPath(guid);
+        }
+        catch (System.ArgumentException)
+        {
+            return null;
+        }
+
+        if (!FileAccess.FileExists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            return PadProfile.Parse(FileAccess.GetFileAsString(path));
+        }
+        catch (System.IO.InvalidDataException e)
+        {
+            GD.PushWarning($"{path}: {e.Message}. Using the default pad bindings.");
+            return null;
+        }
+    }
+
+    public static void SaveLayout(PadProfile layout)
+    {
+        DirAccess.MakeDirRecursiveAbsolute(PadFolder);
+        using FileAccess? file = FileAccess.Open(LayoutPath(layout.Guid), FileAccess.ModeFlags.Write);
+        file?.StoreString(layout.ToJson() + "\n");
+    }
+
+    /// <summary>
+    /// For the first connected pad with a saved layout: takes every pad event off the pad actions and adds
+    /// the layout's. Keys are left alone.
+    /// </summary>
+    private static PadProfile? ApplyPadLayout()
+    {
+        foreach (int device in Input.GetConnectedJoypads())
+        {
+            PadProfile? layout = LoadLayout(Input.GetJoyGuid(device));
+            if (layout is null)
+            {
+                continue;
+            }
+
+            foreach (string action in PadActions)
+            {
+                foreach (InputEvent e in InputMap.ActionGetEvents(action))
+                {
+                    if (e is InputEventJoypadButton or InputEventJoypadMotion)
+                    {
+                        InputMap.ActionEraseEvent(action, e);
+                    }
+                }
+            }
+
+            foreach (PadBinding b in layout.Bindings)
+            {
+                InputEvent bound = b.Kind == PadBinding.Axis
+                    ? new InputEventJoypadMotion { Axis = (JoyAxis)b.Index, AxisValue = b.Direction }
+                    : new InputEventJoypadButton { ButtonIndex = (JoyButton)b.Index };
+                InputMap.ActionAddEvent(b.Action, bound);
+            }
+
+            GD.Print($"Pad layout for \"{layout.Name}\" loaded: {layout.Bindings.Count} controls from {LayoutPath(layout.Guid)}");
+            return layout;
+        }
+
+        return null;
+    }
 
     private static void Add(string action, Key key)
     {

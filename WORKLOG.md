@@ -2,6 +2,38 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-22 — the binding run, and his pad's layout
+
+On his "Build it": `--bindpad` (`Diagnostics/PadBinder.cs`) asks for each game control on the pad in
+turn, records what the pad sends, and saves it as that pad's layout, `user://pads/<guid>.json` (a
+`PadProfile`, in Core: strict JSON, tested). `Controls` loads it at start-up and when a pad connects:
+**for a pad with a saved layout, every default pad binding is taken off and the layout's put on**, so
+a clone whose numbers don't match their labels can't fire the wrong control. Keys are untouched.
+`--padcheck` now says whether it's checking a layout or the defaults. (It's his mum's clone pad, he
+said, not his old Logitech; a Logitech would very likely just work with the defaults.)
+
+**The first run bound nothing**: he was away from the pad ("i missed it, sorry claude was smoking"),
+every prompt timed out, and it **saved an empty layout, which would have left the pad dead in the
+game**, since loading a layout removes the defaults. Fixed three ways before the second run: it waits
+for a button press before starting, as the pad check does; it never saves an empty layout; and
+`PadProfile` refuses one (`AnEmptyLayoutIsRefused`), so even a stray file can't silence a pad. The
+empty file was deleted.
+
+**The second run bound all eight:**
+
+```
+steer left/right  left stick, axis 0 -/+
+throttle          right stick up, axis 3 -   (analogue: this pad's L2/R2 are only buttons)
+brake/reverse     right stick down, axis 3 +
+wide lock         button 6   (Godot's name for 6 is "Start/Options", which shows how far off the labels are)
+handbrake         button 1   (does nothing until M1d)
+respawn           button 0
+camera            button 3
+```
+
+The game loads it at start (`Pad layout for "Microntek USB Joystick" loaded: 8 controls`). **Not yet
+seen:** him driving with it.
+
 ## 2026-11-22 — the pad check, on his pad
 
 He fetched a PlayStation-style pad to catch oversteer with, and asked for *"a sensor run on my

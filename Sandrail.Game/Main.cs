@@ -93,11 +93,19 @@ public partial class Main : Node3D
 
         string[] args = OS.GetCmdlineUserArgs();
 
-        // A sensor run on a gamepad instead of a drive (Diagnostics/PadCheck.cs).
+        // A sensor run on a gamepad instead of a drive (Diagnostics/PadCheck.cs), or a binding run that
+        // saves the pad's own layout (Diagnostics/PadBinder.cs).
         if (args.Contains("--padcheck"))
         {
             Controls.Register();
             AddChild(new Diagnostics.PadCheck());
+            return;
+        }
+
+        if (args.Contains("--bindpad"))
+        {
+            Controls.Register();
+            AddChild(new Diagnostics.PadBinder());
             return;
         }
 

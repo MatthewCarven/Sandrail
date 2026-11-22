@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Godot;
+using Sandrail.Core.Pads;
 
 namespace Sandrail.Game.Diagnostics;
 
@@ -45,14 +46,14 @@ public partial class PadCheck : CanvasLayer
 
     private static readonly (string Action, string What)[] Checks =
     [
-        (Controls.SteerLeft, "steer left (left stick left)"),
-        (Controls.SteerRight, "steer right (left stick right)"),
-        (Controls.Throttle, "throttle (R2)"),
-        (Controls.Brake, "brake (L2)"),
-        (Controls.WideLock, "wide lock (L1)"),
-        (Controls.Handbrake, "handbrake (Cross)"),
-        (Controls.Respawn, "respawn (Triangle)"),
-        (Controls.Camera, "camera (Share/Create)"),
+        (Controls.SteerLeft, "steer left"),
+        (Controls.SteerRight, "steer right"),
+        (Controls.Throttle, "throttle"),
+        (Controls.Brake, "brake"),
+        (Controls.WideLock, "wide lock"),
+        (Controls.Handbrake, "handbrake"),
+        (Controls.Respawn, "respawn"),
+        (Controls.Camera, "camera"),
     ];
 
     private readonly SortedDictionary<int, Pad> _pads = new();
@@ -238,7 +239,9 @@ public partial class PadCheck : CanvasLayer
         }
 
         report.AppendLine();
-        report.AppendLine("the game's controls (strongest reading while working the pad):");
+        report.AppendLine(Controls.Layout is PadProfile layout
+            ? $"the game's controls, using the saved layout for \"{layout.Name}\" (strongest reading while working the pad):"
+            : "the game's controls, using the default pad bindings (strongest reading while working the pad):");
         foreach ((string action, string what) in Checks)
         {
             float peak = _actionPeak[action];
