@@ -141,6 +141,10 @@ public partial class TuningPanel : PanelContainer
             Step = step,
             Value = value,
             FocusMode = FocusModeEnum.None,
+
+            // The mouse wheel scrolls the list, never the slider under the pointer: his panel tuning
+            // came back with a dozen numbers nudged by a step or two, from scrolling (2026-11-23).
+            Scrollable = false,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ShrinkCenter,
         };

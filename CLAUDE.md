@@ -80,7 +80,7 @@ is how to try numbers without touching what plays. There are seven: `straight`, 
 `circle` on the bare plain with road grip (their M1a figures are in the 2026-10-31 worklog entry), and
 `jump`, `loop` and `bumps` on the test ground (figures in the M1c entry).
 
-Game flags, after `--` (or passed to `start.cmd`): `--ground=test|bare`, `--station=1..5`,
+Game flags, after `--` (or passed to `start.cmd`): `--ground=test|bare`, `--station=1..6`,
 `--surface=road|dirt|grass|sand` (sand by default on the test ground), `--spec=<path>`,
 `--oracle=<name>`, `--panels=tuning,telemetry` (opens either at start), `--record` (starts a run at
 start), and `--screenshot=<path.png>`, which saves a frame at rest and one driving, then quits; with it,
@@ -115,16 +115,17 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 
 ## Where things stand
 
-**2026-11-22: M1a, M1b and M1c are built, plus wide lock; M1d is next.** The buggy drives a test
-ground on a sand plain: a tabletop jump, a slope and plateau with a crest, a 30° banked hairpin, a tall
-loop driven with the wheels straight, and a dirt bump patch, on stations 1-5. Seven oracles
-(fingerprint `a2e24a2b`): the loop goes through 0.1 m off centre, but **the suspension bottoms out on
-the jump's landing and through the loop** (worklog, M1c). **Steering is his to open now**: after driving
-the test ground he asked for Shift to double the lock, which is built (`wideLockFactor` 2, turn rates
-scaled with it) and needed **Ackermann steering** (`ackermannShare` 1) to work at 60° (worklog,
-2026-11-22). Otherwise unchanged since M1a: the friction circle is a dial, `forwardPriority`, because
-the keyboard is what gets tuned (**there's no pad here**; the pad is an owed check); damping is
-1,400/2,100. His first drive: "seems ok", the power oversteer *"exactly what i was hoping for"*. Nobody
-has clicked the panel's Save or Reset yet. **M1d is the extras the pieces ask for** (handbrake,
-downforce, air control, auto-respawn), and the bottoming is a lever to bring to his play rather than to
-change unasked.
+**2026-11-23: M1a, M1b and M1c are built, plus wide lock, his pad's layout and a lap of corners; M1d is
+next.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop jump, a slope and
+plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels straight, a dirt bump
+patch, and a 526 m lap of six different corners (flat to 35° bank, 18 to 60 m radius, one left-hander),
+which is also the shortlist for M2's corner tiles. Seven oracles (committed spec `a2e24a2b`): the loop
+goes through 0.1 m off centre, but **the suspension bottoms out on the jump's landing and through the
+loop** (worklog, M1c). **Steering is his to open**: Shift doubles the lock (`wideLockFactor`), with
+Ackermann steering (`ackermannShare`) to make 60° work. **He drives with his mum's clone pad**, with a
+saved layout (throttle and brake on the right stick). **His own panel tuning sits uncommitted in
+`buggy.json`, at his word** (much more power and grip, plus a dozen accidental one-step nudges from the
+panel's mouse wheel, since fixed): oracles for checking Claude's changes run on the committed spec via
+`-Spec` (worklog, 2026-11-23). **M1d is the extras the pieces ask for** (handbrake, downforce, air
+control, auto-respawn, and his wheel-spin gauge if he wants real wheel spin), and the bottoming is a
+lever to bring to his play rather than to change unasked.

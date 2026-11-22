@@ -2,6 +2,44 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — station 6, a lap of corners; and the panel's mouse wheel
+
+His ask: *"for me to really feel this out any further like i'll need corners and stuff of varying
+degrees and angles of bank like but like dont go overboard its all going to mean more tiles"*. So one
+small closed lap, not a circuit's worth: **station 6, six corners, each different**, which doubles as
+the shortlist for M2's corner tiles. Whichever feel right are the ones worth making into pieces.
+
+```
+corner  angle   radius  bank   length  grip limit, point mass at grip 1.1
+1       90 R    25 m    flat   39 m     59 km/h
+2       45 R    60 m    10°    47 m    110 km/h   a fast kink
+3       135 R   18 m    20°    42 m     75 km/h   tight
+4       60 L    30 m    flat   31 m     65 km/h   the one left-hander
+5       90 R    30 m    35°    47 m    173 km/h   steep
+6       60 R    40 m    15°    42 m     99 km/h
+```
+
+The lap is 526 m. **It closes exactly because two straights are solved for, not guessed**: the end
+of the chain is linear in their lengths, so three trial builds and a 2 × 2 solve give 85.2 m and
+86.9 m. `TestGroundLayout.CornerLap` does it, and the tests hold it: it closes to a millimetre, both
+solved straights are real (15-200 m), every corner differs, and it stays 30 m from every station. The
+grip limits are the textbook banked-curve formula at the car's grip of 1.1 (bank and friction
+together); they're a guide to where the edge is, not what the car does, which is his to find.
+
+Built on keys 1-6 and `--station=6`. Seen from above: closed, the left-hander dents inward, and the
+steep corner's outside edge stands up. **The oracles on the committed spec (`a2e24a2b`) read exactly as
+before**, so the lap touched nothing else.
+
+**And a bug of mine, found in his tuning.** His uncommitted `buggy.json` now has deliberate changes
+(power 110 → 192.5 kW, drive force 4500 → 5580 N, grip 1.1 → 1.214, peak slip 8 → 15.8°, slide grip
+0.8 → 0.709, mass 650 → 746 kg, wheelbase 2.6 → 3.018 m, forward priority 0.3 → 0.248, minimum lock
+10°, pedal rate 6). It also has a dozen one-step nudges (spring 15900, rebound 2080, bump stop 9.9,
+rear anti-roll 1950, brakes 8980 at 0.602, drag 0.855, wheel radius 0.3795, reverse top speed
+10.049999). That's the signature of **the mouse wheel moving whichever slider was under the pointer
+while he scrolled the panel**. Sliders now ignore the wheel (`Scrollable = false`), so it scrolls the
+list and nothing else. **His file is untouched and uncommitted**, at his word; which nudges to undo is
+his call, and the panel's yellow shows them.
+
 ## 2026-11-22 — the binding run, and his pad's layout
 
 On his "Build it": `--bindpad` (`Diagnostics/PadBinder.cs`) asks for each game control on the pad in
