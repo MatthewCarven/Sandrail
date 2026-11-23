@@ -79,11 +79,11 @@ public class TrackGeneratorTests
         Assert.Equal(g.Track.Save(), Track.Parse(g.Track.Save()).Save());
     }
 
-    /// <summary>Until M3d carves the ground, the road keeps out of it: sand on the road is what slid the autodriver off (worklog, M3b).</summary>
+    /// <summary>A generated track comes with its bed laid: the ground it carries is the bedded one (M3d).</summary>
     [Fact]
-    public void TheRoadKeepsOutOfTheGround()
+    public void AGeneratedTrackComesBedded()
     {
-        Assert.All(Sweep.Value, g => Assert.True(g.Stats.WorstCutM < 0.5f, $"{g.Track.Id}'s road is {g.Stats.WorstCutM:F2} m into the ground"));
+        Assert.All(Sweep.Value, g => Assert.True(g.Terrain.Bedded));
     }
 
     [Fact]

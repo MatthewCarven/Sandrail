@@ -2,6 +2,53 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — M3d begun: the road's bed, with banks you can climb back up
+
+His choice, between banks the car climbs from a standstill and steeper 45° ones that need a run at them:
+*"Banks at 25°, climbable"*. That's M3d's bed, so it came before M3c.
+
+**`Bed`** (`Generation/Bed.cs`), a pure function of the terrain and the track: the route's road walked
+every 0.4 m, each cross-section stamping the ground. **Under the road** the ground is set 0.2 m below the
+road's surface, tilt and all, hidden by the slab. **Beside it**, at d metres from the nearer edge, never
+lower than the edge less d tan 25° (the bank) and never higher than the edge plus d tan 25° (the cutting).
+Ground it moved more than 0.25 m, and the bed itself, is painted **dirt**, which climbs 25.3° from rest.
+How far a bank reaches allows for ground that keeps falling away at up to 15°, so a bank doesn't end in a
+step. Loops are skipped: their road stands on nothing. `Terrain` gained a bedded copy (its heights and
+paint) that remembers the field it came from; the generator lays the bed after banking corners, so
+`--seed=` tracks come bedded and `TrackView`'s slabs reach only just below them.
+
+**With cuttings, the road may go into hills again**: the level chooser's price for a metre of road below
+the ground came down from 1000 metres of fill (M3b's ban) to 1.5. Over 300 seeds the tallest embankment
+halved, **p50 3.3 m and max 15.8 m** (from 6.5 and 30.6), and cuttings came back, p50 2.5 m and max 13.6
+m. The bed adds about 35 ms to a track (p50 62 ms now).
+
+**The `bank` oracle** (sixteen now): on a generated track, from rest 4 m beyond the foot of each of its
+three tallest banks, full throttle at the road. **All nine climbed** on seeds 1, 2 and 5: 3.5 to 5.5 m
+tall (the tallest stand on the outside of banked corners), onto the road in 3.2 to 5.0 s.
+
+**The autodriver on seeds 1 to 8 now**, stock car:
+
+```
+70%   all eight finish: 55.44, 1:00.15, 57.35, 1:12.96, 1:20.50, 1:03.96, 56.03, 46.26
+80%   six finish (1, 2, 5, 6, 7, 8): seeds 1 and 8 ran off for 16 and 18 s, climbed back and finished
+      (1:28.01, 1:13.39); seed 3 came to the finish off the road, beside its arch, and stopped; seed 4
+      stuck at the raised banked left at (28, 12)
+```
+
+**Seed 6 first read "fell off the world"** with its wheels never off the road: the oracle called a car
+lost 5 m below the old plain, and seed 6's road runs through a hollow deeper than that. Both the oracle and
+the auto-respawn (whose mark was 30 m below the plain, with ground on the bench reaching 27 m down) now
+measure from the ground's own lowest point. Seed 6 then finished at both 70% and 80%.
+
+**Checked:**
+- 257 tests, 5 of them new: the ground just under the road everywhere along three tracks; beside it,
+  meeting the road and falling away no steeper than the bank or than the ground already was; the banks
+  painted dirt; the ground far from the road untouched; the same track getting the same bed.
+- All sixteen oracles on the stock car (`4f918acd`): `bank` as above, and the other fifteen exactly as
+  after M3b.
+- Screenshots: seed 3's route from above with its dirt banks, and seed 1 from the car, the ground meeting
+  the road's edge instead of a drop.
+
 ## 2026-11-23 — He drives generated tracks
 
 After driving `--seed=` tracks: *"the raised road doesn't bother me much altho i wish its side bank was

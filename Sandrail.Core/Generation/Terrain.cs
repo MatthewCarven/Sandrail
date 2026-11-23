@@ -137,6 +137,10 @@ public sealed class Terrain
     private const float ReliefRarestThreshold = 0.5f;
 
     private readonly float[] _heights;
+
+    /// <summary>Per sample, 1 where the bed (M3d) painted the ground dirt: under the road and on its banks. Null on unbedded ground.</summary>
+    private readonly byte[]? _paint;
+
     private readonly ulong _seed;
     private readonly ulong _shapeSeed;
     private readonly ulong _reliefSeed;
@@ -169,6 +173,38 @@ public sealed class Terrain
                 _heights[(j * Samples) + i] = Field((i * SpacingM) - (SizeM / 2.0f), z);
             }
         });
+    }
+
+    /// <summary>
+    /// The same ground with a bed laid in it (<see cref="Bed"/>): new heights, and the samples the bed
+    /// painted. The seed and dials are the original's, so the field it came from is still there to ask.
+    /// </summary>
+    internal Terrain(Terrain original, float[] heights, byte[] paint)
+    {
+        Settings = original.Settings;
+        _seed = original._seed;
+        _shapeSeed = original._shapeSeed;
+        _reliefSeed = original._reliefSeed;
+        _offsetX = original._offsetX;
+        _offsetZ = original._offsetZ;
+        _heights = heights;
+        _paint = paint;
+    }
+
+    /// <summary>Whether a bed has been laid in this ground (M3d).</summary>
+    public bool Bedded => _paint is not null;
+
+    /// <summary>Whether the bed painted the sample nearest a point: under the road, or on one of its banks.</summary>
+    public bool PaintedByBed(float x, float z)
+    {
+        if (_paint is null)
+        {
+            return false;
+        }
+
+        int i = Math.Clamp((int)MathF.Round((x + (SizeM / 2.0f)) / SpacingM), 0, Samples - 1);
+        int j = Math.Clamp((int)MathF.Round((z + (SizeM / 2.0f)) / SpacingM), 0, Samples - 1);
+        return _paint[(j * Samples) + i] != 0;
     }
 
     /// <summary>Metres between samples.</summary>
@@ -216,6 +252,12 @@ public sealed class Terrain
     /// </remarks>
     public Surface SurfaceAt(float x, float z)
     {
+        // The road's bed and banks are dirt, which climbs a 25° bank from a standstill (M3d).
+        if (PaintedByBed(x, z))
+        {
+            return Surfaces.Dirt;
+        }
+
         float h = HeightAt(x, z);
         return h > DirtAboveM ? Surfaces.Dirt : h < GrassBelowM ? Surfaces.Grass : Surfaces.Sand;
     }

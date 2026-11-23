@@ -56,6 +56,15 @@ public partial class Oracle
     private float _loopSlowest;
     private bool _loopOver;
 
+    private float? _lowestGround;
+
+    /// <summary>
+    /// The lowest the ground goes: 0 on the plain, the deepest hollow on generated ground. "Fell off the
+    /// world" is measured from here; from the plain, seed 6's road through a hollow 6 m down read as a fall
+    /// (2026-11-23).
+    /// </summary>
+    private float LowestGround => _lowestGround ??= MathF.Min(0.0f, Ground?.Heights.Min() ?? 0.0f);
+
     private void RunTrack()
     {
         LaidTrack track = Course!;
@@ -134,7 +143,7 @@ public partial class Oracle
         {
             FinishTrack(track, $"FINISHED in {Clock(timer.Elapsed(Time))}", timer);
         }
-        else if (Car.GlobalPosition.Y < -5.0f)
+        else if (Car.GlobalPosition.Y < LowestGround - 5.0f)
         {
             FinishTrack(track, $"DIDN'T FINISH: fell off the world {Where(track, piece, along)}", timer);
         }

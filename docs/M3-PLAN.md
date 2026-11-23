@@ -201,6 +201,13 @@ eight at 70%, the rest running wide off raised road with sheer sides, M3d's to f
 
 ## M3d — the bed and the ground
 
+**Begun 2026-11-23, ahead of M3c, at his word**: after driving generated tracks he wanted raised road's
+sides to be banks a car can drive back up, and chose 25° (climbable from rest) over 45°. **Built so far:
+the bed** (`Bed`): the ground set 0.2 m under the road, 25° banks beside raised road and 25° cuttings
+beside sunk road, painted dirt; with cuttings, the level chooser lets the road into hills again (a metre
+of cut 1.5 of fill), and the tallest embankments halved. The `bank` oracle climbs a track's three
+tallest banks from rest. **Still to do here:** rocks off the racing line.
+
 - **Core:** stage 4: the terrain carved and filled to the road under each piece, with a blend either
   side; the ground painted; rocks scattered off the racing line.
 - **Game:** the bed in the terrain mesh and collider; rocks as grey boxes with colliders.

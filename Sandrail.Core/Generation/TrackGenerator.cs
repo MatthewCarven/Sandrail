@@ -95,8 +95,12 @@ public static class TrackGenerator
             Pieces = banked.Select(TrackPiece.Of).ToArray(),
         };
 
+        // The road's bed (M3d): the ground set under it, with 25° banks and cuttings either side.
+        LaidTrack laid = track.Lay(catalogue);
+        Terrain bedded = laid.Problems.Count == 0 ? Bed.Lay(terrain, laid) : terrain;
+
         float length = banked.Sum(p => RoadLength(catalogue, p));
-        return new Generated(track, terrain, new GenStats(attempts, backtracks, placements, length, slopes, banks, fill, cut));
+        return new Generated(track, bedded, new GenStats(attempts, backtracks, placements, length, slopes, banks, fill, cut));
     }
 
     internal static float RoadLength(PieceCatalogue catalogue, Placement p) =>
@@ -468,11 +472,12 @@ internal static class Levels
     private const int Count = Highest - Lowest + 1;
 
     /// <summary>
-    /// A metre of road below the ground costs this many metres above it: all but forbidden, because until
-    /// M3d carves the ground away, sand standing on the road is what the tyres meet. At 6 the autodriver
-    /// found sand on five generated tracks' corners out of five and slid off every one (2026-11-23).
+    /// A metre of road below the ground costs this many metres above it. Before the bed it was all but
+    /// forbidden (1000), since sand standing on a buried road is what the tyres meet: at 6 the autodriver
+    /// slid off a corner on five generated tracks out of five (2026-11-23). The bed now carves a cutting with
+    /// 25° sides, so a road may go into a hill again, a little dearer than building one up.
     /// </summary>
-    private const float CutWeight = 1000.0f;
+    private const float CutWeight = 1.5f;
 
     private const float SampleM = 2.0f;
 

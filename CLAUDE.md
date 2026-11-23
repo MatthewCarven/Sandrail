@@ -95,7 +95,7 @@ pwsh tools/oracles.ps1
 ```
 
 `-Oracles drop` runs one; `-Spec variant.json` drives a variant file instead of the shipped buggy, which
-is how to try numbers without touching what plays. There are fifteen: `straight`, `drop`, `brake` and
+is how to try numbers without touching what plays. There are sixteen: `straight`, `drop`, `brake` and
 `circle` on the bare plain with road grip (their M1a figures are in the 2026-10-31 worklog entry;
 `straight` runs off the plain's end at 26 s and counts top speed only before), `handbrake` there too (a
 stop on it alone, and a full-lock turn with and without it; the M1d entry), `sweeper` there too (the
@@ -107,8 +107,10 @@ slope it climbs from rest on each surface; the M3a entry), `jump`, `loop` and `b
 `pieces` in the showroom (the loop, both jumps and the slope, each at several speeds; the M2b entry),
 `lap`, the autodriver
 lapping station 6 (figures in the 2026-11-23 autodriver entry), and `track`, the autodriver driving the
-shakedown start to finish (or `--track=` another): its time, splits, each jump and the loop, where it
-left the road, or exactly where it stopped (the M2d entry). **`lap` is how a tune is compared**: run
+shakedown start to finish (or `--track=` or `--seed=` another): its time, splits, each jump and the
+loop, where it left the road, or exactly where it stopped (the M2d entry), and `bank`, from rest at the
+foot of a generated track's three tallest banks (`--seed=`, 1 unless told), full throttle at the road
+(the M3d entry). **`lap` is how a tune is compared**: run
 it on two specs and read the flying lap, the corner speeds and where it left the road; `track` says
 whether a car (or a track) can be finished at all.
 
@@ -144,6 +146,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 - `Sandrail.Core/` — no Godot. `Generation/` holds `Hash64`, `GradientNoise`, the `BumpField`, and
   M3's generator as it's built: `GenStage` (a seed per stage), `Terrain` with its `TerrainSettings`
   (heights a metre apart over 1024 m, relief regions, painted by height; seed 1 pinned to the last bit)
+  `Bed` (the road's bed: the ground set under it, 25° dirt banks and cuttings either side, so a car that
+  leaves the road can climb back),
   and `TrackGenerator` (`GenSettings`; the route walked in pieces with backtracking, levels chosen all at
   once to keep the road out of the ground, banks by a speed estimate; a `Track` with its `Ground`).
   `Cars/` holds `CarSpec`, `Surfaces`, the `Wings` (parts, by ID) and `WheelModel`, the car's laws as
@@ -184,8 +188,9 @@ and the `track` oracle: the shipped car finishes it in 56.70 s at 80%), are buil
 the shakedown (are the pieces the right size and shape?), is his whenever he likes. **M3, the
 generator, is planned (`docs/M3-PLAN.md`, its six decisions taken as recommended) and under way**: M3a,
 terrain from a seed (`--terrain=<seed>`, the `climb` oracle, the bench's `--terrain` arm), is built;
-M3b, the route (`--seed=<n>`, the S-bend piece, the bench's `--generate`), is built too; M3c, stunts
-and checkpoints, is next. **The stock car has his
+M3b, the route (`--seed=<n>`, the S-bend piece, the bench's `--generate`), is built too, and M3d's bed
+came next at his word (25° dirt banks and cuttings; the `bank` oracle); M3c, stunts and checkpoints, is
+next, then the rest of M3d (rocks). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles

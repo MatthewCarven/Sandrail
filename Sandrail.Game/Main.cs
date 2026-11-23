@@ -153,7 +153,7 @@ public partial class Main : Node3D
 
         if (oracle is not null && !Oracle.IsKnown(oracle))
         {
-            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle, handbrake, sweeper, respawn, climb, jump, air, loop, bumps, lap, pieces, track.");
+            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle, handbrake, sweeper, respawn, climb, jump, air, loop, bumps, lap, pieces, track, bank.");
             return;
         }
 
@@ -164,7 +164,7 @@ public partial class Main : Node3D
         bool showroomOracle = oracle is not null && Oracle.NeedsShowroom(oracle);
         bool bareOracle = oracle is not null && !Oracle.NeedsTestGround(oracle) && !showroomOracle && !trackOracle;
         // A generated track from a seed (M3b): its ground and its route.
-        string? seedFlag = Flag(args, "--seed=");
+        string? seedFlag = Flag(args, "--seed=") ?? (oracle is not null && Oracle.NeedsSeed(oracle) ? "1" : null);
         ulong genSeed = 0;
         if (seedFlag is not null)
         {
@@ -424,7 +424,7 @@ public partial class Main : Node3D
         // report a crash as a crash.
         if (oracle is null || oracle == Oracle.Respawn)
         {
-            _autoRespawn = new AutoRespawn { Car = _car, Home = () => _track is not null ? TrackHome() : _spawn };
+            _autoRespawn = new AutoRespawn { Car = _car, Home = () => _track is not null ? TrackHome() : _spawn, LowestGroundM = MathF.Min(0.0f, _terrain?.Heights.Min() ?? 0.0f) };
             _autoRespawn.Respawned += AutoRespawned;
             AddChild(_autoRespawn);
         }
@@ -432,7 +432,7 @@ public partial class Main : Node3D
         if (oracle is not null)
         {
             _oracle = true;
-            AddChild(new Oracle { Kind = oracle, Car = _car, Layout = _layout, Showroom = _showroom, Course = _track, Caution = _caution });
+            AddChild(new Oracle { Kind = oracle, Car = _car, Layout = _layout, Showroom = _showroom, Course = _track, Ground = _terrain, Caution = _caution });
         }
 
         if (args.Contains("--record"))

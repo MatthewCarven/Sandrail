@@ -22,6 +22,13 @@ public partial class AutoRespawn : Node
     /// <summary>Where to put the car back: wherever R would, asked at the moment it's needed.</summary>
     public required Func<Transform3D> Home { get; init; }
 
+    /// <summary>
+    /// The lowest the ground goes, metres: 0 on the plain, the deepest hollow on generated ground. "Lost below
+    /// the world" is measured from here, since generated ground has hollows deeper than the plain's 30 m mark
+    /// is from the plain (2026-11-23).
+    /// </summary>
+    public float LowestGroundM { get; init; }
+
     /// <summary>Called on the tick it puts the car back, with why.</summary>
     public event Action<StuckReason>? Respawned;
 
@@ -34,7 +41,7 @@ public partial class AutoRespawn : Node
     public override void _PhysicsProcess(double delta)
     {
         float upright = Car.GlobalBasis.Y.Normalized().Dot(Vector3.Up);
-        if (_watch.Update(upright, Car.LinearVelocity.Length(), Car.GlobalPosition.Y, (float)delta) is StuckReason reason)
+        if (_watch.Update(upright, Car.LinearVelocity.Length(), Car.GlobalPosition.Y - LowestGroundM, (float)delta) is StuckReason reason)
         {
             Car.Respawn(Home());
             Respawned?.Invoke(reason);
