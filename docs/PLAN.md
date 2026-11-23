@@ -166,7 +166,8 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
   autodriver, a lap timer, wings and air control besides); the pass waits, at his word, until after the
   track editor (M5), when there are real tracks to tune on.
 - **M2, pieces and the track file.** The grid and catalogue in Core, the full starter set, a
-  hand-written point-to-point track, start gate, checkpoints, finish, timer.
+  hand-written point-to-point track, start gate, checkpoints, finish, timer. **Planned 2026-11-23**:
+  [M2-PLAN.md](M2-PLAN.md), its decisions his.
 - **M3, the generator.** Stages 1–5, with the seed on the command line and in a menu, the bench, and
   terrain you can drive on.
 - **M4, ghosts, replays and track codes.**

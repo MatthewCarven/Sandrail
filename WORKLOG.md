@@ -2,6 +2,24 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — M2 planned
+
+His go-ahead: *"Write M2's plan"*. [docs/M2-PLAN.md](docs/M2-PLAN.md), before any code, the way every
+milestone starts.
+
+What the arithmetic said while writing it, worth keeping apart from the plan:
+- **A one-tile corner is a 10 m hairpin** (37 km/h); on a square grid the radius is 20n − 10, so 2 × 2
+  and 3 × 3 give 30 m and 50 m (65 and 84 km/h flat, 97 and 125 banked 20°), inside station 6's range.
+- **A slope's crest throws the car above √(gR)**: climbing a 2.5 m level in one tile puts 41 m arcs in
+  it (airborne at 72 km/h), in two tiles 161 m arcs (143 km/h).
+- **The M1c loop doesn't drop onto the grid**: it's arrived at 11.6° off its heading and leaves 15 m to
+  the side, and a grid wants axis-aligned ends one tile (20 m) apart. The loop piece has to carry its
+  own skew.
+- **A gap jump is a connection across empty tiles**, so connectors need kinds (road, lip, landing).
+
+Six decisions are his before M2a starts: corner sizes, slope length, checkpoints and where a respawn
+goes, how the clock runs, whether the test ground stays, and the grid and level sizes.
+
 ## 2026-11-23 — M1d's last: the auto-respawn; M1 is built, its tuning after the editor
 
 His word, after air control: *"Lets continue Claude i'll do better tuning after the track editor is

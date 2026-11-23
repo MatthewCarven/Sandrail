@@ -18,6 +18,7 @@ free of Godot. Its generator's `Hash64` and `GradientNoise` are ported here unch
 |---|---|
 | [docs/PLAN.md](docs/PLAN.md) | **The plan**: his decisions, Claude's suggestions, the car, pieces, generator, ghosts, milestones M0–M6, and the decisions still his. |
 | [docs/M1-PLAN.md](docs/M1-PLAN.md) | **M1, the buggy**: six facts, the car's model written down with its starting numbers, six decisions (all taken 2026-10-31), slices M1a–M1e with their checks, and the named levers. Read "The car's model" before touching `Buggy` or `CarSpec`. |
+| [docs/M2-PLAN.md](docs/M2-PLAN.md) | **M2, pieces and the track file**: eight facts (corner radii on a grid, connectors, crests, the loop on the grid, checkpoints, gap jumps), the model written down (grid, piece, placement, track, validation), six decisions (his, written 2026-11-23), slices M2a–M2e. Read "The model" before touching pieces or tracks. |
 | [WORKLOG.md](WORKLOG.md) | What happened and why, newest first. Findings worth keeping live here. |
 
 ## Non-negotiables
@@ -133,8 +134,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 
 **2026-11-23: M1 is built (M1a-M1d), plus wide lock, his pad's layout, a lap of corners and the
 autodriver. The play that passes it waits, at his word, until after the track editor (M5): "i'll do
-better tuning after the track editor is complete". Next is M2: its plan doc first, as every milestone
-starts.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
+better tuning after the track editor is complete". M2's plan is written (`docs/M2-PLAN.md`), with six
+decisions waiting on him before M2a starts.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
 jump, a slope and plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels
 straight, a dirt bump patch, and a 526 m lap of six different corners (flat to 35° bank, 18 to 60 m
 radius, one left-hander), which is also the shortlist for M2's corner tiles. **The autodriver** (his
