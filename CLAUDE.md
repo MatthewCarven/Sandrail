@@ -131,9 +131,11 @@ jump, a slope and plateau with a crest, a 30° banked hairpin, a tall loop drive
 straight, a dirt bump patch, and a 526 m lap of six different corners (flat to 35° bank, 18 to 60 m
 radius, one left-hander), which is also the shortlist for M2's corner tiles. **The autodriver** (his
 idea) laps it on a minimum-curvature racing line drawn on the road (P to hand over, L for the line,
-- and + for its aggression, 50-100%): at 80% the shipped car does 24.5 s clean, and his tune 24.0 s but
-about 2 m wide into corner 1 under braking, **at every aggression down to 60%**, so that's his car's
-braking, not its speed. His tune is quickest at 85% (23.7 s); the shipped car spins from 90%.
+- and + for its aggression, 50-100%): at 80% the shipped car does 24.5 s clean, and his evening tune
+22.1 s, clean up to 85% (21.8 s), but 2.5 m wide on the straight from corner 6 to corner 1. **That
+isn't its braking, as first written here**: brake force, brake balance and the front bar all leave it
+there, less power only trims it, and every car spins on that straight once pushed (the shipped car
+from 90%), so it's most likely how the autodriver takes corner 6's exit; not yet pinned down.
 **A lap timer** times the corner lap (a standing start from station 6 on the first throttle, then line
 to line), with his best and the autodriver's on the board side by side. **No wheel-spin gauge, at
 his word ("Not for now")**: the car has no wheel spin to measure, and he chose not to add it yet.
@@ -145,8 +147,8 @@ goes through 0.1 m off centre, but **the suspension bottoms out on the jump's la
 loop** (worklog, M1c). **Steering is his to open**: Shift doubles the lock (`wideLockFactor`), with
 Ackermann steering (`ackermannShare`) to make 60° work. **He drives with his mum's clone pad**, with a
 saved layout (throttle and brake on the right stick). **His own panel tuning sits uncommitted in
-`buggy.json`, at his word** (much more power and grip, plus a dozen accidental one-step nudges from the
-panel's mouse wheel, since fixed): oracles for checking Claude's changes run on the committed spec via
+`buggy.json`, at his word** (by the evening of 2026-11-23 a heavier, much faster car: 1004 kg, 243 kW,
+grip 1.4, but springs too soft for its weight, so it bottoms out; worklog): oracles for checking Claude's changes run on the committed spec via
 `-Spec` (worklog, 2026-11-23). **The rest of M1d is the other extras the pieces ask for** (downforce,
 air control, auto-respawn), and the bottoming is a
 lever to bring to his play rather than to change unasked.

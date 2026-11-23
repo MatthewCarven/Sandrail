@@ -2,6 +2,62 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — his evening tune, measured; and corner 1 isn't braking
+
+He drove the handbrake, kept tuning, and asked: *"I've driven it and think i've completely ruined the
+default setup but tell me what you think?"* The shipped car is safe in git; his numbers are only in his
+working copy. No runs recorded, so this is the oracles on his file as saved at 17:22 (`8d33cc09`),
+against the shipped car (`da9506cc`). Since the afternoon he'd taken the springs from 15900 to 10000,
+power from 192.5 to 243 kW, grip from 1.214 to 1.4, brakes from 8980 to 11960 N, the lock from 30° to
+16.4°, the wheelbase from 3.02 to 2.75 m and the track from 1.7 to 1.87 m, and put 10% of the drive
+on the front.
+
+```
+                        shipped da9506cc        his tune 8d33cc09
+0-100 km/h              5.17 s                  4.38 s
+top speed               177 km/h                243 km/h
+100-0 km/h              38.4 m (limit 35.8)     35.9 m (limit 28.2)
+most sideways           1.06 g                  1.37 g
+full lock 2 s, alone    62°                     89°
+  with 0.5 s handbrake  142°                    154°
+lap, flying, at 80%     24.52 s clean           22.09 s, 1.0 s off into corner 1, 2.50 m wide
+  at 70 / 75 / 85%      25.61 / 25.00 / 24.31   23.05 / 22.53 / 21.75, no spins
+  at 90%                spins twice             spins and sticks at 502 m (corner 6)
+```
+
+**Quicker everywhere.** **The fault is the springs: 10000 N/m under 1004 kg sits 0.25 m into 0.40 m of
+travel parked (62%), where the shipped car sits at 28%.** Its weight went up 55% and its springs down
+37%. With the dampers scaled to the shipped car's damping ratios (bump 0.43, rebound 0.65 of critical):
+
+```
+                        his 10000              16000, 1740/2610       22000, 2040/3060       shipped
+sits into its travel    62%                    38%                    28%                    28%
+1 m drop                bottoms, 2 overshoots  0.381 of 0.40, 1        0.325, 1               0.305 of 0.35, 1
+jump landing pitch      -28° (nose down)       -18°                   +9°                    -8°
+loop exit               10.0 m off centre      2.0 m                  0.5 m                  0.1 m
+bumps: on the stop      27%                    5%                     0%                     0%
+bumps: a wheel up       30%                    30%                    45%                    46%
+lap at 80%              22.09 s clean          22.12 s clean          spins on lap 2         24.52 s
+```
+
+16000 (his afternoon value, near enough) with dampers raised to suit the weight keeps the soft car's
+grip over bumps and its clean lap, and mostly ends the bottoming. 22000 ends it entirely but lifts
+wheels as often as the shipped car, and the autodriver spins it at 80%.
+
+**His brakes are weaker than his tyres**: 11960 N asks 1.21 g of a car whose grip gives 1.4. 17500 N
+(the shipped car's ratio of brakes to grip) stops in 31.3 m instead of 35.9.
+
+**Corner 1 isn't braking, as this worklog said twice today.** "Into corner 1" is the lap oracle's name
+for the straight before it, which starts at corner 6's exit. On his tune at 80%, every variant runs
+2.50-2.58 m wide there and drives exactly the same corner speeds:
+brake force 11960 or 17500 N, brake balance 0.5 to 0.654, front anti-roll 0, 2000 or 4000. Power trims
+it (2.37 m at 150 kW, 2.07 m at 110 kW) without curing it. The shipped car goes 1.43 m wide on the
+same straight, and every car that spins in these sweeps (shipped at 90%; his with stiffer springs,
+stronger brakes or the shipped front bar at 80-85%) spins there first, at 80-87 km/h with both pedals
+off, which is the slip guards cutting them. So it's most likely how the autodriver takes corner 6's
+exit (60°, 40 m, 15° bank easing out), worse with more speed. Not yet pinned down: the lap oracle
+reports the piece, not the distance along it.
+
 ## 2026-11-23 — M1d begins: the handbrake
 
 His go-ahead: *"Yes, handbrake first"*.
