@@ -2,6 +2,69 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — M3a: terrain
+
+His answer to M3-PLAN's six decisions: *"Yes, as recommended"*.
+
+**Built, in Core (`Generation/Terrain.cs`):**
+- **`GenStage`**: a seed per stage, `Hash64.Mix(seed ^ stage)`, for terrain, route, stunts and ground
+  (non-negotiable 4).
+- **`TerrainSettings`** with `Problems()`, and **`Terrain`**: heights a metre apart over 1024 m, the
+  640 m grid in its middle, fBm times an amplitude that **relief regions** (Overburden's threshold and
+  square ramp, unchanged) take from the plains' to the hills'. **The ground flattens past the grid**
+  (decision 6) to the old plain's level by 32 m short of its edge. A million samples in about 15 ms,
+  rows in parallel; each depends only on its own position, so sharing the rows out can't change it.
+  `HeightAt` between samples, `SlopeDegAt`, `SurfaceAt`.
+- **A known answer, as `Hash64`'s**: seed 1 at the shipped dials folds every sample's bits to
+  `17732728842014489761`, the same in Debug and Release. If it moves, every generated track moves.
+
+**The bench's `--terrain` arm** (dials from the command line, so they're tried without a rebuild). The
+first guesses (hills 24 m, a 320 m feature, 900 m regions) made ground with nothing steeper than 6.6° and
+no hilly patch in half the seeds. **The dials now: hills 50 m, plains 3 m, a 200 m feature, 3 octaves at
+gain 0.45, 500 m regions, rarity 0.3.** Over 100 seeds:
+
+```
+height on the grid       p1 -8.8 m, p99 8.4 m, extremes -27.2 and 29.8
+slope on the grid        p50 1.9°, p90 7.6°, p99 16.1°, p99.9 22.4°, max 34.0°
+hilly share              p50 8% of the grid, p90 24%
+too steep to climb       in 53% of seeds; p90 0.8% of the grid, max 1.3%
+road can follow          tile to tile within 1.25 m: p50 85%, p10 74%, worst seed 60%
+```
+
+So: gentle nearly everywhere, a hilly patch in most seeds, and a wall the car can't get up in about
+half (decision 1). The road follows the ground tile to tile 85% of the time on a typical seed, which
+is what M3b's walker has to work with.
+
+**The `climb` oracle** (fifteen now): from rest 3 m short of a 40 m slope, full throttle, the steepest
+it makes the top of, by halving the gap six times a surface. **Stock car: road 32.3°, dirt 25.3°, grass
+22.5°, sand 19.7°.** M3-PLAN fact 3 guessed 17° for sand by the friction circle alone; the weight moving
+onto the rear wheels on a slope buys the rest. Its first run read 0° everywhere: the car starts below the
+slope's foot, a negative distance up it, which the "slid back" rule read as sliding back from the first
+tick.
+
+**A design clash it caught.** Ground was first painted dirt wherever it was steeper than 12°, where the
+sand would have slid off. But dirt climbs to 25° and sand to 20°, so the hilly patches decision 1 wanted
+to be walls on sand were climbable dirt, and the walls nearly vanished. **So the ground is painted by
+height now**: firm dirt on the hilltops (above 5 m), grass in the hollows (below -4 m), sand everywhere
+else, steep faces included, as a dune's slip face is. **Steep ground is drawn darker** so it still reads
+as steep, without changing its grip.
+
+**Game:** `--terrain=<seed>` builds the ground in place of the plain: a `HeightMapShape3D` at a metre
+(1025 × 1025, which Jolt takes as a height field) and a mesh at 2 m, coloured by surface. Made in 45 ms,
+built in about 170 ms. **The buggy looks its grip up by position** on a body tagged `painted`
+(`PaintedSurface`, M3-PLAN fact 7); every other body still has one surface, cached as before.
+
+**Checked:**
+- 237 tests, 13 of them new: the known answer; the same seed giving the same terrain and another a
+  different one; the samples being the field; flat at the edge and whole on the grid; relief on the
+  grid; flat dials giving flat ground; the painting; the relief ramp; a seed per stage; and refusals.
+- The headless check on the test ground and on terrain.
+- All fifteen oracles on the stock car (`4f918acd`): `climb` as above, and the other fourteen exactly
+  as they read when his steering went in, so the buggy's new surface lookup changes nothing off the
+  terrain.
+- Screenshots: seeds 1 to 3 from the side, seed 2's steepest hill (21.7°, at its south edge) close up, and
+  his saved buggy pulling away across seed 3.
+
 ## 2026-11-23 — M3 planned: the generator
 
 His go-ahead: *"lets continue please Claude i cant wait to see the autodriver navigate the full map you

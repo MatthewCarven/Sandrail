@@ -71,7 +71,14 @@ public partial class Buggy : RigidBody3D
     private readonly float[] _wheelSteerDeg = new float[4];
     private readonly Node3D[] _wheelPivots = new Node3D[4];
     private readonly Node3D[] _wheelSpinners = new Node3D[4];
-    private readonly Dictionary<ulong, Surface> _surfaceCache = new();
+    /// <summary>Each collider's surface, once read; null for one painted by position.</summary>
+    private readonly Dictionary<ulong, Surface?> _surfaceCache = new();
+
+    /// <summary>
+    /// What the ground is at a point, for a body tagged <c>painted</c> (the generated terrain, M3a): one
+    /// body, many surfaces (M3-PLAN fact 7). Null where there's no such ground.
+    /// </summary>
+    public System.Func<Vector3, Surface>? PaintedSurface { get; set; }
     private readonly List<Node> _looks = new();
 
     private CarSpec _spec = new();
@@ -368,7 +375,7 @@ public partial class Buggy : RigidBody3D
             float vs = v.Dot(right);
             _wheelSpeed[i] = vf;
 
-            Surface surface = SurfaceOf(hit["collider"].AsGodotObject());
+            Surface surface = SurfaceOf(hit["collider"].AsGodotObject(), point);
             _surface[i] = surface;
 
             float driveShare = front ? (1.0f - spec.RearDriveShare) / 2.0f : spec.RearDriveShare / 2.0f;
@@ -456,19 +463,28 @@ public partial class Buggy : RigidBody3D
         }
     }
 
-    /// <summary>The surface a collider is tagged with (<c>surface</c> metadata), road if it has none.</summary>
-    private Surface SurfaceOf(GodotObject collider)
+    /// <summary>
+    /// The surface a collider is tagged with (<c>surface</c> metadata), road if it has none; for painted
+    /// ground, the surface at the point the wheel touches.
+    /// </summary>
+    private Surface SurfaceOf(GodotObject collider, Vector3 at)
     {
         ulong id = collider.GetInstanceId();
         if (_surfaceCache.TryGetValue(id, out Surface? known))
         {
-            return known;
+            return known ?? PaintedAt(at);
         }
 
         Surface surface = Surfaces.Road;
         if (collider.HasMeta("surface"))
         {
             string name = collider.GetMeta("surface").AsString();
+            if (name == World.TerrainView.PaintedTag)
+            {
+                _surfaceCache[id] = null;
+                return PaintedAt(at);
+            }
+
             Surface? found = Surfaces.Find(name);
             if (found is null)
             {
@@ -481,6 +497,8 @@ public partial class Buggy : RigidBody3D
         _surfaceCache[id] = surface;
         return surface;
     }
+
+    private Surface PaintedAt(Vector3 at) => PaintedSurface?.Invoke(at) ?? Surfaces.Sand;
 
     private void BuildLooks(CarSpec spec, Vector3 chassisSize)
     {

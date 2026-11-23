@@ -99,6 +99,9 @@ public partial class Main : Node3D
     /// <summary>The track being driven, from <c>--track=</c>; null on the test ground, the showroom or the bare plain.</summary>
     private LaidTrack? _track;
 
+    /// <summary>The generated ground, from <c>--terrain=</c>; null on the plain.</summary>
+    private Terrain? _terrain;
+
     private RacingLine? _lapLine;
     private Autodriver? _autodriver;
     private float _caution = Autodriver.DefaultCaution;
@@ -150,7 +153,7 @@ public partial class Main : Node3D
 
         if (oracle is not null && !Oracle.IsKnown(oracle))
         {
-            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle, handbrake, sweeper, respawn, jump, air, loop, bumps, lap, pieces, track.");
+            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle, handbrake, sweeper, respawn, climb, jump, air, loop, bumps, lap, pieces, track.");
             return;
         }
 
@@ -161,7 +164,27 @@ public partial class Main : Node3D
         bool showroomOracle = oracle is not null && Oracle.NeedsShowroom(oracle);
         bool bareOracle = oracle is not null && !Oracle.NeedsTestGround(oracle) && !showroomOracle && !trackOracle;
         string? trackName = Flag(args, "--track=") ?? (trackOracle ? "base:shakedown" : null);
-        string ground = trackName is not null ? "track" : Flag(args, "--ground=") ?? (showroomOracle ? "showroom" : bareOracle ? "bare" : "test");
+
+        // Generated ground from a seed (M3a), on its own until a track can be laid on it (M3b).
+        string? terrainFlag = Flag(args, "--terrain=");
+        ulong terrainSeed = 0;
+        if (terrainFlag is not null)
+        {
+            if (trackName is not null || Flag(args, "--ground=") is not null)
+            {
+                Refuse("--terrain= is ground of its own for now; a track laid on terrain comes with M3b.");
+                return;
+            }
+
+            if (!ulong.TryParse(terrainFlag, out terrainSeed))
+            {
+                Refuse($"--terrain={terrainFlag}: a seed is a whole number, 0 or more.");
+                return;
+            }
+        }
+
+        string ground = trackName is not null ? "track" : terrainFlag is not null ? "terrain"
+            : Flag(args, "--ground=") ?? (showroomOracle ? "showroom" : bareOracle ? "bare" : "test");
         bool testGround = ground == "test";
         bool showroom = ground == "showroom";
         if (trackName is not null && Flag(args, "--ground=") is string other && other != "track")
@@ -170,9 +193,9 @@ public partial class Main : Node3D
             return;
         }
 
-        if (!testGround && !showroom && ground != "bare" && trackName is null)
+        if (!testGround && !showroom && ground != "bare" && trackName is null && terrainFlag is null)
         {
-            Refuse($"Unknown ground '{ground}'. Known: test, showroom, bare, or a track with --track=.");
+            Refuse($"Unknown ground '{ground}'. Known: test, showroom, bare, a track with --track=, or terrain with --terrain=.");
             return;
         }
 
@@ -252,6 +275,18 @@ public partial class Main : Node3D
             TrackView.Build(this, _showroom.Pieces);
             _stations = _showroom.Stations;
         }
+        else if (terrainFlag is not null)
+        {
+            // Generated ground in place of the plain (M3-PLAN, M3a): its mesh and height field, painted.
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            _terrain = new Terrain(terrainSeed, new TerrainSettings());
+            double made = clock.Elapsed.TotalMilliseconds;
+            var plain = GetNode<StaticBody3D>("Ground");
+            plain.GetNode<MeshInstance3D>("Mesh").Visible = false;
+            plain.GetNode<CollisionShape3D>("Shape").Disabled = true;
+            AddChild(TerrainView.Build(_terrain, terrainSeed));
+            GD.Print($"Terrain from seed {terrainSeed}: made in {made:F0} ms and built in {clock.Elapsed.TotalMilliseconds - made:F0} ms");
+        }
         else if (trackName is not null)
         {
             // A track from its file (M2-PLAN, M2c): its pieces on the plain, the car at the start gate.
@@ -307,11 +342,16 @@ public partial class Main : Node3D
         else
         {
             float lift = oracle == Oracle.Drop ? Oracle.DropHeight : 0.02f;
-            _spawn = new Transform3D(Basis.Identity, new Vector3(0.0f, Buggy.RestHeight(spec) + lift, 0.0f));
+            float under = _terrain?.HeightAt(0.0f, 0.0f) ?? 0.0f;
+            _spawn = new Transform3D(Basis.Identity, new Vector3(0.0f, under + Buggy.RestHeight(spec) + lift, 0.0f));
         }
 
         _car = new Buggy { Transform = _spawn };
         _car.Configure(spec);
+        if (_terrain is Terrain land)
+        {
+            _car.PaintedSurface = p => land.SurfaceAt(p.X, p.Z);
+        }
         AddChild(_car);
 
         _camera = new ChaseCamera { Target = _car };

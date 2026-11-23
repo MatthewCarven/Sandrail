@@ -123,7 +123,8 @@ real physics, which is what PLAN suggestion 4 meant by "a headless bot can drive
 
 ## Decisions
 
-Numbered so they can be answered by number; the recommendation is first.
+Numbered so they can be answered by number; the recommendation is first. **All six taken as
+recommended, 2026-11-23**: *"Yes, as recommended"*.
 
 1. **Terrain: gentle nearly everywhere, with a few hilly patches you can't climb on sand.** Hills of a
    few metres over a few hundred, so the road follows the ground most of the way and leaving it is a
@@ -151,6 +152,13 @@ Numbered so they can be answered by number; the recommendation is first.
 ---
 
 ## M3a — terrain
+
+**Built 2026-11-23**, as below; 13 tests, worklog that date. The dials, from the bench: hills 50 m,
+plains 3 m, a 200 m feature, 3 octaves at gain 0.45, 500 m regions, rarity 0.3. **The car climbs 32.3°
+on road, 25.3° on dirt, 22.5° on grass and 19.7° on sand** (the `climb` oracle; fact 3 guessed 17° for
+sand). **The ground is painted by height, not slope**: dirt on the hilltops, grass in the hollows, sand
+between, steep faces included, because steep ground painted dirt climbed to 25° and the walls of decision
+1 vanished. Half the seeds have some ground the car can't climb, at most about 1% of the grid.
 
 - **Core:** `GenSettings` and `Terrain` (stage 1): heights at a metre over 1024 m, fBm and relief
   regions, a pure function of the seed and the terrain dials; slope and the surface at any point.
