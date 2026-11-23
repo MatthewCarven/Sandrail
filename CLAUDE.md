@@ -156,9 +156,11 @@ a chicane, three gates), are built and shown in the showroom; M2c, the track fil
 (every piece in 1.28 km, `--track=base:shakedown`), and M2d, racing it (the clock, checkpoints in
 order with splits, R back to the last checkpoint, Backspace to start again, the autodriver on the route
 and the `track` oracle: the shipped car finishes it in 56.70 s at 80%), are built too. M2e, his play on
-the shakedown (are the pieces the right size and shape?), is next and is his. His panel steering (`maxSteerDeg` 15.25, `minSteerDeg` 2.05, saved 2026-11-23 19:39)
-sits uncommitted in `buggy.json`; oracles checking Claude's changes run on the committed spec via
-`-Spec`.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
+the shakedown (are the pieces the right size and shape?), is next and is his. **The stock car has his
+steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
+buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
+trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles
+checking Claude's changes run on the committed spec via `-Spec`.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
 jump, a slope and plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels
 straight, a dirt bump patch, and a 526 m lap of six different corners (flat to 35° bank, 18 to 60 m
 radius, one left-hander), which is also the shortlist for M2's corner tiles. **The autodriver** (his
@@ -188,10 +190,10 @@ Twelve oracles (committed spec `964252ce`): the loop
 goes through 0.1 m off centre, but **the suspension bottoms out on the jump's landing and through the
 loop** (worklog, M1c). **Steering is his to open**: Shift doubles the lock (`wideLockFactor`), with
 Ackermann steering (`ackermannShare`) to make 60° work. **He drives with his mum's clone pad**, with a
-saved layout (throttle and brake on the right stick). **`buggy.json` is the shipped car again**, restored
-from GitHub at his word on the evening of 2026-11-23. **His own tune is kept outside the repo**, at
-`%APPDATA%\Godot\app_userdata\Sandrail\tunes\matthew-2026-11-23.json`, and `start.cmd
---spec=<that path>` drives it. It's a heavier, much faster car (1004 kg, 243 kW, grip 1.4), but its
-springs are too soft for its weight, so it bottoms out (worklog). He's thinking of making **building
+saved layout (throttle and brake on the right stick). **His own tunes are kept outside the repo**, in
+`%APPDATA%\Godot\app_userdata\Sandrail\tunes\`, and `start.cmd --spec=<path>` drives one:
+`matthew-2026-11-23.json`, a heavier, much faster car (1004 kg, 243 kW, grip 1.4) whose springs are too
+soft for its weight, so it bottoms out (worklog); and `matthew-2026-11-23-late.json` (844 kg, 159.5 kW,
+twin-plane wing), which is also his working `buggy.json`, uncommitted. He's thinking of making **building
 your car part of the game** (PLAN, "His ideas"). The bottoming is a lever to bring to his play rather
 than to change unasked.

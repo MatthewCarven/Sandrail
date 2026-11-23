@@ -190,7 +190,12 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
   is still open. **The first part exists**: the wing (M1d, same day), which he asked to be
   customizable *"like we will make you earn and pay for them later somehow"*. Four wings by ID in
   `Wings`, the car's file naming which it has, and the angle and mount its own. How they're earned
-  and what they cost is still his to decide.
+  and what they cost is still his to decide. **Later that evening, putting only his steering into the
+  stock car**: players *"start with the car you provided initially we will make that part of the
+  learning process setting up your car via trial and error"*. So the stock car is a starting point
+  meant to be improved on, not a finished tune, and finding a better setup is part of what a player
+  learns; the panel, the `lap` oracle's comparison and the `track` oracle's "can it finish" are the
+  tools that exist for it now.
 - **An autodriver** (same day: *"how do you feel about an autodriver?"*). **Built 2026-11-23** on the
   corner lap, on a minimum-curvature racing line that keeps the wheels on the road (his addition), with
   a lap oracle; worklog, that date. **Its aggression** (the share of grip it plans for, 50-100%) is on -

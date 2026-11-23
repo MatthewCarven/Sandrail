@@ -2,6 +2,41 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — His steering goes into the stock car
+
+His words, first *"yeah commit the steering change only like make them start with the car you provided
+initially we will make that part of the learning process setting up your car via trial and error"*,
+and then, to make it plain: *"in my buggy the one i saved lift the steering degrees and put that in the
+original stock car that would be provided via github please"*. And on why: *"yeah my 30 degree lock to
+lock was ambitious it seems like but it is nice to be able to double my default though when the need
+arises"*.
+
+**The stock car is the one shipped, with his steering and nothing else**: `maxSteerDeg` 30 → 21.349998
+(21.35 on the panel) and `minSteerDeg` 8 → 2.05, taken from his saved buggy. Shift still doubles it, to
+42.7° at walking pace. Its fingerprint is `4f918acd` (was `964252ce`). The rest of his saved buggy, a new
+tune since the evening one (844 kg, 159.5 kW, grip 1.166, 85% rear drive, the twin-plane wing, track
+2.0 m), stays in his working copy uncommitted, with a copy beside the evening tune at
+`%APPDATA%\Godot\app_userdata\Sandrail\tunes\matthew-2026-11-23-late.json`. **Players start with this
+car and find a better setup by trial and error** (PLAN, "His ideas"): the stock car is a starting point,
+not a finished tune.
+
+**The oracles on the new stock car**, against the old:
+
+```
+circle     1.06 g at steer 0.37 (5.2°), as before at 0.25 (5.5°): the same lock, now further along the input
+handbrake  full lock from 61 km/h for 2 s: 65° on steering alone (was 62), 154° with the handbrake (was 142)
+air        full right steer in flight: turned 38°, rolled 28° (was 37°, 27°)
+lap        80%: standing 26.91 s, flying 24.51 s (was 26.93, 24.53), widest off the line 1.39 m (was 1.42)
+track      80%: FINISHED in 56.70, exactly as before, clean
+straight, drop, brake, sweeper, respawn, jump, loop, bumps, pieces: unchanged
+```
+
+**It doesn't hold 90% on the corner lap**: at 90% the flying lap is 26.64 with two spins, the first on
+the straight into corner 1, as the old stock car did. His laps of 23.05 at 90% (the entry below) were on
+15.25° of lock, not 21.35°. On the shakedown at 90% it finishes in 1:13.80 with slides out of the same
+three corners as before. So at 80% the new stock car is the old one a little sharper, and the less lock
+that held 90% is still there to be found on the panel.
+
 ## 2026-11-23 — His steering on the corner lap: the autodriver at 90%
 
 He ran the autodriver round station 6 in the game on his 19:39 panel steering (`maxSteerDeg` 15.25,
