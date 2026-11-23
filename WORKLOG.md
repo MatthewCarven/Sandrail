@@ -2,7 +2,7 @@
 
 Newest first. What happened and why; findings worth keeping.
 
-## 2026-11-23 — a lap timer for the corner lap; the wheel-spin gauge waits on him
+## 2026-11-23 — a lap timer for the corner lap; no wheel-spin gauge for now
 
 His ask: *"a lap timer for the main track please Claude and a whellspin indicator i think?"*
 
@@ -29,9 +29,10 @@ autodriver in the game, headless, timed 26.92 and 24.52, the same as the oracle.
 **The wheel-spin gauge is on hold, at his word.** The car has no wheel spin to measure: its wheels have
 no speed of their own, and the tyre goes straight from the engine's push to the grip's limit (2026-11-22
 entry). A gauge of his ratio, wheel speed over ground speed, would read 1.0 all the time. Told so, he
-said *"If there is no wheels spin i'll reconsider"*. The choice is his: real wheel spin (each wheel
-with its own speed; a real change in feel and a retune, his tune included) with the gauge on top, or no
-gauge for now.
+said *"If there is no wheels spin i'll reconsider"*. Offered real wheel spin (each wheel with its own
+speed; a real change in feel and a retune, his tune included) with the gauge on top, **he said "Not for
+now"**. So the car keeps its tyre model with no wheel speed, PLAN's "no simulated wheel spin" stands,
+and there's no gauge. If he opens it later, the gauge is the easy half; the wheel speeds are the work.
 
 ## 2026-11-23 — the autodriver's aggression, on - and +
 

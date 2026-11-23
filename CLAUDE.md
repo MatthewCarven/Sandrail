@@ -134,8 +134,8 @@ idea) laps it on a minimum-curvature racing line drawn on the road (P to hand ov
 about 2 m wide into corner 1 under braking, **at every aggression down to 60%**, so that's his car's
 braking, not its speed. His tune is quickest at 85% (23.7 s); the shipped car spins from 90%.
 **A lap timer** times the corner lap (a standing start from station 6 on the first throttle, then line
-to line), with his best and the autodriver's on the board side by side. **The wheel-spin gauge is
-his to decide**: the car has no wheel spin to measure, so it waits on whether he wants real wheel spin.
+to line), with his best and the autodriver's on the board side by side. **No wheel-spin gauge, at
+his word ("Not for now")**: the car has no wheel spin to measure, and he chose not to add it yet.
 Eight oracles (committed spec `a2e24a2b`): the loop
 goes through 0.1 m off centre, but **the suspension bottoms out on the jump's landing and through the
 loop** (worklog, M1c). **Steering is his to open**: Shift doubles the lock (`wideLockFactor`), with
@@ -144,5 +144,5 @@ saved layout (throttle and brake on the right stick). **His own panel tuning sit
 `buggy.json`, at his word** (much more power and grip, plus a dozen accidental one-step nudges from the
 panel's mouse wheel, since fixed): oracles for checking Claude's changes run on the committed spec via
 `-Spec` (worklog, 2026-11-23). **M1d is the extras the pieces ask for** (handbrake, downforce, air
-control, auto-respawn, and his wheel-spin gauge if he wants real wheel spin), and the bottoming is a
+control, auto-respawn), and the bottoming is a
 lever to bring to his play rather than to change unasked.
