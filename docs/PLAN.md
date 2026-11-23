@@ -181,7 +181,10 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
   as you level"*. Most of it exists: the panel is the garage, `CarSpec` is in Core with a fingerprint,
   so a ghost or a leaderboard entry can name the exact car. Open questions for when it's planned:
   limits or trade-offs so freedom doesn't mean exploits (grip at maximum, mass at minimum); leaderboards
-  by power class; what levelling is earned by.
+  by power class; what levelling is earned by. **The same evening, putting the shipped car back after
+  tuning his own into a 1004 kg, 243 kW machine**: *"we might make a game out of building your car
+  too"*. Building as well as tuning; what building means (parts to choose? a frame to put together?)
+  is still open.
 - **An autodriver** (same day: *"how do you feel about an autodriver?"*). **Built 2026-11-23** on the
   corner lap, on a minimum-curvature racing line that keeps the wheels on the road (his addition), with
   a lap oracle; worklog, that date. **Its aggression** (the share of grip it plans for, 50-100%) is on -

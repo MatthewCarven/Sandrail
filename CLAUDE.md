@@ -146,9 +146,11 @@ Nine oracles (committed spec `da9506cc`): the loop
 goes through 0.1 m off centre, but **the suspension bottoms out on the jump's landing and through the
 loop** (worklog, M1c). **Steering is his to open**: Shift doubles the lock (`wideLockFactor`), with
 Ackermann steering (`ackermannShare`) to make 60° work. **He drives with his mum's clone pad**, with a
-saved layout (throttle and brake on the right stick). **His own panel tuning sits uncommitted in
-`buggy.json`, at his word** (by the evening of 2026-11-23 a heavier, much faster car: 1004 kg, 243 kW,
-grip 1.4, but springs too soft for its weight, so it bottoms out; worklog): oracles for checking Claude's changes run on the committed spec via
-`-Spec` (worklog, 2026-11-23). **The rest of M1d is the other extras the pieces ask for** (downforce,
+saved layout (throttle and brake on the right stick). **`buggy.json` is the shipped car again**, restored
+from GitHub at his word on the evening of 2026-11-23. **His own tune is kept outside the repo**, at
+`%APPDATA%\Godot\app_userdata\Sandrail\tunes\matthew-2026-11-23.json`, and `start.cmd
+--spec=<that path>` drives it. It's a heavier, much faster car (1004 kg, 243 kW, grip 1.4), but its
+springs are too soft for its weight, so it bottoms out (worklog). He's thinking of making **building
+your car part of the game** (PLAN, "His ideas"). **The rest of M1d is the other extras the pieces ask for** (downforce,
 air control, auto-respawn), and the bottoming is a
 lever to bring to his play rather than to change unasked.

@@ -58,6 +58,12 @@ off, which is the slip guards cutting them. So it's most likely how the autodriv
 exit (60°, 40 m, 15° bank easing out), worse with more speed. Not yet pinned down: the lap oracle
 reports the piece, not the distance along it.
 
+**Then the shipped car went back**, at his word: *"restore the default tune from the github repo
+please we might make a game out of building your car too"*. `buggy.json` is GitHub's again (`da9506cc`;
+straight 5.17 s, lap 24.52 s, as before). His tune is kept outside the repo, beside his runs, at
+`%APPDATA%\Godot\app_userdata\Sandrail\tunes\matthew-2026-11-23.json`; `start.cmd --spec=` drives it.
+The car-building idea is in PLAN, "His ideas".
+
 ## 2026-11-23 — M1d begins: the handbrake
 
 His go-ahead: *"Yes, handbrake first"*.
