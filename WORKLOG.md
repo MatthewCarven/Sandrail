@@ -2,6 +2,20 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — Seed 5, and his wide lock restarting the run
+
+Driving the banks: *"Claude this is a really fun level seed=5 i need to redo my gamepad calibration uh when
+i pressed my hard steer button it has become bound to reset"*. **Seed 5** is 2.11 km, 59 pieces, 20 slopes
+and 9 banked corners, with the tallest bank the `bank` oracle climbed (5.5 m, outside a banked 30 m corner
+at (2, 15)): the first generated track he's called fun.
+
+**The reset was Claude's, not his calibration.** His saved pad layout (`--bindpad`, 2026-11-22) puts wide
+lock on button 6. M2d bound restart (Backspace) to the pad's Start button by default, and Start is button 6.
+A layout only replaces the defaults of the controls it knows, and restart came after it, so pressing wide
+lock also started the run again. **Now a button a saved layout uses is the layout's**: every other action's
+default on it comes off when the layout loads. On his pad, restart is Backspace only until a layout binds
+it. Not tried on his pad from here, since headless runs see no pad.
+
 ## 2026-11-23 — M3d begun: the road's bed, with banks you can climb back up
 
 His choice, between banks the car climbs from a standstill and steeper 45° ones that need a run at them:

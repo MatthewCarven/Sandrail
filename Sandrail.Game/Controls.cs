@@ -1,3 +1,4 @@
+using System.Linq;
 using Godot;
 using Sandrail.Core.Pads;
 
@@ -176,6 +177,27 @@ public static class Controls
                     ? new InputEventJoypadMotion { Axis = (JoyAxis)b.Index, AxisValue = b.Direction }
                     : new InputEventJoypadButton { ButtonIndex = (JoyButton)b.Index };
                 InputMap.ActionAddEvent(b.Action, bound);
+            }
+
+            // A button the layout uses is the layout's. Any other action's default on that button comes off,
+            // or a control added since the layout was saved can land on one of its buttons: restart's default,
+            // the Start button, is his pad's button 6, which his layout made wide lock, so wide lock started
+            // the run again (2026-11-23).
+            var taken = layout.Bindings.Where(b => b.Kind != PadBinding.Axis).Select(b => b.Index).ToHashSet();
+            foreach (StringName action in InputMap.GetActions())
+            {
+                if (PadActions.Contains(action.ToString()))
+                {
+                    continue;
+                }
+
+                foreach (InputEvent e in InputMap.ActionGetEvents(action))
+                {
+                    if (e is InputEventJoypadButton button && taken.Contains((int)button.ButtonIndex))
+                    {
+                        InputMap.ActionEraseEvent(action, e);
+                    }
+                }
             }
 
             GD.Print($"Pad layout for \"{layout.Name}\" loaded: {layout.Bindings.Count} controls from {LayoutPath(layout.Guid)}");
