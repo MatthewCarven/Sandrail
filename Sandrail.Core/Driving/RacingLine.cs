@@ -191,11 +191,20 @@ public sealed class RacingLine
     /// The fastest each sample can be taken at, by the banked-curve formula at <paramref name="caution"/>
     /// of the car's grip, then slowed on the approach to every corner so the car can brake for it.
     /// </summary>
+    /// <remarks>
+    /// <b>A wing's downforce counts</b> (M1d): it presses the tyres onto the road by
+    /// <c>k·v²</c>, so the grip grows with speed and the formula becomes
+    /// <c>v² = g(tan θ + μ) / (κ(1 − μ tan θ) − μk / (m cos θ))</c>, κ the curvature. Where the
+    /// downforce outgrows the corner's need, the bottom goes to zero and the corner is flat out. It's
+    /// counted as if shared by all four tyres; a rear wing loads the rear ones, which the caution covers.
+    /// Braking likewise gains the downforce at the speed being braked to, the cautious end.
+    /// </remarks>
     public float[] SpeedProfile(CarSpec spec, float caution)
     {
         const float G = WheelModel.Gravity;
         float mu = spec.Grip * caution;
         float top = WheelModel.TopSpeedEstimate(spec, Surfaces.Road);
+        float pressPerMass = WheelModel.DownforcePerMps2(spec) / spec.MassKg;
         var speeds = new float[Count];
 
         for (int i = 0; i < Count; i++)
@@ -207,12 +216,14 @@ public sealed class RacingLine
                 continue;
             }
 
-            float tan = MathF.Tan(_bankDeg[i] * (MathF.PI / 180.0f));
-            float v = MathF.Sqrt(G / bend * (tan + mu) / MathF.Max(1.0f - (mu * tan), 0.05f));
-            speeds[i] = MathF.Min(v, top);
+            // Written so that with no wing it's the old formula to the last bit, and the lap oracle's
+            // figures for a wingless car don't move.
+            float bank = _bankDeg[i] * (MathF.PI / 180.0f);
+            float tan = MathF.Tan(bank);
+            float below = MathF.Max(1.0f - (mu * tan), 0.05f) - (mu * pressPerMass / (MathF.Cos(bank) * bend));
+            speeds[i] = below > 0.0f ? MathF.Min(MathF.Sqrt(G / bend * (tan + mu) / below), top) : top;
         }
 
-        float braking = G * mu * 0.9f;
         int passes = Closed ? 2 : 1;
         for (int pass = 0; pass < passes; pass++)
         {
@@ -230,7 +241,9 @@ public sealed class RacingLine
                 }
 
                 float ds = Span(i, next);
-                speeds[i] = MathF.Min(speeds[i], MathF.Sqrt((speeds[next] * speeds[next]) + (2.0f * braking * ds)));
+                float after = speeds[next] * speeds[next];
+                float braking = (G + (pressPerMass * after)) * mu * 0.9f;
+                speeds[i] = MathF.Min(speeds[i], MathF.Sqrt(after + (2.0f * braking * ds)));
             }
         }
 

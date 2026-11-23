@@ -83,6 +83,8 @@ public partial class Buggy : RigidBody3D
     private float _steerDeg;
     private Transform3D? _pendingRespawn;
     private bool _resetInterpolation;
+    private Node3D? _wingLook;
+    private (string, float, float, float, float) _wingKey;
 
     /// <summary>Set every physics tick by whoever is driving.</summary>
     public DriverInput Driver { get; set; }
@@ -107,6 +109,12 @@ public partial class Buggy : RigidBody3D
 
     /// <summary>How far the rear wheels were locked last tick, 0..1: the handbrake times its lock.</summary>
     public float HandbrakeAmount { get; private set; }
+
+    /// <summary>Last tick's downforce from the wing, newtons.</summary>
+    public float WingDownforce { get; private set; }
+
+    /// <summary>Last tick's drag from the wing, newtons, on top of the body's.</summary>
+    public float WingDrag { get; private set; }
 
     /// <summary>World acceleration over the last tick, from the change in velocity.</summary>
     public Vector3 Acceleration { get; private set; }
@@ -182,6 +190,7 @@ public partial class Buggy : RigidBody3D
         _mounts[RearLeft] = new Vector3(-halfTrack, spec.MountHeightM, halfBase);
         _mounts[RearRight] = new Vector3(halfTrack, spec.MountHeightM, halfBase);
 
+        BuildWing(spec);
         if (!reshape)
         {
             return;
@@ -370,6 +379,24 @@ public partial class Buggy : RigidBody3D
         ApplyAntiRoll(state, xf, up, RearLeft, RearRight, spec.AntiRollRearNPerM);
 
         state.ApplyCentralForce(-spec.DragNPerMps2 * speed * velocity);
+
+        // The wing, from where it stands (M1d), on the air it meets there: its own velocity in the
+        // chassis's fore-and-aft and up-and-down plane. Drag goes along that, downforce across it toward
+        // the floor. On the road that's down the chassis, loading the rear tyres through their springs;
+        // in the air it turns the car to follow its arc.
+        Vector3 wingAt = xf.Basis * new Vector3(0.0f, spec.WingHeightM, spec.WingBackM);
+        Vector3 wingVelocity = state.GetVelocityAtLocalPosition(wingAt);
+        float wingForward = wingVelocity.Dot(forward);
+        float wingUp = wingVelocity.Dot(up);
+        (float downforce, float wingDrag) = WheelModel.WingForces(spec, wingForward, wingUp);
+        WingDownforce = downforce;
+        WingDrag = wingDrag;
+        if (downforce != 0.0f || wingDrag != 0.0f)
+        {
+            Vector3 flow = ((forward * wingForward) + (up * wingUp)).Normalized();
+            Vector3 floorward = (-up + (flow * up.Dot(flow))).Normalized();
+            state.ApplyForce((floorward * downforce) - (flow * wingDrag), wingAt);
+        }
     }
 
     private void ApplyAntiRoll(PhysicsDirectBodyState3D state, Transform3D xf, Vector3 up, int left, int right, float stiffness)
@@ -458,6 +485,94 @@ public partial class Buggy : RigidBody3D
             Look(pivot);
             _wheelPivots[i] = pivot;
             _wheelSpinners[i] = spinner;
+        }
+    }
+
+    /// <summary>
+    /// The wing's grey box: a plate as wide as three times its depth, tilted trailing edge up by its
+    /// angle, on two struts from the chassis's top, at the point its forces act. The twin-plane wing has
+    /// a second, smaller plate behind and above the first. Rebuilt only when something it shows changed,
+    /// since the angle slider moves it many times a second.
+    /// </summary>
+    private void BuildWing(CarSpec spec)
+    {
+        var key = (spec.WingId, spec.WingAngleDeg, spec.WingBackM, spec.WingHeightM, spec.ChassisHeightM);
+        if (_wingLook is not null && _wingKey == key)
+        {
+            return;
+        }
+
+        _wingKey = key;
+        if (_wingLook is not null)
+        {
+            RemoveChild(_wingLook);
+            _wingLook.QueueFree();
+            _wingLook = null;
+        }
+
+        Wing wing = spec.FittedWing();
+        _wingLook = new Node3D { Position = new Vector3(0.0f, spec.WingHeightM, spec.WingBackM) };
+        AddChild(_wingLook);
+        if (wing.AreaM2 <= 0.0f)
+        {
+            return;
+        }
+
+        var plate = new StandardMaterial3D { AlbedoColor = new Color(0.9f, 0.9f, 0.86f), Roughness = 0.5f };
+        var dark = new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.12f, 0.13f), Roughness = 0.9f };
+        bool twin = wing == Wings.TwinPlane;
+        float span = MathF.Sqrt(3.0f * wing.AreaM2);
+        float mainChord = wing.AreaM2 / span * (twin ? 0.6f : 1.0f);
+        float tilt = -Mathf.DegToRad(spec.WingAngleDeg);
+
+        var main = new MeshInstance3D
+        {
+            Mesh = new BoxMesh { Size = new Vector3(span, 0.04f, mainChord) },
+            MaterialOverride = plate,
+            Rotation = new Vector3(tilt, 0.0f, 0.0f),
+        };
+        _wingLook.AddChild(main);
+
+        if (twin)
+        {
+            float flapChord = wing.AreaM2 / span * 0.4f;
+            _wingLook.AddChild(new MeshInstance3D
+            {
+                Mesh = new BoxMesh { Size = new Vector3(span, 0.04f, flapChord) },
+                MaterialOverride = plate,
+                Position = new Vector3(0.0f, 0.12f + (MathF.Sin(-tilt) * mainChord / 2.0f), (mainChord / 2.0f) + (flapChord / 2.0f) - 0.05f),
+                Rotation = new Vector3(tilt * 1.6f, 0.0f, 0.0f),
+            });
+        }
+
+        // End plates, which make it read as a wing from any angle.
+        if (wing != Wings.Lip)
+        {
+            float plateDepth = twin ? mainChord * 1.9f : mainChord * 1.2f;
+            foreach (float side in new[] { -1.0f, 1.0f })
+            {
+                _wingLook.AddChild(new MeshInstance3D
+                {
+                    Mesh = new BoxMesh { Size = new Vector3(0.03f, 0.3f, plateDepth) },
+                    MaterialOverride = dark,
+                    Position = new Vector3(side * span / 2.0f, 0.05f, twin ? mainChord * 0.3f : 0.0f),
+                });
+            }
+        }
+
+        // Struts down to the chassis's top, if the wing stands above it.
+        float drop = spec.WingHeightM - (spec.ChassisHeightM / 2.0f);
+        if (drop > 0.02f)
+        {
+            foreach (float side in new[] { -1.0f, 1.0f })
+            {
+                _wingLook.AddChild(new MeshInstance3D
+                {
+                    Mesh = new BoxMesh { Size = new Vector3(0.05f, drop, 0.12f) },
+                    MaterialOverride = dark,
+                    Position = new Vector3(side * span * 0.3f, -drop / 2.0f, 0.0f),
+                });
+            }
         }
     }
 

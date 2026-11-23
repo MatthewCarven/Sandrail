@@ -23,7 +23,7 @@ namespace Sandrail.Game.Oracles;
 /// </para>
 /// <para>
 /// Straight, drop, brake and circle run on the bare plain with road grip, as they did at M1a, so their
-/// figures stay comparable, and so does handbrake (M1d); jump, loop, bumps and lap run on the test
+/// figures stay comparable, and so do handbrake and sweeper (M1d); jump, loop, bumps and lap run on the test
 /// ground (<c>Oracle.Ground.cs</c>).
 /// </para>
 /// </remarks>
@@ -34,6 +34,15 @@ public partial class Oracle : Node
     public const string Brake = "brake";
     public const string Circle = "circle";
     public const string Handbrake = "handbrake";
+    public const string Sweeper = "sweeper";
+
+    /// <summary>The sweeper's circle, metres: its centre is this far to the right of the start, so the car starts on it, facing along it.</summary>
+    private const float SweepRadius = 120.0f;
+
+    /// <summary>How fast the sweeper's target speed climbs once it's at <see cref="SweepFrom"/>, m/s each second: slow enough to read as steady.</summary>
+    private const float SweepRamp = 0.25f;
+
+    private const float SweepFrom = 20.0f;
 
     /// <summary>How far above rest height the drop oracle lets go.</summary>
     public const float DropHeight = 1.0f;
@@ -56,6 +65,7 @@ public partial class Oracle : Node
     private float _at10;
     private float _at20;
     private float _top;
+    private float? _offTheEndAt;
     private Vector3 _start;
 
     // drop
@@ -76,6 +86,14 @@ public partial class Oracle : Node
     private float _steerAtBest;
     private float _steerDegAtBest;
 
+    // sweeper
+    private float? _sweepRampFrom;
+    private readonly Queue<float> _sweepLateral = new();
+    private float _sweepBest;
+    private float _sweepBestG;
+    private float _sweepBestDownforce;
+    private float _sweepShort;
+
     // handbrake: three runs from the same spot, each from rest
     private enum HandbrakeRun { Stop, SteeringAlone, WithTheHandbrake }
 
@@ -92,13 +110,13 @@ public partial class Oracle : Node
 
     /// <summary>
     /// One of <see cref="Straight"/>, <see cref="Drop"/>, <see cref="Brake"/>, <see cref="Circle"/>,
-    /// <see cref="Handbrake"/>, <see cref="Jump"/>, <see cref="Loop"/>, <see cref="Bumps"/>, <see cref="Lap"/>.
+    /// <see cref="Handbrake"/>, <see cref="Sweeper"/>, <see cref="Jump"/>, <see cref="Loop"/>, <see cref="Bumps"/>, <see cref="Lap"/>.
     /// </summary>
     public required string Kind { get; init; }
 
     public required Buggy Car { get; init; }
 
-    public static bool IsKnown(string kind) => kind is Straight or Drop or Brake or Circle or Handbrake || NeedsTestGround(kind);
+    public static bool IsKnown(string kind) => kind is Straight or Drop or Brake or Circle or Handbrake or Sweeper || NeedsTestGround(kind);
 
     private float Time => _tick / (float)Engine.PhysicsTicksPerSecond;
 
@@ -130,6 +148,9 @@ public partial class Oracle : Node
                 break;
             case Handbrake:
                 RunHandbrake();
+                break;
+            case Sweeper:
+                RunSweeper();
                 break;
             case Jump:
                 RunJump();
@@ -179,7 +200,18 @@ public partial class Oracle : Node
             _at20 = v;
         }
 
-        _top = MathF.Max(_top, v);
+        // Top speed counts only with all four wheels down. Thirty seconds flat out is over a kilometre, and
+        // the plain ends a kilometre from the start: a car near 50 m/s goes off its end at about 27 s, and
+        // a falling car's speed is gravity's, not the engine's (found 2026-11-23, when a wing seemed to
+        // add top speed).
+        if (Car.GroundedCount == 4)
+        {
+            _top = MathF.Max(_top, v);
+        }
+        else if (_offTheEndAt is null && t > 5.0f)
+        {
+            _offTheEndAt = t;
+        }
 
         if (t >= 30.0f)
         {
@@ -187,7 +219,7 @@ public partial class Oracle : Node
             Finish(
                 $"0-100 km/h {Seconds(_timeTo100)} | at 5 s {_at5:F1} m/s | 10 s {_at10:F1} | 20 s {_at20:F1} | "
                 + $"top {_top:F2} m/s ({_top * 3.6f:F0} km/h; the model's estimate {WheelModel.TopSpeedEstimate(Car.Spec, Surfaces.Road):F2}) | "
-                + $"drift {drift:F2} m");
+                + $"drift {drift:F2} m{(_offTheEndAt is float off ? $" | off the plain's end at {off:F1} s" : string.Empty)}");
         }
     }
 
@@ -341,6 +373,101 @@ public partial class Oracle : Node
         else if (Time - _rampFrom.Value >= RampSeconds + 3.0f)
         {
             Finish($"{held} | held to full lock (body slip {bodySlip:F1}°, speed {v:F1} m/s)");
+        }
+    }
+
+    /// <summary>
+    /// The most grip the car has at speed (M1d): it drives round a 120 m circle, steered back onto it,
+    /// while the speed it's asked for climbs a quarter of a metre a second each second, until it runs
+    /// 4 m wide, spins or runs out of power. It reports its best sideways acceleration and the speed and
+    /// downforce that came with it, which is where a wing shows: at 72 km/h, where <c>circle</c> runs, a
+    /// wing hardly presses at all.
+    /// </summary>
+    private void RunSweeper()
+    {
+        if (Time < SettleSeconds)
+        {
+            Car.Driver = default;
+            return;
+        }
+
+        float dt = 1.0f / Engine.PhysicsTicksPerSecond;
+        Vector3 p = Car.GlobalPosition;
+        var fromCentre = new Vector2(p.X - SweepRadius, p.Z);
+        float distance = fromCentre.Length();
+        Vector2 outward = fromCentre / distance;
+
+        // Clockwise seen from above, the way a right turn goes; in (x, z), the right of a heading (x, z) is (-z, x).
+        var along = new Vector2(-outward.Y, outward.X);
+        Vector2 heading = new Vector2(Forward.X, Forward.Z).Normalized();
+        var rightOfHeading = new Vector2(-heading.Y, heading.X);
+        float headingError = Mathf.RadToDeg(MathF.Atan2(along.Dot(rightOfHeading), along.Dot(heading)));
+        float wide = distance - SweepRadius;
+
+        // A Stanley tracker: the circle's own steer, the heading error, and the distance off it over the speed.
+        float v = ForwardSpeed;
+        float steerDeg = Mathf.RadToDeg(MathF.Atan(Car.Spec.WheelbaseM / SweepRadius))
+            + headingError + Mathf.RadToDeg(MathF.Atan(3.0f * wide / MathF.Max(v, 5.0f)));
+        float steer = Math.Clamp(steerDeg / MathF.Max(Car.SteerLimitDeg, 1.0f), -1.0f, 1.0f);
+
+        // A throttle held in proportion to the shortfall settles a little short of its target, so the climb
+        // starts within a couple of metres a second of the first target, not at it.
+        if (_sweepRampFrom is null && v >= SweepFrom - 2.0f)
+        {
+            _sweepRampFrom = Time;
+        }
+
+        float target = _sweepRampFrom is float from ? SweepFrom + (SweepRamp * (Time - from)) : SweepFrom;
+        Car.Driver = new DriverInput { Throttle = Math.Clamp((target - v) * 0.6f, 0.0f, 1.0f), Steer = steer };
+
+        // The grip: the path's own sideways acceleration (the change in velocity across the direction of
+        // travel, not speed times yaw rate, which a car starting to spin inflates), averaged over half a
+        // second, its best and the speed and downforce it came at. Off the circle by a metre or two it still
+        // counts: a car held in a slide sits a little wide, its nose turned in, and that's the tyres, not
+        // the tracker.
+        var travel = new Vector3(Car.LinearVelocity.X, 0.0f, Car.LinearVelocity.Z);
+        var accel = new Vector3(Car.Acceleration.X, 0.0f, Car.Acceleration.Z);
+        Vector3 along3 = travel.LengthSquared() > 1.0f ? travel.Normalized() : Forward;
+        _sweepLateral.Enqueue((accel - (along3 * accel.Dot(along3))).Length());
+        if (_sweepLateral.Count > Engine.PhysicsTicksPerSecond / 2)
+        {
+            _sweepLateral.Dequeue();
+        }
+
+        float lateral = _sweepLateral.Average() / WheelModel.Gravity;
+        if (_sweepRampFrom is not null && lateral > _sweepBestG)
+        {
+            _sweepBestG = lateral;
+            _sweepBest = v;
+            _sweepBestDownforce = Car.WingDownforce;
+        }
+
+        _sweepShort = _sweepRampFrom is not null && target - v > 3.0f ? _sweepShort + dt : 0.0f;
+
+        string held = $"on a {SweepRadius:F0} m circle: max sideways {_sweepBestG:F2} g at {_sweepBest * 3.6f:F0} km/h, "
+            + $"wing pressing {_sweepBestDownforce:F0} N";
+        Vector3 up = Car.GlobalBasis.Y.Normalized();
+        float bodySlip = Mathf.RadToDeg(MathF.Atan2(Car.LinearVelocity.Dot(Car.GlobalBasis.X.Normalized()), MathF.Max(v, 0.1f)));
+
+        if (up.Dot(Vector3.Up) < 0.5f)
+        {
+            Finish($"{held} | ROLLED at {v * 3.6f:F0} km/h");
+        }
+        else if (MathF.Abs(bodySlip) > 20.0f)
+        {
+            Finish($"{held} | spun at {v * 3.6f:F0} km/h (body slip {bodySlip:F0}°)");
+        }
+        else if (wide > 4.0f)
+        {
+            Finish($"{held} | ran wide at {v * 3.6f:F0} km/h");
+        }
+        else if (_sweepShort > 5.0f)
+        {
+            Finish($"{held} | out of power at {v * 3.6f:F0} km/h, still on the circle");
+        }
+        else if (Time > 240.0f)
+        {
+            Finish($"{held} | still on the circle at {v * 3.6f:F0} km/h after 240 s");
         }
     }
 

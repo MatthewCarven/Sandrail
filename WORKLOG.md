@@ -2,6 +2,82 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — M1d: downforce, from a wing you choose
+
+His go-ahead: *"please go on the downforce but if possible make the wing a little customizable like we
+will make you earn and pay for them later somehow"*.
+
+**The wing is a part, named by ID** (`Wing`, `Wings` in Core, like `Surfaces`), because parts are what
+get earned and owned: `base:wing-none`, `base:wing-lip` (0.35 m², stalls at 10°), `base:wing-strut`
+(0.8 m², 14°) and `base:wing-twin` (1.3 m², 18°). A car's spec names its wing (`wingId`) and sets it:
+`wingAngleDeg`, `wingBackM` (behind the middle), `wingHeightM`. **The shipped buggy has none**, since
+it's the car before anything's earned, so every figure it had stands. F2 has a wing list above the
+three sliders; F3 shows the downforce and drag; runs gain `wing_down_n` and `wing_drag_n`, last, so
+the 47 columns before them haven't moved.
+
+**The law** (`Wing.LiftCoefficient`, `DragCoefficient`, `WheelModel.WingForces`): ½ρv²·A·C. The
+downforce coefficient is 0.08 a degree up to the stall, then falls to half over 10° more; drag is
+0.05 + 0.15·C_L² + 0.06 a degree past the stall. So each wing has a best angle and costs top speed in
+proportion to what it gives. Three things the building found:
+
+1. **The first stall penalty was too small.** At 0.03 a degree, the induced drag shed past the stall
+   nearly cancelled it, so drag barely rose (`DragClimbsWithAngleAndSteeplyPastTheStall` caught it).
+   It's 0.06.
+2. **The first law flipped the car in the air**: it pressed as if the air always came from straight
+   ahead, so in flight a rear wing's push rotated the nose up, and the twin-plane wing landed the jump
+   at +48°. **A wing meets the air at its set angle less the angle the car is moving at**, measured
+   with the wing's own velocity (so pitching swings it through the air and it resists), and the force
+   goes across and along that airflow. In flight it's now a dart's flights: the twin-plane wing lands
+   the jump at 1° to 11° depending on where it's mounted, against the bare car's -8°. On the road the
+   angles agree within a degree or two.
+3. **Where it's mounted is the balance.** On the new sweeper oracle, the twin-plane wing at 18° holds
+   0.95 g 1.4 m behind the middle (all on the rear tyres: it runs wide, no gain at all), 1.07 g at
+   0.7 m, and 1.22 g at the middle (until it runs out of power), against 0.97 g with no wing. **The
+   default mount is 0.7 m, over the engine**: real grip, and at the limit it runs wide rather than
+   spinning.
+
+**The autodriver counts it.** `RacingLine.SpeedProfile` takes the downforce into the banked-curve
+formula, `v² = g(tan θ + μ) / (κ(1 − μ tan θ) − μk/(m cos θ))`, and into braking, so `lap` compares
+winged tunes fairly. Written so that with no wing it's the old formula to the last bit
+(`AWinglessPlanIsTheOldPlanExactly`), and the lap figure didn't move.
+
+**A new oracle, `sweeper`**: a 120 m circle on the bare plain, steered back onto it, the speed
+creeping up a quarter of a metre a second each second until it runs 4 m wide, spins or runs out of
+power. It reports the best half-second of sideways acceleration, measured from the path (the change in
+velocity across the direction of travel: speed times yaw rate read 2.20 g as the car began to spin).
+`circle` runs at 72 km/h, where a wing hardly presses.
+
+**And an old flaw in `straight`**: thirty seconds flat out is over a kilometre and the bare plain ends a
+kilometre from the start, so every car near 50 m/s **has always gone off its end at about 26 s**. Found
+because the lip spoiler seemed to add 4 km/h of top speed: it was falling. Top speed now counts only
+with four wheels down, and the line says when it went off. The shipped car reads 49.10 m/s, not 49.11.
+
+**Each wing at its stall angle, mounted at 0.7 m** (the shipped car with each fitted, nothing else
+changed):
+
+```
+                     none        lip 10°       strut 14°     twin 12°      twin 18°
+top speed            177 km/h    174           168           166           159
+0-100 km/h           5.17 s      5.12          5.04          5.00          4.97
+100-0 km/h           38.4 m      38.0          37.2          36.6          35.9
+sweeper              0.97 g      1.02 g        1.05 g        1.06 g        1.07 g
+  at                 122, spun   125, spun     127, wide     128, wide     128, wide
+  pressing           0 N         203           666           922           1387
+jump landing pitch   -8°         -3°           +4°           0°            +11°
+loop, over the top   79 km/h     79            79            79            79
+lap at 80%, flying   24.52 s     24.36         24.08         23.93         23.72
+  off the road       0.00 s      0.00          0.00          0.07          0.43 (into corner 1)
+```
+
+The rear downforce quickens 0-100 (more traction off the line) and shortens stops; the wing costs top
+speed and buys corner speed, so the lap gets quicker with every size. **It does nothing for the loop**:
+over the top at 79 km/h the twin-plane wing presses a few hundred newtons, and the loop already went
+through. M1-PLAN's reason for downforce was the loop; at this loop's size it isn't needed.
+
+Checked: 125 tests, the headless check, all ten oracles on the shipped car (`011f7969`; the nine old
+ones exactly as before bar straight's 0.01), and screenshots of all three wings on the car, the plate's
+trailing edge up. Not checked: driving it, which is his.
+
 ## 2026-11-23 — his evening tune, measured; and corner 1 isn't braking
 
 He drove the handbrake, kept tuning, and asked: *"I've driven it and think i've completely ruined the

@@ -169,6 +169,35 @@ public sealed record CarSpec
     [Tune("Engine and brakes", 0.2f, 3.0f)]
     public float DragNPerMps2 { get; init; } = 0.86f;
 
+    // The wing (M1d): a part chosen by ID, and how this car has it set.
+
+    /// <summary>
+    /// The wing fitted, by ID (<see cref="Wings"/>): <c>base:wing-none</c> for none, which is how the car
+    /// comes, since wings are to be earned. The part says what it can do; the three numbers after this say
+    /// how it's set.
+    /// </summary>
+    public string WingId { get; init; } = Wings.None.Id;
+
+    /// <summary>
+    /// How steeply the wing is set: steeper presses harder and drags more, up to the wing's stall, past
+    /// which it only drags more.
+    /// </summary>
+    [Tune("Wing", 0.0f, 30.0f)]
+    public float WingAngleDeg { get; init; } = 10.0f;
+
+    /// <summary>
+    /// How far behind the car's middle the wing pushes; negative is in front of it. This is the balance:
+    /// at the middle its downforce is shared by all four tyres and adds the most grip; toward the rear
+    /// axle it loads only the rears, so the car runs wide at the limit instead of spinning, and adds no
+    /// grip at all. 0.7, over the engine, is between (2026-11-23 worklog).
+    /// </summary>
+    [Tune("Wing", -2.0f, 2.5f)]
+    public float WingBackM { get; init; } = 0.7f;
+
+    /// <summary>How high above the chassis's middle it stands. Its drag pulls back from up there, lifting the nose a little at speed.</summary>
+    [Tune("Wing", 0.0f, 1.5f)]
+    public float WingHeightM { get; init; } = 0.9f;
+
     // Steering and pedals.
 
     [Tune("Steering and pedals", 10.0f, 45.0f)]
@@ -221,6 +250,10 @@ public sealed record CarSpec
     };
 
     private static readonly JsonSerializerOptions CompactOptions = new(Options) { WriteIndented = false };
+
+    /// <summary>The wing <see cref="WingId"/> names, or none if it names no wing (which <see cref="Problems"/> refuses).</summary>
+    /// <remarks>A method, not a property, so it's neither written to the file nor counted as a field of it.</remarks>
+    public Wing FittedWing() => Wings.All.FirstOrDefault(w => w.Id == WingId) ?? Wings.None;
 
     /// <summary>
     /// Every number in the spec, in the order it's declared, with its panel group and slider range.
@@ -381,6 +414,15 @@ public sealed record CarSpec
         Within(nameof(BrakeFrontShare), BrakeFrontShare, 0.0f, 1.0f);
         Within(nameof(HandbrakeLock), HandbrakeLock, 0.0f, 1.0f);
         Within(nameof(DragNPerMps2), DragNPerMps2, 0.0f, 1_000.0f);
+
+        if (!Wings.All.Any(w => w.Id == WingId))
+        {
+            problems.Add($"wingId is \"{WingId}\", and must be one of {string.Join(", ", Wings.All.Select(w => w.Id))}");
+        }
+
+        Within(nameof(WingAngleDeg), WingAngleDeg, 0.0f, 90.0f);
+        Within(nameof(WingBackM), WingBackM, -10.0f, 10.0f);
+        Within(nameof(WingHeightM), WingHeightM, -5.0f, 10.0f);
 
         Positive(nameof(MaxSteerDeg), MaxSteerDeg, 60.0f);
         Within(nameof(MinSteerDeg), MinSteerDeg, 0.0f, 60.0f);

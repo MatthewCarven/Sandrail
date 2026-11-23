@@ -57,6 +57,12 @@ public partial class TelemetryOverlay : Label
         text.Append($"body slip {r.BodySlipDeg,6:F1}°  yaw {r.YawDps,7:F1}°/s  roll {r.RollDeg,5:F1}°  pitch {r.PitchDeg,5:F1}°").Append(Line);
         text.Append($"throttle {Car.Throttle:F2} (key {keys.Throttle:F2})  brake {Car.Brake:F2} (key {keys.Brake:F2})  drive {Car.DriveForce,6:F0} N{(Car.HandbrakeAmount > 0.0f ? $"  HANDBRAKE {Car.HandbrakeAmount:F2}" : string.Empty)}").Append(Line);
         text.Append($"steer {Car.SteerDeg,6:F1}° of {Car.SteerLimitDeg:F1}° (key {keys.Steer,5:+0.00;-0.00;0.00}{(keys.WideLock ? ", WIDE LOCK" : string.Empty)})").Append(Line);
+        Core.Cars.Wing wing = Car.Spec.FittedWing();
+        if (wing.AreaM2 > 0.0f)
+        {
+            text.Append($"wing {wing.Name.ToLowerInvariant()} at {Car.Spec.WingAngleDeg:F1}°: downforce {Car.WingDownforce,5:F0} N  drag {Car.WingDrag,4:F0} N").Append(Line);
+        }
+
         text.Append(Line);
         text.Append("     compression               load     slip  surface").Append(Line);
 

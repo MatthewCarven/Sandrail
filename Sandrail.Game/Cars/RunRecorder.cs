@@ -100,6 +100,10 @@ public partial class RunRecorder : Node
             row.Add(Car.SurfaceUnder(i).Id);
         }
 
+        // Last, so the columns before them stay where older runs have them.
+        row.Add(F(Car.WingDownforce));
+        row.Add(F(Car.WingDrag));
+
         _writer.WriteLine(string.Join(',', row));
         _ticks++;
     }
@@ -121,6 +125,8 @@ public partial class RunRecorder : Node
         {
             columns.AddRange([$"{w}_comp_m", $"{w}_load_n", $"{w}_slip_deg", $"{w}_grounded", $"{w}_saturated", $"{w}_surface"]);
         }
+
+        columns.AddRange(["wing_down_n", "wing_drag_n"]);
 
         return string.Join(',', columns);
     }

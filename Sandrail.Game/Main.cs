@@ -23,7 +23,7 @@ namespace Sandrail.Game;
 /// Game flags, after the bare <c>--</c>: <c>--ground=test|bare</c> (the test ground, or the empty plain the
 /// bare-plain oracles drive), <c>--station=1..6</c> to start at one of the test ground's stations,
 /// <c>--surface=road|dirt|grass|sand</c> for the plain (sand with the test ground, road on the bare
-/// plain, so the M1a oracles' targets still hold), <c>--oracle=</c> any of the nine, and
+/// plain, so the M1a oracles' targets still hold), <c>--oracle=</c> any of the ten, and
 /// <c>--spec=&lt;path&gt;</c> to drive another spec file than the shipped buggy, so a variant can be tried
 /// without touching what plays. The tuning panel saves to whichever file was loaded.
 /// </para>
@@ -137,11 +137,11 @@ public partial class Main : Node3D
 
         if (oracle is not null && !Oracle.IsKnown(oracle))
         {
-            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle, handbrake, jump, loop, bumps, lap.");
+            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle, handbrake, sweeper, jump, loop, bumps, lap.");
             return;
         }
 
-        // The M1a oracles and handbrake drive the bare plain on road grip, as at M1a, so their figures
+        // The M1a oracles, handbrake and sweeper drive the bare plain on road grip, as at M1a, so their figures
         // stay comparable; everything else gets the test ground on sand.
         bool bareOracle = oracle is not null && !Oracle.NeedsTestGround(oracle);
         bool testGround = (Flag(args, "--ground=") ?? (bareOracle ? "bare" : "test")) == "test";

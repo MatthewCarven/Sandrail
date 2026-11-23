@@ -200,7 +200,11 @@ Each is a number in `CarSpec`, where 0 means off, so the panel can switch it on 
   force is against the contact patch's motion at the slide's share of the grip, so going straight it's
   all braking and in a corner little of it is sideways. `handbrakeLock`, 0 off to 1 locked; the
   `handbrake` oracle. Worklog, that date.
-- **Downforce**, proportional to speed squared, so a loop holds without a heroic entry speed.
+- **Downforce**, proportional to speed squared, so a loop holds without a heroic entry speed. **Built
+  2026-11-23 as a wing, a part chosen by ID** (his ask: customizable, to be earned later), set by angle,
+  how far back and how high; the shipped buggy has none. It meets the air at the angle the car is
+  moving at, so in flight it lines the car up with its arc. It turned out not to be needed for this
+  loop; it buys corner speed for top speed. The `sweeper` oracle. Worklog, that date.
 - **Air control:** a little pitch from throttle and brake, and roll and yaw from steering, with no wheels
   down. Landing a jump nose-first should be the player's doing, not the physics'.
 - **The auto-respawn** (decision 4), and continuous collision detection if fact 3 bites.

@@ -184,7 +184,10 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
   by power class; what levelling is earned by. **The same evening, putting the shipped car back after
   tuning his own into a 1004 kg, 243 kW machine**: *"we might make a game out of building your car
   too"*. Building as well as tuning; what building means (parts to choose? a frame to put together?)
-  is still open.
+  is still open. **The first part exists**: the wing (M1d, same day), which he asked to be
+  customizable *"like we will make you earn and pay for them later somehow"*. Four wings by ID in
+  `Wings`, the car's file naming which it has, and the angle and mount its own. How they're earned
+  and what they cost is still his to decide.
 - **An autodriver** (same day: *"how do you feel about an autodriver?"*). **Built 2026-11-23** on the
   corner lap, on a minimum-curvature racing line that keeps the wheels on the road (his addition), with
   a lap oracle; worklog, that date. **Its aggression** (the share of grip it plans for, 50-100%) is on -

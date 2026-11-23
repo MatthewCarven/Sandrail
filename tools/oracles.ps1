@@ -1,16 +1,16 @@
 # Runs the headless oracles and prints one line each (docs/M1-PLAN.md, M1a and M1c).
 #
-#   pwsh tools/oracles.ps1                     all nine
+#   pwsh tools/oracles.ps1                     all ten
 #   pwsh tools/oracles.ps1 -Oracles drop       just one
 #   pwsh tools/oracles.ps1 -Spec variant.json  another spec than the shipped buggy
 #
-# straight, drop, brake, circle and handbrake drive the bare plain on road grip, as at M1a; jump, loop, bumps and lap
+# straight, drop, brake, circle, handbrake and sweeper drive the bare plain on road grip, as at M1a; jump, loop, bumps and lap
 # drive the test ground.
 #
 # --fixed-fps 120 makes every frame exactly one physics tick, so a run takes as long as the CPU
 # needs rather than the seconds it simulates, and two runs of the same spec read the same.
 param(
-    [string[]]$Oracles = @("straight", "drop", "brake", "circle", "handbrake", "jump", "loop", "bumps", "lap"),
+    [string[]]$Oracles = @("straight", "drop", "brake", "circle", "handbrake", "sweeper", "jump", "loop", "bumps", "lap"),
     [string]$Spec = "",
     [string]$Godot = "Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64_console.exe"
 )

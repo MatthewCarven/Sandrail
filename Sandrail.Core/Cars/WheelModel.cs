@@ -317,21 +317,77 @@ public static class WheelModel
             true);
     }
 
+    /// <summary>Sea-level air, kg/m³: what a wing's forces are made of.</summary>
+    public const float AirDensity = 1.225f;
+
+    /// <summary>
+    /// The fitted wing's downforce per (m/s)² of forward speed, at its set angle: ½ρ·A·C_L, so at 30 m/s
+    /// it presses 900 times this. 0 with no wing.
+    /// </summary>
+    public static float DownforcePerMps2(CarSpec spec)
+    {
+        Wing wing = spec.FittedWing();
+        return 0.5f * AirDensity * wing.AreaM2 * wing.LiftCoefficient(spec.WingAngleDeg);
+    }
+
+    /// <summary>The fitted wing's drag per (m/s)² of forward speed, at its set angle; on top of <see cref="CarSpec.DragNPerMps2"/>.</summary>
+    public static float WingDragPerMps2(CarSpec spec)
+    {
+        Wing wing = spec.FittedWing();
+        return 0.5f * AirDensity * wing.AreaM2 * wing.DragCoefficient(spec.WingAngleDeg);
+    }
+
+    /// <summary>
+    /// The wing's forces, newtons, from how it's moving through the air: <paramref name="forwardSpeed"/>
+    /// along the chassis and <paramref name="upSpeed"/> up it, both measured at the wing. Downforce is
+    /// across the air's direction, toward the chassis's floor (negative is lift); drag is along it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The wing meets the air at its set angle less the angle the car is moving at</b>: a car whose nose
+    /// is up relative to where it's going has the air coming from below, which presses the wing less, and
+    /// past its set angle lifts it. So in the air a wing behind the centre of mass turns the car to follow
+    /// its arc, as a dart's flights do; and because the speed is the wing's own, a car pitching swings the
+    /// wing through the air and the wing resists it. On the road the two angles are within a degree or
+    /// two, and it's simply downforce.
+    /// </para>
+    /// <para>
+    /// Only air from the front counts: going backwards the wing does nothing. A car sliding sideways gets
+    /// the share of its speed that's still forward.
+    /// </para>
+    /// </remarks>
+    public static (float Downforce, float Drag) WingForces(CarSpec spec, float forwardSpeed, float upSpeed = 0.0f)
+    {
+        Wing wing = spec.FittedWing();
+        if (!(forwardSpeed > 0.0f) || wing.AreaM2 <= 0.0f)
+        {
+            return (0.0f, 0.0f);
+        }
+
+        float noseUpDeg = MathF.Atan2(-upSpeed, forwardSpeed) * (180.0f / MathF.PI);
+        float angle = spec.WingAngleDeg - noseUpDeg;
+        float pressure = 0.5f * AirDensity * wing.AreaM2 * ((forwardSpeed * forwardSpeed) + (upSpeed * upSpeed));
+        return (pressure * wing.LiftCoefficient(angle), pressure * wing.DragCoefficient(angle));
+    }
+
     /// <summary>
     /// The speed where the engine's power just matches drag and rolling resistance on level ground,
     /// found by bisection. What the straight oracle should read, before traction or gradient say
-    /// otherwise.
+    /// otherwise. A wing's drag counts, and so does its downforce, which loads the tyres and so their
+    /// rolling resistance.
     /// </summary>
     public static float TopSpeedEstimate(CarSpec spec, Surface surface)
     {
-        float rolling = surface.RollingResistance * spec.MassKg * Gravity;
+        float drag = spec.DragNPerMps2 + WingDragPerMps2(spec);
+        float downforce = DownforcePerMps2(spec);
         float low = 0.0f;
         float high = 500.0f;
 
         for (int i = 0; i < 60; i++)
         {
             float mid = 0.5f * (low + high);
-            float surplus = EngineForce(spec, mid) - (spec.DragNPerMps2 * mid * mid) - rolling;
+            float rolling = (surface.RollingResistance * spec.MassKg * Gravity) + (surface.RollingResistance * downforce * mid * mid);
+            float surplus = EngineForce(spec, mid) - (drag * mid * mid) - rolling;
             if (surplus > 0.0f)
             {
                 low = mid;

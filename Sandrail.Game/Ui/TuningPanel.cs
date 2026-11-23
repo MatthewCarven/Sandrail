@@ -39,6 +39,8 @@ public partial class TuningPanel : PanelContainer
     private CarSpec _saved = new();
     private Label _title = null!;
     private Label _problem = null!;
+    private Label _wingLabel = null!;
+    private OptionButton _wingPicker = null!;
     private bool _syncing;
 
     public required Buggy Car { get; init; }
@@ -102,6 +104,12 @@ public partial class TuningPanel : PanelContainer
                 Text = group.Key,
                 LabelSettings = new LabelSettings { FontSize = 17, FontColor = new Color(0.6f, 0.85f, 1.0f) },
             });
+
+            // The wing is a part chosen by name, not a number, so it gets a list of its own above its settings.
+            if (group.Key == "Wing")
+            {
+                list.AddChild(BuildWingPicker());
+            }
 
             foreach (Tunable tunable in group)
             {
@@ -173,6 +181,56 @@ public partial class TuningPanel : PanelContainer
         line.AddChild(slider);
         line.AddChild(box);
         return line;
+    }
+
+    private Control BuildWingPicker()
+    {
+        _wingLabel = new Label
+        {
+            Text = "Wing",
+            TooltipText = "wingId: which wing is fitted. Its size and stall angle are the part's; the sliders below set it.",
+            CustomMinimumSize = new Vector2(205.0f, 0.0f),
+            MouseFilter = MouseFilterEnum.Pass,
+        };
+
+        _wingPicker = new OptionButton { FocusMode = FocusModeEnum.None, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        foreach (Wing wing in Wings.All)
+        {
+            _wingPicker.AddItem(wing.AreaM2 > 0.0f ? $"{wing.Name} ({wing.AreaM2:0.##} m², stalls at {wing.StallDeg:0}°)" : wing.Name);
+        }
+
+        ShowWing(Car.Spec);
+        _wingPicker.ItemSelected += index => ApplyWing(Wings.All[(int)index]);
+
+        var line = new HBoxContainer();
+        line.AddChild(_wingLabel);
+        line.AddChild(_wingPicker);
+        return line;
+    }
+
+    private void ShowWing(CarSpec spec) =>
+        Sync(() => _wingPicker.Selected = Math.Max(0, Wings.All.ToList().FindIndex(w => w.Id == spec.WingId)));
+
+    private void ApplyWing(Wing wing)
+    {
+        if (_syncing)
+        {
+            return;
+        }
+
+        CarSpec next = Car.Spec with { WingId = wing.Id };
+        IReadOnlyList<string> problems = next.Problems();
+        if (problems.Count > 0)
+        {
+            _problem.Text = "Not applied: " + string.Join("; ", problems);
+            _problem.Visible = true;
+            ShowWing(Car.Spec);
+            return;
+        }
+
+        _problem.Visible = false;
+        Car.ApplySpec(next);
+        Refresh();
     }
 
     private void FromSlider(Row row, double value)
@@ -256,6 +314,7 @@ public partial class TuningPanel : PanelContainer
                 row.Box.Value = value;
             }
         });
+        ShowWing(spec);
 
         _problem.Visible = false;
         Refresh();
@@ -270,6 +329,8 @@ public partial class TuningPanel : PanelContainer
             bool changed = row.Tunable.Get(now) != row.Tunable.Get(_saved);
             row.Name.Modulate = changed ? Changed : Colors.White;
         }
+
+        _wingLabel.Modulate = now.WingId != _saved.WingId ? Changed : Colors.White;
 
         _title.Text = $"{now.Id}  {now.Fingerprint()}{(now != _saved ? "  unsaved" : string.Empty)}";
     }
