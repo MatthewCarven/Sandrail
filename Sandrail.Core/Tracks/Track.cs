@@ -60,8 +60,12 @@ public sealed record TrackPiece
 /// </remarks>
 public sealed record Track
 {
-    /// <summary>The format this build reads and writes. A file says which it's written in.</summary>
-    public const int CurrentFormat = 1;
+    /// <summary>
+    /// The newest format this build reads. A file says which it's written in: 1 for a track on the plain,
+    /// 2 for one that carries its own ground (M3-PLAN fact 8). <see cref="Save"/> writes the older of the
+    /// two whenever it can, so a track on the plain reads in any build that reads tracks at all.
+    /// </summary>
+    public const int CurrentFormat = 2;
 
     /// <summary>How high a piece may be placed, in levels: 50 m, far above anything the plain needs.</summary>
     public const int MaxLevel = 20;
@@ -88,6 +92,15 @@ public sealed record Track
 
     public TrackPiece[] Pieces { get; init; } = [];
 
+    /// <summary>
+    /// The ground it's laid on, a seed and the terrain's dials, which make the same ground anywhere (M3-PLAN
+    /// fact 8); null for the flat plain. With ground, pieces may sit below the plain's level.
+    /// </summary>
+    public TrackGround? Ground { get; init; }
+
+    /// <summary>The format a file of this track is written in: 2 if it carries ground, 1 if it doesn't.</summary>
+    public int FormatNeeded => Ground is null ? 1 : 2;
+
     /// <summary>Reads a track file, refusing what isn't one: not JSON, another format, or an unknown field or value.</summary>
     /// <remarks>Whether its pieces fit together is <see cref="Lay"/>'s question, which needs the catalogue.</remarks>
     /// <exception cref="InvalidDataException">Not a track file this build reads.</exception>
@@ -112,7 +125,7 @@ public sealed record Track
                 throw new InvalidDataException($"Not a track: it has no format number (this build reads format {CurrentFormat}).");
             }
 
-            if (format.ValueKind != JsonValueKind.Number || !format.TryGetInt32(out int number) || number != CurrentFormat)
+            if (format.ValueKind != JsonValueKind.Number || !format.TryGetInt32(out int number) || number < 1 || number > CurrentFormat)
             {
                 string said = format.ToString();
                 throw new InvalidDataException(format.ValueKind == JsonValueKind.Number && format.TryGetInt32(out int n) && n > CurrentFormat
@@ -160,10 +173,14 @@ public sealed record Track
     {
         var text = new StringBuilder();
         text.Append("{\n");
-        text.Append(CultureInfo.InvariantCulture, $"  \"format\": {Format},\n");
+        text.Append(CultureInfo.InvariantCulture, $"  \"format\": {FormatNeeded},\n");
         text.Append(CultureInfo.InvariantCulture, $"  \"id\": {Quote(Id)},\n");
         text.Append(CultureInfo.InvariantCulture, $"  \"name\": {Quote(Name)},\n");
         text.Append(CultureInfo.InvariantCulture, $"  \"size\": {Size},\n");
+        if (Ground is TrackGround ground)
+        {
+            text.Append(CultureInfo.InvariantCulture, $"  \"ground\": {JsonSerializer.Serialize(ground, GroundOptions)},\n");
+        }
         if (Pieces.Length == 0)
         {
             text.Append("  \"pieces\": []\n");
@@ -203,6 +220,20 @@ public sealed record Track
     public LaidTrack Lay(PieceCatalogue catalogue) => new TrackLayer(this, catalogue).Lay();
 
     private static string Quote(string text) => JsonSerializer.Serialize(text, TextOptions);
+
+    /// <summary>The ground block on one line, camel-cased as the rest of the file is.</summary>
+    private static readonly JsonSerializerOptions GroundOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+}
+
+/// <summary>
+/// The ground a track is laid on (M3-PLAN fact 8): the seed and the terrain's dials, from which
+/// <see cref="Generation.Terrain"/> makes the same heights on any machine, so a file needn't hold them.
+/// </summary>
+public sealed record TrackGround
+{
+    public ulong Seed { get; init; }
+
+    public Generation.TerrainSettings Terrain { get; init; } = new();
 }
 
 /// <summary>
@@ -251,9 +282,21 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
 
     private void Header()
     {
-        if (track.Format != Track.CurrentFormat)
+        if (track.Format is < 1 or > Track.CurrentFormat)
         {
-            _problems.Add($"format is {track.Format}, and this build reads format {Track.CurrentFormat}");
+            _problems.Add($"format is {track.Format}, and this build reads formats 1 to {Track.CurrentFormat}");
+        }
+        else if (track.Format == 1 && track.Ground is not null)
+        {
+            _problems.Add("a format 1 track has no ground; ground came with format 2");
+        }
+
+        if (track.Ground is TrackGround ground)
+        {
+            foreach (string problem in ground.Terrain.Problems())
+            {
+                _problems.Add($"ground.terrain: {problem}");
+            }
         }
 
         int colon = track.Id.IndexOf(':', StringComparison.Ordinal);
@@ -291,9 +334,13 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
                 continue;
             }
 
-            if (entry.Level is < 0 or > Track.MaxLevel)
+            // On the plain nothing goes below it; on ground of its own, a road follows the ground down.
+            int lowest = track.Ground is null ? 0 : -Track.MaxLevel;
+            if (entry.Level < lowest || entry.Level > Track.MaxLevel)
             {
-                _problems.Add($"pieces[{i}] ({entry.Piece} at ({entry.At[0]}, {entry.At[1]})): level is {entry.Level}, and must be from 0 (the plain) to {Track.MaxLevel}");
+                _problems.Add(track.Ground is null
+                    ? $"pieces[{i}] ({entry.Piece} at ({entry.At[0]}, {entry.At[1]})): level is {entry.Level}, and must be from 0 (the plain) to {Track.MaxLevel}"
+                    : $"pieces[{i}] ({entry.Piece} at ({entry.At[0]}, {entry.At[1]})): level is {entry.Level}, and must be from {lowest} to {Track.MaxLevel}");
             }
 
             PieceDef? def = catalogue.Find(entry.Piece);

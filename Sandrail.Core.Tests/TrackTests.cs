@@ -89,13 +89,20 @@ public class TrackTests
         }
     }
 
-    /// <summary>What M2c asks of the shakedown: every piece, both corner sizes both ways, a gap jump, the loop, a climb and back, two checkpoints.</summary>
+    /// <summary>M2b's starter set, which the shakedown was written to use every piece of; the S-bend came with M3b.</summary>
+    private static readonly string[] StarterSet =
+    [
+        "straight", "corner-30", "corner-50", "corner-30-banked", "corner-50-banked", "slope-up", "slope-down",
+        "launch-short", "launch-long", "landing", "loop", "chicane", "start", "checkpoint", "finish",
+    ];
+
+    /// <summary>What M2c asks of the shakedown: every piece of the starter set, both corner sizes both ways, a gap jump, the loop, a climb and back, two checkpoints.</summary>
     [Fact]
     public void TheShakedownHasWhatM2cAsksFor()
     {
         LaidTrack laid = Shakedown();
         var used = laid.Placed.Select(p => p.Def.Id).ToHashSet();
-        Assert.All(Catalogue.Value.All, piece => Assert.Contains(piece.Id, used));
+        Assert.All(StarterSet, piece => Assert.Contains($"base:{piece}", used));
 
         foreach (string size in new[] { "30", "50" })
         {
@@ -194,10 +201,55 @@ public class TrackTests
     public void ANewerFormatIsRefusedAsNewer()
     {
         string text = Of(Short()).Save()
-            .Replace("\"format\": 1", "\"format\": 2", StringComparison.Ordinal)
+            .Replace("\"format\": 1", $"\"format\": {Track.CurrentFormat + 1}", StringComparison.Ordinal)
             .Replace("\"size\": 32,", "\"size\": 32, \"weather\": \"rain\",", StringComparison.Ordinal);
         InvalidDataException e = Assert.Throws<InvalidDataException>(() => Track.Parse(text));
         Assert.Contains("newer Sandrail", e.Message, StringComparison.Ordinal);
+    }
+
+    // M3b: a track that carries its own ground (M3-PLAN fact 8).
+
+    private static Track OnGround(params TrackPiece[] pieces) =>
+        Of(pieces) with { Ground = new TrackGround { Seed = 18_446_744_073_709_551_615UL, Terrain = new() { HillsM = 40.0f } } };
+
+    [Fact]
+    public void ATrackOnThePlainIsStillFormatOne()
+    {
+        Assert.Contains("\"format\": 1,", Of(Short()).Save(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ATrackWithGroundIsFormatTwoAndComesBackWhole()
+    {
+        Track track = OnGround(Short());
+        string text = track.Save();
+        Assert.Contains("\"format\": 2,", text, StringComparison.Ordinal);
+        Track back = Track.Parse(text);
+        Assert.Equal(text, back.Save());
+        Assert.Equal(track.Ground, back.Ground);
+        Assert.Equal(18_446_744_073_709_551_615UL, back.Ground!.Seed);
+    }
+
+    [Fact]
+    public void OnGroundAPieceMayGoBelowThePlain()
+    {
+        TrackPiece[] low = [P("start", 10, 12, level: -3), P("straight", 10, 11, level: -3), P("finish", 10, 10, level: -3)];
+        Assert.Empty(OnGround(low).Lay(Catalogue.Value).Problems);
+        Assert.Contains(Of(low).Lay(Catalogue.Value).Problems, p => p.Contains("must be from 0 (the plain)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AFormatOneFileWithGroundIsRefused()
+    {
+        string text = OnGround(Short()).Save().Replace("\"format\": 2", "\"format\": 1", StringComparison.Ordinal);
+        Assert.Contains("a format 1 track has no ground; ground came with format 2", Track.Parse(text).Lay(Catalogue.Value).Problems);
+    }
+
+    [Fact]
+    public void UnsoundGroundIsRefused()
+    {
+        Track track = Of(Short()) with { Ground = new TrackGround { Seed = 1, Terrain = new() { Octaves = 0 } } };
+        Assert.Contains(track.Lay(Catalogue.Value).Problems, p => p.StartsWith("ground.terrain: octaves", StringComparison.Ordinal));
     }
 
     [Fact]

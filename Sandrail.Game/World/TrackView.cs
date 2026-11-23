@@ -65,14 +65,18 @@ public static class TrackView
         throw new System.IO.InvalidDataException($"There's no track called {idOrPath}. Known: {string.Join(", ", known)}.");
     }
 
-    /// <summary>Each placed piece as a body of its own, named for the piece and its tile, and an arch over each gate.</summary>
-    public static void Build(Node3D parent, IEnumerable<PlacedPiece> pieces)
+    /// <summary>
+    /// Each placed piece as a body of its own, named for the piece and its tile, and an arch over each gate;
+    /// on generated ground, each slab deep enough to meet it.
+    /// </summary>
+    public static void Build(Node3D parent, IEnumerable<PlacedPiece> pieces, Sandrail.Core.Generation.Terrain? ground = null)
     {
         foreach (PlacedPiece piece in pieces)
         {
             Surface surface = Surfaces.Find(piece.Def.Surface) ?? Surfaces.Road;
+            float depth = ground is null ? piece.DepthM : piece.DepthTo(ground.HeightAt);
             StaticBody3D body = TestGround.Road(
-                $"{piece.Def.Id} at {piece.Placement.At}", piece.Road().Pieces, Profile.Slab(piece.Def.WidthM, piece.DepthM), surface);
+                $"{piece.Def.Id} at {piece.Placement.At}", piece.Road().Pieces, Profile.Slab(piece.Def.WidthM, depth), surface);
             parent.AddChild(body);
 
             if (piece.Def.Gate is GateKind gate)

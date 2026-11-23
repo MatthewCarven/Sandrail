@@ -26,6 +26,11 @@ public static class Program
             return TerrainArm(args);
         }
 
+        if (args.Contains("--generate"))
+        {
+            return GenerateArm(args);
+        }
+
         Console.WriteLine("Arms: --noise [--seed=<n>] [--octaves=<n>]");
         Console.WriteLine("      --terrain [--seeds=<n>] [--hills=] [--plains=] [--feature=] [--octaves=] [--gain=] [--region=] [--rarity=]");
         return 1;
@@ -141,6 +146,119 @@ public static class Program
         Console.WriteLine($"  steeper than its surface climbs (a wall): p50 {Percentile(w, 0.5):P1}  p90 {Percentile(w, 0.9):P1}  max {w[^1]:P1}  seeds with any: {w.Count(v => v > 0) / (float)seeds:P0}");
         Console.WriteLine($"  tile to next tile the road can follow (<= {RoadPerTileM} m): min {f[0]:P0}  p10 {Percentile(f, 0.1):P0}  p50 {Percentile(f, 0.5):P0}");
         return 0;
+    }
+
+    /// <summary>
+    /// M3b's sweep: makes a track from each of many seeds and lays it against the shipped catalogue. Any
+    /// track <see cref="Sandrail.Core.Tracks.Track.Lay"/> refuses is a generator bug, and must be none; the
+    /// rest is how hard it worked (attempts, backtracks), what it made (length, pieces, slopes, banks) and how
+    /// the road met the ground.
+    /// </summary>
+    private static int GenerateArm(string[] args)
+    {
+        int seeds = (int)ParseFlag(args, "--seeds=", 1000UL);
+        ulong first = ParseFlag(args, "--first=", 1UL);
+        var catalogue = Sandrail.Core.Tracks.PieceCatalogue.Parse(
+            Directory.GetFiles(Path.Combine(ContentRoot(), "pieces"), "*.json")
+                .OrderBy(f => f, StringComparer.Ordinal)
+                .Select(f => (Path.GetFileName(f), File.ReadAllText(f))));
+        var settings = new GenSettings
+        {
+            Route = new RouteSettings { Turniness = ParseFloat(args, "--turniness=", 1.0f) },
+        };
+
+        int refused = 0;
+        int failed = 0;
+        var lengths = new List<float>();
+        var attempts = new List<int>();
+        var backtracks = new List<int>();
+        var pieceCounts = new List<int>();
+        var slopes = new List<int>();
+        var banks = new List<int>();
+        var fills = new List<float>();
+        var cuts = new List<float>();
+        var kinds = new Dictionary<string, int>();
+        var times = new List<double>();
+        string? firstRefusal = null;
+
+        for (ulong seed = first; seed < first + (ulong)seeds; seed++)
+        {
+            var clock = Stopwatch.StartNew();
+            Generated g;
+            try
+            {
+                g = TrackGenerator.Generate(seed, settings, catalogue);
+            }
+            catch (InvalidOperationException e)
+            {
+                failed++;
+                firstRefusal ??= $"seed {seed}: {e.Message}";
+                continue;
+            }
+
+            times.Add(clock.Elapsed.TotalMilliseconds);
+            Sandrail.Core.Tracks.LaidTrack laid = g.Track.Lay(catalogue);
+            if (laid.Problems.Count > 0)
+            {
+                refused++;
+                firstRefusal ??= $"seed {seed}: {string.Join("; ", laid.Problems.Take(3))}";
+            }
+
+            lengths.Add(g.Stats.LengthM);
+            attempts.Add(g.Stats.Attempts);
+            backtracks.Add(g.Stats.Backtracks);
+            pieceCounts.Add(g.Track.Pieces.Length);
+            slopes.Add(g.Stats.Slopes);
+            banks.Add(g.Stats.Banked);
+            fills.Add(g.Stats.WorstFillM);
+            cuts.Add(g.Stats.WorstCutM);
+            foreach (var p in g.Track.Pieces)
+            {
+                string kind = p.Piece[5..] + (p.Mirrored ? " left" : string.Empty);
+                kinds[kind] = kinds.GetValueOrDefault(kind) + 1;
+            }
+
+            if (seeds <= 5)
+            {
+                Console.WriteLine($"  seed {seed}: {g.Stats.LengthM:F0} m, {g.Track.Pieces.Length} pieces, {g.Stats.Slopes} slopes, {g.Stats.Banked} banked, "
+                    + $"attempt {g.Stats.Attempts}, {g.Stats.Backtracks} backtracks, worst fill {g.Stats.WorstFillM:F1} m, worst cut {g.Stats.WorstCutM:F1} m");
+            }
+        }
+
+        static string Spread(IEnumerable<float> values)
+        {
+            float[] v = values.Order().ToArray();
+            return v.Length == 0 ? "-" : $"min {v[0]:F1}  p10 {Percentile(v, 0.1):F1}  p50 {Percentile(v, 0.5):F1}  p90 {Percentile(v, 0.9):F1}  max {v[^1]:F1}";
+        }
+
+        Console.WriteLine($"generate  seeds {first} to {first + (ulong)seeds - 1}  turniness {settings.Route.Turniness}");
+        Console.WriteLine($"  refused by Lay: {refused} (must be 0)   no route found: {failed}{(firstRefusal is null ? string.Empty : $"   first: {firstRefusal}")}");
+        Console.WriteLine($"  time a track, ms:   {Spread(times.Select(t => (float)t))}");
+        Console.WriteLine($"  length, m:          {Spread(lengths)}");
+        Console.WriteLine($"  pieces:             {Spread(pieceCounts.Select(c => (float)c))}");
+        Console.WriteLine($"  attempts:           {Spread(attempts.Select(c => (float)c))}");
+        Console.WriteLine($"  backtracks:         {Spread(backtracks.Select(c => (float)c))}");
+        Console.WriteLine($"  slopes:             {Spread(slopes.Select(c => (float)c))}");
+        Console.WriteLine($"  banked corners:     {Spread(banks.Select(c => (float)c))}");
+        Console.WriteLine($"  worst fill, m:      {Spread(fills)}");
+        Console.WriteLine($"  worst cut, m:       {Spread(cuts)}");
+        Console.WriteLine($"  pieces by kind:     {string.Join(", ", kinds.OrderByDescending(k => k.Value).Select(k => $"{k.Key} {k.Value}"))}");
+        return refused == 0 && failed == 0 ? 0 : 2;
+    }
+
+    /// <summary>The game's content folder, found by walking up from where the bench runs.</summary>
+    private static string ContentRoot()
+    {
+        for (DirectoryInfo? dir = new(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+        {
+            string candidate = Path.Combine(dir.FullName, "Sandrail.Game", "content", "base");
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        throw new DirectoryNotFoundException("Couldn't find Sandrail.Game/content/base above the bench.");
     }
 
     private static float ParseFloat(string[] args, string prefix, float fallback)

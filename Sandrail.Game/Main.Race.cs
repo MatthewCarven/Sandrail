@@ -208,6 +208,7 @@ public partial class Main
             : race.Finished ? $"{LapTime(race.Elapsed(now))}  finished"
             : $"{LapTime(0.0)}  ready";
         string gates = race.Finished ? "all passed"
+            : race.Checkpoints == 0 ? "next: the finish"
             : race.Passed == 0 ? $"next: checkpoint 1 of {race.Checkpoints}"
             : race.Passed < race.Checkpoints ? $"{race.Passed} of {race.Checkpoints} passed, next {race.Passed + 1}"
             : $"{race.Checkpoints} of {race.Checkpoints} passed, next the finish";

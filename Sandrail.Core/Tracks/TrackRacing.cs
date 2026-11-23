@@ -65,8 +65,35 @@ public static class TrackRacing
 
         float Hint(int sample) => PieceOf(sample).Def.SpeedKmh is float[] s ? (s[0] + s[1]) / 2.0f / 3.6f : float.NaN;
 
-        return centre.MinimumCurvature(Room).WithStunts(Hint, sample => road[centre.PieceAt(sample)] is LoopCentreline);
+        // A crest throws the car above √(g R cos θ) (M2-PLAN fact 3), and the slope measured it leaving the
+        // ground from about 0.8 of that (M2b): held under it on ordinary road. On a stunt, the hint rules.
+        float Cap(int sample)
+        {
+            if (IsStunt(PieceOf(sample).Def))
+            {
+                return float.PositiveInfinity;
+            }
+
+            int before = Math.Max(0, sample - 2);
+            int after = Math.Min(centre.Count - 1, sample + 2);
+            float span = centre.DistanceAt(after) - centre.DistanceAt(before);
+            float pitchBefore = MathF.Asin(Math.Clamp(centre.ForwardAt(before).Y, -1.0f, 1.0f));
+            float pitchAfter = MathF.Asin(Math.Clamp(centre.ForwardAt(after).Y, -1.0f, 1.0f));
+            float over = span > 0.0f ? (pitchBefore - pitchAfter) / span : 0.0f;
+            if (over < 1e-4f)
+            {
+                return float.PositiveInfinity;
+            }
+
+            float pitch = MathF.Asin(Math.Clamp(centre.ForwardAt(sample).Y, -1.0f, 1.0f));
+            return CrestShare * MathF.Sqrt(9.81f * MathF.Cos(pitch) / over);
+        }
+
+        return centre.MinimumCurvature(Room).WithStunts(Hint, sample => road[centre.PieceAt(sample)] is LoopCentreline, Cap);
     }
+
+    /// <summary>The share of a crest's take-off speed the plan holds the car under: where the slope piece threw it in M2b.</summary>
+    private const float CrestShare = 0.8f;
 
     /// <summary>The slab's rounded lip, which isn't road to drive on: the profile's own.</summary>
     private const float LipM = 0.15f;

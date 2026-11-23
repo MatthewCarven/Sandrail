@@ -35,15 +35,16 @@ public sealed class RacingLine
     private readonly float[] _bankDeg;
     private readonly float[] _hint;
     private readonly bool[] _straight;
+    private readonly float[] _cap;
 
     /// <summary>The road's centreline as a line.</summary>
     /// <param name="closed">A lap: the last sample runs on into the first.</param>
     public RacingLine(IReadOnlyList<ICentreline> pieces, bool closed, float stepM = 1.0f)
-        : this(Sample(pieces, closed, stepM), closed, new float[SampleCount(pieces, closed, stepM)], null, null)
+        : this(Sample(pieces, closed, stepM), closed, new float[SampleCount(pieces, closed, stepM)], null, null, null)
     {
     }
 
-    private RacingLine((Vector3[] Position, Vector3[] Forward, Vector3[] Up, Vector3[] Right, int[] Piece) s, bool closed, float[] offset, float[]? hint, bool[]? straight)
+    private RacingLine((Vector3[] Position, Vector3[] Forward, Vector3[] Up, Vector3[] Right, int[] Piece) s, bool closed, float[] offset, float[]? hint, bool[]? straight, float[]? cap)
     {
         _position = s.Position;
         _forward = s.Forward;
@@ -54,6 +55,7 @@ public sealed class RacingLine
         Closed = closed;
         _hint = hint ?? Enumerable.Repeat(float.NaN, _position.Length).ToArray();
         _straight = straight ?? new bool[_position.Length];
+        _cap = cap ?? Enumerable.Repeat(float.PositiveInfinity, _position.Length).ToArray();
 
         _distance = new float[Count];
         for (int i = 1; i < Count; i++)
@@ -124,15 +126,20 @@ public sealed class RacingLine
     public bool StraightAt(int i) => _straight[i];
 
     /// <summary>
-    /// The same line, with the stunts on it marked: where a speed hint holds, m/s (NaN for none), and
-    /// where the wheels are held straight.
+    /// The same line, with the stunts on it marked: where a speed hint holds, m/s (NaN for none), where the
+    /// wheels are held straight, and where the speed is capped below what the bend allows (a crest, m/s;
+    /// infinity for none).
     /// </summary>
-    public RacingLine WithStunts(Func<int, float> hintMps, Func<int, bool> straight) => new(
+    public RacingLine WithStunts(Func<int, float> hintMps, Func<int, bool> straight, Func<int, float>? capMps = null) => new(
         ((Vector3[])_position.Clone(), (Vector3[])_forward.Clone(), (Vector3[])_up.Clone(), (Vector3[])_right.Clone(), (int[])_piece.Clone()),
         Closed,
         (float[])_offset.Clone(),
         Enumerable.Range(0, Count).Select(hintMps).ToArray(),
-        Enumerable.Range(0, Count).Select(straight).ToArray());
+        Enumerable.Range(0, Count).Select(straight).ToArray(),
+        capMps is null ? null : Enumerable.Range(0, Count).Select(capMps).ToArray());
+
+    /// <summary>The most the speed plan allows here whatever the bend, m/s: a crest's, or infinity.</summary>
+    public float CapAt(int i) => _cap[i];
 
     /// <summary>
     /// The line that turns least, inside the room the road leaves once the car's wheels are kept on it.
@@ -237,7 +244,7 @@ public sealed class RacingLine
         }
 
         return new RacingLine((at, forward, (Vector3[])_up.Clone(), (Vector3[])_right.Clone(), (int[])_piece.Clone()), Closed, offset,
-            (float[])_hint.Clone(), (bool[])_straight.Clone());
+            (float[])_hint.Clone(), (bool[])_straight.Clone(), (float[])_cap.Clone());
     }
 
     /// <summary>
@@ -285,6 +292,8 @@ public sealed class RacingLine
             {
                 speeds[i] = MathF.Min(_hint[i], top);
             }
+
+            speeds[i] = MathF.Min(speeds[i], _cap[i]);
         }
 
         int passes = Closed ? 2 : 1;

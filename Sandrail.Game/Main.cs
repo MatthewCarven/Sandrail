@@ -163,16 +163,34 @@ public partial class Main : Node3D
         bool trackOracle = oracle is not null && Oracle.NeedsTrack(oracle);
         bool showroomOracle = oracle is not null && Oracle.NeedsShowroom(oracle);
         bool bareOracle = oracle is not null && !Oracle.NeedsTestGround(oracle) && !showroomOracle && !trackOracle;
-        string? trackName = Flag(args, "--track=") ?? (trackOracle ? "base:shakedown" : null);
+        // A generated track from a seed (M3b): its ground and its route.
+        string? seedFlag = Flag(args, "--seed=");
+        ulong genSeed = 0;
+        if (seedFlag is not null)
+        {
+            if (Flag(args, "--track=") is not null || Flag(args, "--terrain=") is not null || Flag(args, "--ground=") is not null)
+            {
+                Refuse("--seed= makes a track and its ground; it doesn't go with --track=, --terrain= or --ground=.");
+                return;
+            }
 
-        // Generated ground from a seed (M3a), on its own until a track can be laid on it (M3b).
+            if (!ulong.TryParse(seedFlag, out genSeed))
+            {
+                Refuse($"--seed={seedFlag}: a seed is a whole number, 0 or more.");
+                return;
+            }
+        }
+
+        string? trackName = Flag(args, "--track=") ?? (trackOracle && seedFlag is null ? "base:shakedown" : null);
+
+        // Generated ground from a seed on its own (M3a); --seed= lays a track on it.
         string? terrainFlag = Flag(args, "--terrain=");
         ulong terrainSeed = 0;
         if (terrainFlag is not null)
         {
             if (trackName is not null || Flag(args, "--ground=") is not null)
             {
-                Refuse("--terrain= is ground of its own for now; a track laid on terrain comes with M3b.");
+                Refuse("--terrain= is ground of its own; --seed= lays a generated track on it.");
                 return;
             }
 
@@ -183,7 +201,7 @@ public partial class Main : Node3D
             }
         }
 
-        string ground = trackName is not null ? "track" : terrainFlag is not null ? "terrain"
+        string ground = seedFlag is not null ? "generated" : trackName is not null ? "track" : terrainFlag is not null ? "terrain"
             : Flag(args, "--ground=") ?? (showroomOracle ? "showroom" : bareOracle ? "bare" : "test");
         bool testGround = ground == "test";
         bool showroom = ground == "showroom";
@@ -193,9 +211,9 @@ public partial class Main : Node3D
             return;
         }
 
-        if (!testGround && !showroom && ground != "bare" && trackName is null && terrainFlag is null)
+        if (!testGround && !showroom && ground != "bare" && trackName is null && terrainFlag is null && seedFlag is null)
         {
-            Refuse($"Unknown ground '{ground}'. Known: test, showroom, bare, a track with --track=, or terrain with --terrain=.");
+            Refuse($"Unknown ground '{ground}'. Known: test, showroom, bare, a track with --track=, terrain with --terrain=, or a generated track with --seed=.");
             return;
         }
 
@@ -286,6 +304,41 @@ public partial class Main : Node3D
             plain.GetNode<CollisionShape3D>("Shape").Disabled = true;
             AddChild(TerrainView.Build(_terrain, terrainSeed));
             GD.Print($"Terrain from seed {terrainSeed}: made in {made:F0} ms and built in {clock.Elapsed.TotalMilliseconds - made:F0} ms");
+        }
+        else if (seedFlag is not null)
+        {
+            // A generated track on its own ground (M3-PLAN, M3b): the route walked over the terrain, both from the seed.
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            PieceCatalogue catalogue;
+            Generated made;
+            try
+            {
+                catalogue = TrackView.LoadCatalogue();
+                made = TrackGenerator.Generate(genSeed, new GenSettings(), catalogue);
+                _track = made.Track.Lay(catalogue);
+            }
+            catch (Exception e) when (e is System.IO.InvalidDataException or InvalidOperationException)
+            {
+                Refuse($"Seed {genSeed}: {e.Message}");
+                return;
+            }
+
+            if (_track.Problems.Count > 0)
+            {
+                Refuse($"Seed {genSeed} made a track Lay refuses, which is a generator bug: {string.Join("; ", _track.Problems)}");
+                return;
+            }
+
+            double generated = clock.Elapsed.TotalMilliseconds;
+            _terrain = made.Terrain;
+            var plain = GetNode<StaticBody3D>("Ground");
+            plain.GetNode<MeshInstance3D>("Mesh").Visible = false;
+            plain.GetNode<CollisionShape3D>("Shape").Disabled = true;
+            AddChild(TerrainView.Build(_terrain, genSeed));
+            TrackView.Build(this, _track.Placed, _terrain);
+            GenStats s = made.Stats;
+            GD.Print($"Seed {genSeed}: {_track.Placed.Count} pieces, {s.LengthM / 1000.0f:F2} km, {s.Slopes} slopes, {s.Banked} banked corners, "
+                + $"worst fill {s.WorstFillM:F1} m and cut {s.WorstCutM:F1} m; generated in {generated:F0} ms, built in {clock.Elapsed.TotalMilliseconds - generated:F0} ms");
         }
         else if (trackName is not null)
         {

@@ -2,6 +2,89 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — M3b: the route
+
+His go-ahead: *"Go on to M3b"*.
+
+**The S-bend** (`base:s-bend`, decision 2): 2 × 5 tiles, coming out a tile to the side, the loop's
+footprint and way out as plain road, so M3c's stunts can swap a loop in for it without moving the route.
+Two opposite arcs of 22.62° at 130 m radius do it exactly (the chicane's 5-12-13 triangle again). It's
+in the showroom too. The shakedown test now names M2's fifteen pieces, since the S-bend came after it.
+
+**A track can carry its ground** (M3-PLAN fact 8): `Track.Ground`, a seed and the terrain's dials, written
+as one line of format 2; with ground, pieces may go down to level -20. A track on the plain still saves
+as format 1, so the shakedown's file is unchanged to the byte.
+
+**`TrackGenerator`** (`Generation/`), stage 2:
+- **The walk**, in pieces (fact 4): from a start gate on a random edge, straights in runs of one to
+  three, 30 m and 50 m corners and S-bends both ways, and the odd chicane, weighted by chance from the
+  route's seed. It's pulled away from the finish while the road still owes length and hard toward it
+  once it's running long; it never takes a step after which no free path reaches the finish edge; a
+  step with nowhere to go is undone and the next choice tried, and a walk past 4,000 placements is begun
+  again from another start. It ends at the opposite edge heading out, between 1 and 2 km.
+- **Levels**, all at once: the cheapest levels in earth moved, a pair of straights becoming a slope
+  wherever the road should climb or fall.
+- **Banks**: a corner the car arrives at over 1.3 times its flat speed (a steady 3.5 m/s² from each
+  corner's exit, the autodriver's grip) becomes its banked twin.
+
+**The bench's `--generate` arm**, a thousand seeds:
+
+```
+refused by Lay           0          no route found  0
+time a track             p50 26 ms, p90 191 ms, max 606 ms (the slow ones backed out of a lot)
+length                   p10 1,121 m, p50 1,585 m, p90 2,060 m, max 2,125 m
+pieces                   p50 46;  slopes p50 11;  banked corners p50 7
+attempts                 p50 1, p90 2, max 6
+worst fill               p50 6.5 m, p90 14.9 m, max 30.6 m
+worst cut                p50 0.0 m, max 0.3 m
+```
+
+Left and right turns come out even. **The tall fills are where a route crosses a hollow on corners**,
+which can't change level; M3d's embankments are where that's dealt with.
+
+**Four findings, each from driving it:**
+1. **A corner over a hilltop looked flat to the walker**, which compared only the ground at a step's way in
+   and way out. Seed 2's road went 9 m into a hill. It now looks at the ground across the step's whole
+   footprint.
+2. **A buried road is sand under the tyres.** The levels first charged six metres of fill for one of cut.
+   The autodriver drove five generated tracks and slid off a corner on all five: where the road dips
+   below the ground, the terrain's sand stands on it. **Until M3d carves the ground away, the road keeps
+   out of it** (a metre of cut now costs a thousand of fill), and the worst cut over a thousand seeds is 0.3 m.
+3. **The autodriver didn't know about crests.** Its speed plan reads only how the road bends sideways,
+   so a slope up then a slope down, a hump, threw the car at 100 km/h and it landed sideways. **On ordinary
+   road the route line now holds the car under 0.8 of a crest's take-off speed**, √(g R cos θ), the share
+   where M2b measured the slope throwing it; stunts keep their hints. The shakedown's slope is held to 114
+   km/h, which moves its time from 56.70 to 56.76 s and nothing else.
+4. **What's left is the autodriver running wide out of a corner off raised road.** Seed 1, logged: out of
+   a banked 30 m left at 77 km/h, sliding, the slip guard cutting the throttle as it should, it drifts past
+   the road's edge and drops off its 1.5 m sheer side, then sits against it. On the test ground that's a
+   trip onto the sand; here the road's side is a wall. **M3d's sloping embankments are the fix**, and M3c's
+   checkpoints give R somewhere nearer to go.
+
+**The `track` oracle on generated tracks** (stock car, `--seed=`):
+
+```
+80%   seeds 2, 3, 6 finish (58.03, 57.45, 1:01.34), clean; 1, 4, 5, 7, 8 run wide off raised road
+70%   seeds 1, 2, 3, 4, 6, 7, 8 finish (1:09.41, 1:00.11, 58.33, 1:12.70, 1:03.55, 55.99, 46.42), all with
+      the wheels never off the road; seed 5 slides off a raised banked left-hander
+```
+
+**Game:** `--seed=N` makes the ground and the route and builds both: the terrain, every piece with its
+slab down to the ground (`PlacedPiece.DepthTo`), the timer from the start gate to the finish (no
+checkpoints until M3c; the board says "next: the finish"), P for the autodriver. About 0.2 s to make and
+0.3 s to build. `--oracle=track --seed=N` drives one.
+
+**Checked:**
+- 252 tests, 10 of them new: thirty seeds laying clean, the same seed giving the same track and another a
+  different one, 1 to 2 km, edge to edge, carrying its ground, the road out of the ground, every piece
+  kind used, refusals, and the crest caps on the shakedown's slope but not its stunts; plus 5 for ground.
+- All fifteen oracles on the stock car: fourteen exactly as before, the shakedown as in finding 3.
+- Screenshots: seed 3's route across its ground from above, seed 8 from above, and the autodriver on seed
+  8 at 70%.
+
+**His working `buggy.json` has moved on again** (`d10c8d40` when these ran, after `879d0d97`, the copy
+in `tunes/matthew-2026-11-23-late.json`); it's still his and uncommitted.
+
 ## 2026-11-23 — He drives the terrain
 
 After driving `--terrain=` in his saved buggy (`879d0d97`: 844 kg, the twin-plane wing): *"feels good to

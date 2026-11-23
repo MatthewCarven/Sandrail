@@ -70,6 +70,14 @@ climb, how often the road could follow it), takes the dials from the command lin
 `--feature=`, `--region=`, `--rarity=` and so on) so they're tried without a rebuild, and with five
 seeds or fewer says where each one's steepest ground is.
 
+```bash
+dotnet run --project Sandrail.Bench -c Release -- --generate --seeds=1000
+```
+
+`--generate` makes a track from each seed and lays it: **any track `Lay` refuses is a generator bug, and
+must be none**. It reports time, length, pieces, attempts, backtracks, slopes, banks and how the road met
+the ground; `--first=` starts elsewhere, `--turniness=` tries the dial, and five seeds or fewer print each.
+
 Headless check, which catches scene and script errors (`--quit-after` counts **frames**):
 
 ```bash
@@ -104,8 +112,9 @@ left the road, or exactly where it stopped (the M2d entry). **`lap` is how a tun
 it on two specs and read the flying lap, the corner speeds and where it left the road; `track` says
 whether a car (or a track) can be finished at all.
 
-Game flags, after `--` (or passed to `start.cmd`): `--terrain=<seed>` (generated ground from a seed in
-place of the plain, M3a; on its own until M3b lays a route on it), `--ground=test|showroom|bare` (the showroom is every
+Game flags, after `--` (or passed to `start.cmd`): `--seed=<n>` (a generated track on its own ground,
+M3b: the timer, P and `--oracle=track` all work on it; the autodriver finishes most at `--caution=0.7`),
+`--terrain=<seed>` (the generated ground alone, M3a), `--ground=test|showroom|bare` (the showroom is every
 M2 piece on its own with a run-up, a station each; [ and ] step through them), `--track=base:shakedown`
 (a track from `content/base/tracks/` by its ID, or `--track=<path>.json`; the car starts at its start
 gate, the clock starts on the throttle, R goes back to the last checkpoint and Backspace starts again;
@@ -133,8 +142,10 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 ## Layout
 
 - `Sandrail.Core/` — no Godot. `Generation/` holds `Hash64`, `GradientNoise`, the `BumpField`, and
-  M3's generator as it's built: `GenStage` (a seed per stage) and `Terrain` with its `TerrainSettings`
-  (heights a metre apart over 1024 m, relief regions, painted by height; seed 1 pinned to the last bit).
+  M3's generator as it's built: `GenStage` (a seed per stage), `Terrain` with its `TerrainSettings`
+  (heights a metre apart over 1024 m, relief regions, painted by height; seed 1 pinned to the last bit)
+  and `TrackGenerator` (`GenSettings`; the route walked in pieces with backtracking, levels chosen all at
+  once to keep the road out of the ground, banks by a speed estimate; a `Track` with its `Ground`).
   `Cars/` holds `CarSpec`, `Surfaces`, the `Wings` (parts, by ID) and `WheelModel`, the car's laws as
   plain functions. `Pieces/` is
   the road: `Frame`, the centrelines (line, pitch, banked turn, loop), `Chain`, `Profile`, the `Sweep`
@@ -173,7 +184,8 @@ and the `track` oracle: the shipped car finishes it in 56.70 s at 80%), are buil
 the shakedown (are the pieces the right size and shape?), is his whenever he likes. **M3, the
 generator, is planned (`docs/M3-PLAN.md`, its six decisions taken as recommended) and under way**: M3a,
 terrain from a seed (`--terrain=<seed>`, the `climb` oracle, the bench's `--terrain` arm), is built;
-M3b, the route, is next. **The stock car has his
+M3b, the route (`--seed=<n>`, the S-bend piece, the bench's `--generate`), is built too; M3c, stunts
+and checkpoints, is next. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles

@@ -163,6 +163,37 @@ public sealed class PlacedPiece(PieceDef def, Placement placement)
     }
 
     /// <summary>
+    /// How deep its slab goes on ground of its own (M3b): from the road's highest edge above the ground
+    /// down to past the ground, so a piece on fill stands on an embankment that meets the terrain (M3-PLAN
+    /// decision 3). Where the road is below the ground the slab is just a slab, until M3d carves the ground.
+    /// </summary>
+    public float DepthTo(Func<float, float, float> groundAt)
+    {
+        const float Slab = 0.5f;
+        if (Def.Path.Any(s => s.Loop is not null))
+        {
+            return Slab;
+        }
+
+        float deepest = 0.0f;
+        float half = Def.WidthM / 2.0f;
+        foreach (ICentreline line in Road().Pieces)
+        {
+            int samples = Math.Max(2, (int)MathF.Ceiling(line.Length / 2.0f));
+            for (int k = 0; k <= samples; k++)
+            {
+                Frame f = line.FrameAt(line.Length * k / samples);
+                foreach (Vector3 at in new[] { f.Position, f.Across(-half, 0.0f), f.Across(half, 0.0f) })
+                {
+                    deepest = MathF.Max(deepest, at.Y - groundAt(at.X, at.Z));
+                }
+            }
+        }
+
+        return Slab + (deepest * 1.2f) + 0.3f;
+    }
+
+    /// <summary>
     /// A loop step (see <see cref="LoopStep"/>): an S-bend onto the loop's skew, the loop on a plane turned
     /// back by that skew so its own axis is the piece's, an S-bend off, and the closing straight.
     /// </summary>

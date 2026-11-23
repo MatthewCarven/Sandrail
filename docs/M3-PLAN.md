@@ -174,6 +174,13 @@ between, steep faces included, because steep ground painted dirt climbed to 25°
 
 ## M3b — the route
 
+**Built 2026-11-23**, as below, with `--seed=N` in the game already (the menu and saving are still
+M3e's); 15 tests, worklog that date. Departures: **the road keeps out of the ground altogether** until M3d
+carves it, since a buried road is sand under the tyres; **a track carries its ground as format 2** now,
+since levels below the plain need it; and **the route line caps the speed at crests**, which the
+autodriver needed on generated tracks' humps. A thousand seeds lay clean; the autodriver finishes seven of
+eight at 70%, the rest running wide off raised road with sheer sides, M3d's to fix.
+
 - **Core:** `RouteWalker` (stage 2): the walk in pieces, levels following the ground, slopes, banked
   corners where fast; the S-bend piece if decision 2 is yes. Writes a `Track` with a start, a finish
   and no stunts yet.
