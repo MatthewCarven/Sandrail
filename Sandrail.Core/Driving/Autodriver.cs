@@ -47,6 +47,12 @@ public sealed class Autodriver
     /// <summary>Seconds: radians of steering for each radian a second of yaw rate off what the line asks.</summary>
     private const float YawDamping = 0.08f;
 
+    /// <summary>Farther than this from the line, metres, the car has been moved, not driven: the lap timer's figure.</summary>
+    private const float LostM = 15.0f;
+
+    /// <summary>How far before a loop it stops pulling the car onto the line and only lines it up: the loop piece's settling straight.</summary>
+    private const float LoopApproachM = 15.0f;
+
     private readonly RacingLine _line;
     private readonly CarSpec _spec;
     private float[] _speeds = [];
@@ -96,13 +102,28 @@ public sealed class Autodriver
 
     public float SpeedAt(int i) => _speeds[i];
 
+    /// <summary>Whether it has driven to the end of an open line, where it stops the car.</summary>
+    public bool AtTheEnd => !_line.Closed && _index == _line.Count - 1;
+
     /// <param name="yawRate">
     /// How fast the car is turning, radians a second, positive to the right; NaN where it isn't known (a
     /// kinematic test car, which turns exactly as steered and needs no damping).
     /// </param>
-    public DriveCommand Drive(Vector3 position, Vector3 forward, Vector3 up, Vector3 velocity, float yawRate = float.NaN)
+    /// <param name="airborne">
+    /// No wheel is on the ground. It keeps its hands off then (M2d): in the air the pedals and the
+    /// steering are air control, and the jumps' hints were measured with nothing touched.
+    /// </param>
+    public DriveCommand Drive(Vector3 position, Vector3 forward, Vector3 up, Vector3 velocity, float yawRate = float.NaN, bool airborne = false)
     {
         _index = _line.Nearest(position, _index);
+        if (Vector3.Distance(position, _line.PositionAt(_index)) > LostM)
+        {
+            // Looking only near the last answer misses a car that's been put somewhere else (a respawn at
+            // a checkpoint): look everywhere, and let the front axle follow.
+            _index = _line.Nearest(position);
+            _frontIndex = -1;
+        }
+
         Lateral = _line.LateralOffset(_index, position);
 
         Vector3 right = Vector3.Normalize(Vector3.Cross(forward, up));
@@ -116,6 +137,12 @@ public sealed class Autodriver
         _frontIndex = _line.Nearest(frontAxle, _frontIndex < 0 ? _index : _frontIndex);
         float frontOff = _line.LateralOffset(_frontIndex, frontAxle);
 
+        if (airborne)
+        {
+            TargetSpeed = _speeds[_index];
+            return default;
+        }
+
         // The axle is up to half a sample from the nearest one: turn the line's direction by its bend over
         // that gap, so it doesn't jump as the samples go by. And compare the body with the line's direction
         // half a wheelbase back, where the body's middle is: on a bend the body is square to the line at its
@@ -128,6 +155,16 @@ public sealed class Autodriver
         float heading = Wrap(lineHeading - Heading(forward));
         float pull = -MathF.Atan(CrossTrackGain * frontOff / (MathF.Max(forwardSpeed, 0.0f) + 1.0f));
 
+        // Coming up to a loop it lines the car up rather than pulling it onto the line: the wheels go
+        // straight at the foot, and a car pointing a few degrees across the road then drifts across it all
+        // the way round, while one a little to the side but square to it comes out as far to the side. 0.65 m
+        // off with the pull on, it went in 4° across and came off the far side (2026-11-23).
+        float toLoop = DistanceToStraight(_frontIndex);
+        if (toLoop < LoopApproachM)
+        {
+            pull *= toLoop / LoopApproachM;
+        }
+
         // Yaw damping: steer against turning faster or slower than the line asks. It calms the weave the
         // other terms leave at speed, and catches a car turning in by itself under braking before it grows:
         // both seen on his tuned car, 2026-11-23.
@@ -135,9 +172,17 @@ public sealed class Autodriver
         float steerDeg = (bend + heading + pull + damping) * (180.0f / MathF.PI);
         float steer = Math.Clamp(steerDeg / WheelModel.SteerLimitDeg(_spec, speed), -1.0f, 1.0f);
 
-        // The slowest the line allows between here and a fraction of a second on.
+        // A loop is driven with the wheels straight (M1c): its road's sideways drift is built for that,
+        // and a heading read off a road pointing at the sky means nothing.
+        if (_line.StraightAt(_frontIndex))
+        {
+            steer = 0.0f;
+        }
+
+        // The slowest the line allows between here and a fraction of a second on; at the end of an open
+        // line, a stop.
         int last = _line.IndexAhead(_index, speed * PreviewSeconds);
-        float target = _speeds[_index];
+        float target = AtTheEnd ? 0.0f : _speeds[_index];
         for (int i = _index; i != last; i = (i + 1) % _line.Count)
         {
             target = MathF.Min(target, _speeds[(i + 1) % _line.Count]);
@@ -163,6 +208,24 @@ public sealed class Autodriver
         }
 
         return new DriveCommand(throttle, brake, steer);
+    }
+
+    /// <summary>How far ahead of a sample the wheels go straight (a loop), metres, up to <see cref="LoopApproachM"/>; that or more if not.</summary>
+    private float DistanceToStraight(int from)
+    {
+        int last = _line.IndexAhead(from, LoopApproachM);
+        for (int i = from; ; i = (i + 1) % _line.Count)
+        {
+            if (_line.StraightAt(i))
+            {
+                return Math.Max(0.0f, _line.DistanceAt(i) - _line.DistanceAt(from));
+            }
+
+            if (i == last)
+            {
+                return LoopApproachM;
+            }
+        }
     }
 
     /// <summary>A direction's heading in the horizontal plane: 0 is -Z, increasing to the right.</summary>

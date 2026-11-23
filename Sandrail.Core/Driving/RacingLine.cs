@@ -33,15 +33,17 @@ public sealed class RacingLine
     private readonly float[] _offset;
     private readonly float[] _curvature;
     private readonly float[] _bankDeg;
+    private readonly float[] _hint;
+    private readonly bool[] _straight;
 
     /// <summary>The road's centreline as a line.</summary>
     /// <param name="closed">A lap: the last sample runs on into the first.</param>
     public RacingLine(IReadOnlyList<ICentreline> pieces, bool closed, float stepM = 1.0f)
-        : this(Sample(pieces, closed, stepM), closed, new float[SampleCount(pieces, closed, stepM)])
+        : this(Sample(pieces, closed, stepM), closed, new float[SampleCount(pieces, closed, stepM)], null, null)
     {
     }
 
-    private RacingLine((Vector3[] Position, Vector3[] Forward, Vector3[] Up, Vector3[] Right, int[] Piece) s, bool closed, float[] offset)
+    private RacingLine((Vector3[] Position, Vector3[] Forward, Vector3[] Up, Vector3[] Right, int[] Piece) s, bool closed, float[] offset, float[]? hint, bool[]? straight)
     {
         _position = s.Position;
         _forward = s.Forward;
@@ -50,6 +52,8 @@ public sealed class RacingLine
         _piece = s.Piece;
         _offset = offset;
         Closed = closed;
+        _hint = hint ?? Enumerable.Repeat(float.NaN, _position.Length).ToArray();
+        _straight = straight ?? new bool[_position.Length];
 
         _distance = new float[Count];
         for (int i = 1; i < Count; i++)
@@ -65,6 +69,23 @@ public sealed class RacingLine
         {
             int before = Neighbour(i, -2);
             int after = Neighbour(i, 2);
+
+            // Road beside a loop doesn't read its bend from the loop: a heading taken off road pointing at
+            // the sky swings round, and a car at the foot was steered by it just as its wheels went straight
+            // (2026-11-23).
+            if (!_straight[i])
+            {
+                while (before != i && _straight[before])
+                {
+                    before = Neighbour(before, 1);
+                }
+
+                while (after != i && _straight[after])
+                {
+                    after = Neighbour(after, -1);
+                }
+            }
+
             float span = Span(before, after);
             float turn = Wrap(Heading(_forward[after]) - Heading(_forward[before]));
             _curvature[i] = span > 0.0f ? turn / span : 0.0f;
@@ -94,6 +115,26 @@ public sealed class RacingLine
     public int PieceAt(int i) => _piece[i];
 
     /// <summary>
+    /// The speed a stunt here is meant to be taken at, m/s (a jump's run-up, a loop), which the speed plan
+    /// holds to; NaN where the road's own shape says how fast (M2-PLAN, "The model": a piece's speed hint).
+    /// </summary>
+    public float HintAt(int i) => _hint[i];
+
+    /// <summary>Whether the wheels are held straight here: in a loop, which is driven that way (M1c).</summary>
+    public bool StraightAt(int i) => _straight[i];
+
+    /// <summary>
+    /// The same line, with the stunts on it marked: where a speed hint holds, m/s (NaN for none), and
+    /// where the wheels are held straight.
+    /// </summary>
+    public RacingLine WithStunts(Func<int, float> hintMps, Func<int, bool> straight) => new(
+        ((Vector3[])_position.Clone(), (Vector3[])_forward.Clone(), (Vector3[])_up.Clone(), (Vector3[])_right.Clone(), (int[])_piece.Clone()),
+        Closed,
+        (float[])_offset.Clone(),
+        Enumerable.Range(0, Count).Select(hintMps).ToArray(),
+        Enumerable.Range(0, Count).Select(straight).ToArray());
+
+    /// <summary>
     /// The line that turns least, inside the room the road leaves once the car's wheels are kept on it.
     /// </summary>
     /// <param name="roadHalfWidth">Half the road's flat surface.</param>
@@ -101,6 +142,17 @@ public sealed class RacingLine
     /// From the car's middle to the outside of its tyres: half its track plus half a tyre. The line's
     /// points are where the car's middle goes, so they keep this far in from each edge, and a margin more.
     /// </param>
+    public RacingLine MinimumCurvature(float roadHalfWidth, float carHalfWidth, float marginM = 0.25f, int maxSweepsPerLevel = 2000)
+    {
+        float room = MathF.Max(0.0f, roadHalfWidth - carHalfWidth - marginM);
+        return MinimumCurvature(_ => room, maxSweepsPerLevel);
+    }
+
+    /// <summary>
+    /// The line that turns least, each sample free to move across the road by as much as
+    /// <paramref name="roomAt"/> says, either way: the road's own room where it varies, and none where the
+    /// line must keep to the middle (a jump, a loop).
+    /// </summary>
     /// <remarks>
     /// <para>
     /// <b>How:</b> each point may only move across the road, along its own right. Minimising the sum of
@@ -115,10 +167,10 @@ public sealed class RacingLine
     /// to the inside is lower on the bank, and the speed plan reads the bank from the road either way.
     /// </para>
     /// </remarks>
-    public RacingLine MinimumCurvature(float roadHalfWidth, float carHalfWidth, float marginM = 0.25f, int maxSweepsPerLevel = 2000)
+    public RacingLine MinimumCurvature(Func<int, float> roomAt, int maxSweepsPerLevel = 2000)
     {
         int n = Count;
-        float room = MathF.Max(0.0f, roadHalfWidth - carHalfWidth - marginM);
+        float[] rooms = Enumerable.Range(0, n).Select(i => MathF.Max(0.0f, roomAt(i))).ToArray();
         var offset = new float[n];
         var at = (Vector3[])_position.Clone();
 
@@ -145,7 +197,7 @@ public sealed class RacingLine
 
                     Vector3 ideal = ((4.0f * (at[Neighbour(i, -stride)] + at[Neighbour(i, stride)]))
                         - (at[Neighbour(i, -2 * stride)] + at[Neighbour(i, 2 * stride)])) / 6.0f;
-                    float wanted = Math.Clamp(Vector3.Dot(ideal - _position[i], _right[i]), -room, room);
+                    float wanted = Math.Clamp(Vector3.Dot(ideal - _position[i], _right[i]), -rooms[i], rooms[i]);
                     moved = MathF.Max(moved, MathF.Abs(wanted - offset[i]));
                     offset[i] = wanted;
                     at[i] = _position[i] + (_right[i] * wanted);
@@ -184,7 +236,8 @@ public sealed class RacingLine
             forward[i] = ahead.LengthSquared() > 0.0f ? Vector3.Normalize(ahead) : _forward[i];
         }
 
-        return new RacingLine((at, forward, (Vector3[])_up.Clone(), (Vector3[])_right.Clone(), (int[])_piece.Clone()), Closed, offset);
+        return new RacingLine((at, forward, (Vector3[])_up.Clone(), (Vector3[])_right.Clone(), (int[])_piece.Clone()), Closed, offset,
+            (float[])_hint.Clone(), (bool[])_straight.Clone());
     }
 
     /// <summary>
@@ -222,6 +275,16 @@ public sealed class RacingLine
             float tan = MathF.Tan(bank);
             float below = MathF.Max(1.0f - (mu * tan), 0.05f) - (mu * pressPerMass / (MathF.Cos(bank) * bend));
             speeds[i] = below > 0.0f ? MathF.Min(MathF.Sqrt(G / bend * (tan + mu) / below), top) : top;
+        }
+
+        // A stunt's speed is its hint, not what its shape says: a loop's heading turns over at the top,
+        // which reads as a hairpin, and a launch ramp is straight, which reads as flat out.
+        for (int i = 0; i < Count; i++)
+        {
+            if (!float.IsNaN(_hint[i]))
+            {
+                speeds[i] = MathF.Min(_hint[i], top);
+            }
         }
 
         int passes = Closed ? 2 : 1;

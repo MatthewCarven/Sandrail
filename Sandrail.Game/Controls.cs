@@ -84,6 +84,9 @@ public static class Controls
         Add(PreviousStation, Key.Bracketleft);
         Add(NextStation, Key.Bracketright);
 
+        // On a track, the run from the start again (M2d); pad layouts don't rebind it.
+        Add(Restart, Key.Backspace, JoyButton.Start);
+
         Layout = ApplyPadLayout();
         if (!_listening)
         {
@@ -101,6 +104,7 @@ public static class Controls
 
     public const string PreviousStation = "station_previous";
     public const string NextStation = "station_next";
+    public const string Restart = "restart";
 
     /// <summary>Where a pad's layout lives, by its GUID.</summary>
     public static string LayoutPath(string guid) => $"{PadFolder}/{PadProfile.FileName(guid)}";

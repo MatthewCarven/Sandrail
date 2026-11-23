@@ -77,7 +77,7 @@ pwsh tools/oracles.ps1
 ```
 
 `-Oracles drop` runs one; `-Spec variant.json` drives a variant file instead of the shipped buggy, which
-is how to try numbers without touching what plays. There are thirteen: `straight`, `drop`, `brake` and
+is how to try numbers without touching what plays. There are fourteen: `straight`, `drop`, `brake` and
 `circle` on the bare plain with road grip (their M1a figures are in the 2026-10-31 worklog entry;
 `straight` runs off the plain's end at 26 s and counts top speed only before), `handbrake` there too (a
 stop on it alone, and a full-lock turn with and without it; the M1d entry), `sweeper` there too (the
@@ -86,14 +86,18 @@ entry), `respawn` there too (the one oracle with the auto-respawn on: dropped on
 the plain's end, which is 1000 m out, Jolt's world boundary), `jump`, `loop` and `bumps` on the test ground (figures in the M1c entry), `air` there too
 (station 1's jump five times with one input held or tapped in flight; the air-control entry),
 `pieces` in the showroom (the loop, both jumps and the slope, each at several speeds; the M2b entry),
-and `lap`, the autodriver
-lapping station 6 (figures in the 2026-11-23 autodriver entry). **`lap` is how a tune is compared**: run
-it on two specs and read the flying lap, the corner speeds and where it left the road.
+`lap`, the autodriver
+lapping station 6 (figures in the 2026-11-23 autodriver entry), and `track`, the autodriver driving the
+shakedown start to finish (or `--track=` another): its time, splits, each jump and the loop, where it
+left the road, or exactly where it stopped (the M2d entry). **`lap` is how a tune is compared**: run
+it on two specs and read the flying lap, the corner speeds and where it left the road; `track` says
+whether a car (or a track) can be finished at all.
 
 Game flags, after `--` (or passed to `start.cmd`): `--ground=test|showroom|bare` (the showroom is every
 M2 piece on its own with a run-up, a station each; [ and ] step through them), `--track=base:shakedown`
 (a track from `content/base/tracks/` by its ID, or `--track=<path>.json`; the car starts at its start
-gate), `--station=N`,
+gate, the clock starts on the throttle, R goes back to the last checkpoint and Backspace starts again;
+`--checkpoint=N` starts where R would put the car after checkpoint N, for a screenshot), `--station=N`,
 `--surface=road|dirt|grass|sand` (sand by default on the test ground), `--spec=<path>`,
 `--oracle=<name>`, `--panels=tuning,telemetry` (opens either at start),
 `--record` (starts a run at start), `--autodrive` (the autodriver from the start; with `--station=6`),
@@ -129,7 +133,9 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   out by a millimetre), `Placement` and `PlacedPiece` (turned and mirrored onto the grid),
   `PieceCatalogue` (one piece a file from `content/base/pieces/`), the `Showroom`, and `Track` (the
   track file, from `content/base/tracks/`: load, save, `Lay` against the catalogue for its problems and
-  its route, start to finish). `Pads/` is `PadProfile`. The generator and its formats land beside them.
+  its route, start to finish), the `RaceTimer` (gates passed through their arches, in order, with
+  splits) and `TrackRacing` (a laid track's gates, and its route as one racing line, stunts down the
+  middle at their speed hints). `Pads/` is `PadProfile`. The generator and its formats land beside them.
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
@@ -147,8 +153,10 @@ better tuning after the track editor is complete". M2 is under way (`docs/M2-PLA
 decisions taken as recommended): M2a, the grid and the piece catalogue, and M2b, the starter set of
 fifteen pieces (corners 30 and 50 m flat and banked, slopes, two launch ramps and a landing, a grid loop,
 a chicane, three gates), are built and shown in the showroom; M2c, the track file and the shakedown
-(every piece in 1.28 km, `--track=base:shakedown`), is built too; M2d, racing it (clock, checkpoints,
-respawn at the last one, the autodriver and the `track` oracle), is next. His panel steering (`maxSteerDeg` 15.25, `minSteerDeg` 2.05, saved 2026-11-23 19:39)
+(every piece in 1.28 km, `--track=base:shakedown`), and M2d, racing it (the clock, checkpoints in
+order with splits, R back to the last checkpoint, Backspace to start again, the autodriver on the route
+and the `track` oracle: the shipped car finishes it in 56.70 s at 80%), are built too. M2e, his play on
+the shakedown (are the pieces the right size and shape?), is next and is his. His panel steering (`maxSteerDeg` 15.25, `minSteerDeg` 2.05, saved 2026-11-23 19:39)
 sits uncommitted in `buggy.json`; oracles checking Claude's changes run on the committed spec via
 `-Spec`.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
 jump, a slope and plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels

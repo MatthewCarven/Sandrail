@@ -204,6 +204,13 @@ piece. The shakedown is 35 placements and 1.28 km, and loads and builds in about
 
 ## M2d — racing it
 
+**Built 2026-11-23**, as below; 16 tests, worklog that date. Additions: **Backspace starts the run
+again** (R keeps the clock running, so a fresh try needed its own key); R before the first checkpoint
+goes back to the start with the clock running; bests last the session, his and the autodriver's apart,
+and saving them waits for M4's ghosts. The autodriver holds a stunt's hint as the speed up to it, takes
+stunts down the middle, keeps its hands off in the air and **lines the car up for the loop rather than
+pulling it onto its line** in the last 15 m. The shipped car finishes the shakedown in 56.70 s at 80%.
+
 - **Core:** `RaceTimer`, the point-to-point form of `LapTimer`: start on the first throttle at the
   start gate, splits at checkpoints passed in order, a finish, and whether the run counts. Tests: a run
   through every gate counts; a skipped checkpoint doesn't, until it's gone back for; crossing a gate

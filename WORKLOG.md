@@ -2,6 +2,83 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — M2d: racing the shakedown
+
+His go-ahead, after saying he'd drive M2c first: *"Ok keep going please Claude"*. No verdicts on the
+shakedown yet; those are M2e's.
+
+**Built, in Core:**
+- **`RaceTimer`** (`Tracks/`): the clock from the first throttle at the start gate, through each
+  checkpoint in order, to the finish. **A gate is passed by driving through its arch forwards**, the
+  crossing interpolated between ticks, not by getting level with it, since the ground beside the road is
+  drivable (fact 5). A gate crossed early is said ("out of order") and not counted, so a skipped
+  checkpoint holds the run up until it's gone back for. A gate crossed backwards, beside its posts or
+  over its beam is nothing. A respawn tells it the car was moved, so the move isn't a drive through a gate.
+- **`TrackRacing`**: a laid track's gates, and its route as one open racing line. The line turns least
+  where the road leaves room and keeps to the middle of every stunt (the launch ramps, landings and the
+  loop, each measured that way in M2b). On a stunt piece the speed plan holds the middle of its hint
+  (90, 114, 97.5 km/h), not what its shape says, and the line holds the wheels straight in the loop
+  itself. `RacingLine` gained those marks (`WithStunts`) and a room that can vary along the line; with
+  no marks its plan is bit for bit what it was.
+- **The autodriver**: hands off in the air (there the pedals and steering are air control, and the jump
+  hints were measured with nothing touched), wheels straight in the loop, a stop at the end of an open
+  line, and a search of the whole line when the car is suddenly 15 m from where it was (a respawn).
+
+**Game:** on a track, the board top right shows the run's clock, the gates passed and the bests (his
+and the autodriver's apart, for the session). A checkpoint flashes its split against the same driver's
+best; a missed one says to go back for it. **R puts the car 4 m past the last checkpoint's arch with the
+clock running** (decision 3), or at the start before the first. **Backspace starts the run again**,
+which R no longer can. The auto-respawn does what R does. P hands the car to the autodriver from
+anywhere on the route, and L shows its line, which has no strip across a jump's gap. The keys line
+offers checkpoints and the restart on a track. `--checkpoint=N` starts the car where R puts it after
+checkpoint N, for a screenshot.
+
+**Two findings on the way:**
+1. **The first `track` run "finished" with a lie in it.** The car slid off the loop's side at the
+   bottom of the descent, onto the sand, and drove back onto the road; the oracle called the loop
+   "through" and counted 5.5 s off the road in it. Logged through the loop, the car's offset from its
+   line grew steadily all the way round, so it went in pointing about 4° across the road. Just before the
+   loop it was 0.65 m left of its line, and the autodriver's pull back onto the line had it angled at the
+   moment the wheels went straight. **In a loop a sideways offset stays as it is, but an angle grows into
+   a drift.** So over the last 15 m before a loop the autodriver now lines the car up instead: in at
+   0.6 m off and square, it comes round never further off than that. And the oracle now says how far off
+   its line the car got in the loop, so a car that comes off the side can't be called through again.
+   (A first guess, that the line read a false bend off the loop's own samples, wasn't it; the fix for it
+   stays, since a heading read off road pointing at the sky is wrong anyway.)
+2. **The 30 m right after the chicane is where cars spin.** Every run that left the road at all left it
+   there, except his evening tune at 70%, which spun on the raised left a little before. The 90% and 100%
+   runs also slid out of the first corner, the 50 m right after the short jump.
+
+**The `track` oracle** (fourteen now):
+
+```
+shipped car (964252ce), 80%   FINISHED in 56.70 | splits 21.54, 40.64 | top 120 km/h
+                              short jump: lip 82 km/h, landed 36.2 m past it, on its down-ramp
+                              loop: in at 96 km/h, through, at most 0.6 m off its line, slowest 80
+                              long jump: lip 108 km/h, landed 60.7 m past it, on its down-ramp, pitch -10°
+                              wheels off the road 0.00 s, worst slide 22°
+shipped car, 90%              finished in 1:14.10, with spins in four places, 8.3 s off the road
+shipped car, 100%             didn't finish: spun before the long jump, went off its lip at 83 km/h,
+                              fell short into the gap, stuck on the landing
+his steering (fce5b6e5), 80%  didn't finish: spun out of the 30 m right after the chicane, stuck
+his steering, 70%             FINISHED in 58.46, clean, worst slide 8°
+his evening tune (5d844085)   didn't finish at 80% or 70%: spun on the raised left and after the chicane
+```
+
+The short jump lands near the start of its down-ramp (36 m; the ramp is 34-47 m): the autodriver holds
+90 km/h less tightly up the ramp than M2b's oracle did, and leaves at 82. The racing line takes about
+0.1 s to build.
+
+**Checked:**
+- 218 tests, 16 of them new: the race timer (a run through every gate counts, timed exactly; a skipped
+  checkpoint holds the run up until it's gone back for; a gate crossed backwards, beside it or over it
+  isn't passed; a respawn isn't a crossing), the shakedown's gates, the route line (stunts down the
+  middle at their hints, wheels straight only in the loop itself), a line without marks planning exactly
+  as before, and the autodriver in the air, at the end and in the loop.
+- All fourteen oracles on the committed car: the thirteen exactly as they were, the lap still 24.53 s.
+- The headless check on the test ground and on the shakedown with the autodriver.
+- Screenshots: the car 4 m past checkpoint 1, and the autodriver on its way with the clock at 2.98.
+
 ## 2026-11-23 — M2c: the track file and the shakedown
 
 His go-ahead: *"Go on to M2c"*.

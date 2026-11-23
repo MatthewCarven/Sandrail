@@ -53,25 +53,27 @@ public static class RacingLineView
             colours[(2 * i) + 1] = colour;
         }
 
+        // No strip across a jump's gap, where the line leaves the road for the air.
         int segments = line.Closed ? n : n - 1;
-        var indices = new int[segments * 6];
+        var indices = new System.Collections.Generic.List<int>(segments * 6);
         for (int i = 0; i < segments; i++)
         {
+            int next = (i + 1) % n;
+            if (line.PositionAt(i).ToGodot().DistanceTo(line.PositionAt(next).ToGodot()) > 3.0f)
+            {
+                continue;
+            }
+
             int a = 2 * i;
-            int b = 2 * ((i + 1) % n);
-            indices[(6 * i) + 0] = a;
-            indices[(6 * i) + 1] = b + 1;
-            indices[(6 * i) + 2] = a + 1;
-            indices[(6 * i) + 3] = a;
-            indices[(6 * i) + 4] = b;
-            indices[(6 * i) + 5] = b + 1;
+            int b = 2 * next;
+            indices.AddRange([a, b + 1, a + 1, a, b, b + 1]);
         }
 
         var arrays = new Godot.Collections.Array();
         arrays.Resize((int)Mesh.ArrayType.Max);
         arrays[(int)Mesh.ArrayType.Vertex] = vertices;
         arrays[(int)Mesh.ArrayType.Color] = colours;
-        arrays[(int)Mesh.ArrayType.Index] = indices;
+        arrays[(int)Mesh.ArrayType.Index] = indices.ToArray();
         var mesh = new ArrayMesh();
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
 

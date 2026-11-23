@@ -204,14 +204,7 @@ public partial class Oracle
 
         if (_trialLandedAt is float landed && Time - landed > 2.0f)
         {
-            // The landing ramp begins across the gap; its table, crest, down-ramp and foot in metres from there.
-            float into = _trialLandedPast - (lip.Gap * TrackGrid.TileM);
-            string where = into < 0.0f ? "SHORT, in the gap"
-                : into < 10.0f ? "on the landing's table"
-                : into < 14.2f ? "on its crest"
-                : into < 27.1f ? "on its down-ramp"
-                : into < 32.7f ? "on its foot"
-                : "past it, on the run-out";
+            string where = LandingSpot(_trialLandedPast - (lip.Gap * TrackGrid.TileM));
             bool upright = Car.GlobalBasis.Y.Normalized().Y > 0.7f;
             _trialFigures.Add($"{TrialName(trial)} at {_trialInSpeed * 3.6f:F0} km/h: lands {_trialLandedPast:F1} m past the lip, {where}, "
                 + $"pitch {_trialLandedPitch:F0}°{(upright ? string.Empty : ", NOT UPRIGHT")}");
@@ -302,6 +295,15 @@ public partial class Oracle
         float steerDeg = headingError + Mathf.RadToDeg(MathF.Atan(-2.0f * off / speed));
         return Math.Clamp(steerDeg / MathF.Max(Car.SteerLimitDeg, 1.0f), -1.0f, 1.0f);
     }
+
+    /// <summary>Where on the landing ramp a car came down, from how far past its start: its table, crest, down-ramp and foot.</summary>
+    private static string LandingSpot(float into) =>
+        into < 0.0f ? "SHORT, in the gap"
+        : into < 10.0f ? "on the landing's table"
+        : into < 14.2f ? "on its crest"
+        : into < 27.1f ? "on its down-ramp"
+        : into < 32.7f ? "on its foot"
+        : "past it, on the run-out";
 
     private static string TrialName(PieceTrial trial) => trial.Piece switch
     {

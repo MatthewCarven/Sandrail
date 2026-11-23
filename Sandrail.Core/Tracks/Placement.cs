@@ -85,6 +85,24 @@ public sealed class PlacedPiece(PieceDef def, Placement placement)
     /// <summary>Where its road starts: the way in, facing into the piece.</summary>
     public Frame Start => TrackGrid.Edge(Placement.At, Facing(PieceSide.Back), Placement.Level, Forward);
 
+    /// <summary>Where its gate's arch stands, facing the way through it: the middle of its road. Null on a piece without a gate.</summary>
+    public Frame? GateFrame
+    {
+        get
+        {
+            if (Def.Gate is null)
+            {
+                return null;
+            }
+
+            ICentreline line = Road().Pieces[0];
+            return line.FrameAt(line.Length / 2.0f);
+        }
+    }
+
+    /// <summary>Half the gate's opening: the road and a little more, to the inside of its arch's posts.</summary>
+    public float GateHalfWidthM => (Def.WidthM / 2.0f) + 0.4f;
+
     /// <summary>The piece's road as centrelines, from its way in.</summary>
     public Chain Road()
     {

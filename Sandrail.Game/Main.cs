@@ -150,15 +150,17 @@ public partial class Main : Node3D
 
         if (oracle is not null && !Oracle.IsKnown(oracle))
         {
-            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle, handbrake, sweeper, respawn, jump, air, loop, bumps, lap, pieces.");
+            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle, handbrake, sweeper, respawn, jump, air, loop, bumps, lap, pieces, track.");
             return;
         }
 
         // The M1a oracles, handbrake, sweeper and respawn drive the bare plain on road grip, as at M1a, so their figures
-        // stay comparable; pieces drives the showroom; everything else gets the test ground on sand.
+        // stay comparable; pieces drives the showroom; track drives a track, the shakedown unless told; everything
+        // else gets the test ground on sand.
+        bool trackOracle = oracle is not null && Oracle.NeedsTrack(oracle);
         bool showroomOracle = oracle is not null && Oracle.NeedsShowroom(oracle);
-        bool bareOracle = oracle is not null && !Oracle.NeedsTestGround(oracle) && !showroomOracle;
-        string? trackName = Flag(args, "--track=");
+        bool bareOracle = oracle is not null && !Oracle.NeedsTestGround(oracle) && !showroomOracle && !trackOracle;
+        string? trackName = Flag(args, "--track=") ?? (trackOracle ? "base:shakedown" : null);
         string ground = trackName is not null ? "track" : Flag(args, "--ground=") ?? (showroomOracle ? "showroom" : bareOracle ? "bare" : "test");
         bool testGround = ground == "test";
         bool showroom = ground == "showroom";
@@ -273,7 +275,23 @@ public partial class Main : Node3D
 
         if (_track is not null)
         {
+            SetUpRace(_track, spec);
             _spawn = SpawnAt(TrackStart(_track), spec);
+
+            // Where R puts the car after a checkpoint, for a screenshot of it: the run isn't timed from there.
+            if (int.TryParse(Flag(args, "--checkpoint="), out int gate))
+            {
+                IReadOnlyList<RaceGate> gates = _race!.Gates;
+                if (gate < 1 || gate > _race.Checkpoints)
+                {
+                    Refuse($"Unknown checkpoint {gate}. The track has 1 to {_race.Checkpoints}.");
+                    return;
+                }
+
+                Frame at = gates[gate].Frame;
+                _spawn = SpawnAt(at with { Position = at.Position + (at.Forward * PastTheArchM) }, spec);
+                _raceArmIn = 0;
+            }
         }
         else if (_stations is not null)
         {
@@ -302,7 +320,7 @@ public partial class Main : Node3D
         _recorder = new RunRecorder { Car = _car };
         AddChild(_recorder);
 
-        _hud = new Hud { Car = _car, Recorder = _recorder };
+        _hud = new Hud { Car = _car, Recorder = _recorder, OnATrack = _track is not null };
         AddChild(_hud);
         _telemetry = new TelemetryOverlay { Car = _car, Visible = panels.Contains("telemetry") };
         _hud.AddChild(_telemetry);
@@ -313,7 +331,7 @@ public partial class Main : Node3D
         // report a crash as a crash.
         if (oracle is null || oracle == Oracle.Respawn)
         {
-            _autoRespawn = new AutoRespawn { Car = _car, Home = () => _spawn };
+            _autoRespawn = new AutoRespawn { Car = _car, Home = () => _track is not null ? TrackHome() : _spawn };
             _autoRespawn.Respawned += AutoRespawned;
             AddChild(_autoRespawn);
         }
@@ -321,7 +339,7 @@ public partial class Main : Node3D
         if (oracle is not null)
         {
             _oracle = true;
-            AddChild(new Oracle { Kind = oracle, Car = _car, Layout = _layout, Showroom = _showroom, Caution = _caution });
+            AddChild(new Oracle { Kind = oracle, Car = _car, Layout = _layout, Showroom = _showroom, Course = _track, Caution = _caution });
         }
 
         if (args.Contains("--record"))
@@ -351,7 +369,8 @@ public partial class Main : Node3D
         if (_track is not null && oracle is null && _screenshot is null)
         {
             float km = _track.LengthM / 1000.0f;
-            _hud.Flash($"{_track.Track.Name}: {km:F1} km, start gate to finish. R puts you back at the start.", 8.0);
+            _hud.Flash($"{_track.Track.Name}: {km:F1} km and {_race!.Checkpoints} checkpoints. The clock starts on the throttle; "
+                + "R puts you back at the last checkpoint, Backspace starts again.", 10.0);
         }
         else if (_stations is not null && oracle is null && _screenshot is null)
         {
@@ -390,7 +409,7 @@ public partial class Main : Node3D
     private void AutoRespawned(StuckReason reason)
     {
         PutDown(_spawnStation);
-        string where = _stations is not null ? $"station {_spawnStation}" : "the start";
+        string where = _track is not null ? AfterTrackRespawn() : _stations is not null ? $"station {_spawnStation}" : "the start";
         _hud?.Flash(reason == StuckReason.Lost
             ? $"Off the edge of the world: back to {where}."
             : $"Tipped over for {StuckWatch.Seconds:F0} s: back to {where}.", 4.0);
@@ -518,6 +537,7 @@ public partial class Main : Node3D
             bool driving = _ticks > 2 * Engine.PhysicsTicksPerSecond;
             _car.Driver = !driving ? default : _autodriver is not null ? AutodriverInput(_autodriver) : _screenshotDrive;
             TimeLap();
+            TimeRace();
             return;
         }
 
@@ -555,12 +575,25 @@ public partial class Main : Node3D
 
         if (Input.IsActionJustPressed(Controls.Respawn))
         {
-            _car.Respawn(_spawn);
-            _autoRespawn?.Reset();
-            PutDown(_spawnStation);
+            if (_track is not null)
+            {
+                RespawnOnTrack();
+            }
+            else
+            {
+                _car.Respawn(_spawn);
+                _autoRespawn?.Reset();
+                PutDown(_spawnStation);
+            }
+        }
+
+        if (Input.IsActionJustPressed(Controls.Restart))
+        {
+            RestartRun();
         }
 
         TimeLap();
+        TimeRace();
     }
 
     public override void _Process(double delta)
@@ -612,7 +645,7 @@ public partial class Main : Node3D
 
         if (_hud is not null)
         {
-            _hud.Laps = LapBoard();
+            _hud.Laps = _race is not null ? RaceBoard() : LapBoard();
 
             // The countdown once the car has been stuck for half a second, so a roll that rights itself
             // doesn't flash it.
@@ -646,9 +679,27 @@ public partial class Main : Node3D
             return;
         }
 
+        // On a track it drives the route, start to finish, from wherever on it the car is.
+        if (_track is not null)
+        {
+            int near = _routeLine!.Nearest(_car.GlobalPosition.ToCore());
+            if (_routeLine.PositionAt(near).ToGodot().DistanceTo(_car.GlobalPosition) > 15.0f)
+            {
+                _hud.Flash("The autodriver drives the track's road: get back on it first, or press R.");
+                return;
+            }
+
+            _routeLine = _track.RouteLine(_car.Spec);
+            _autodriver = new Autodriver(_routeLine, _car.Spec, _caution);
+            DrawLine(_car.Spec);
+            _hud.Banner = AutodriverBanner();
+            _hud.Flash("The autodriver has the car, to the finish. - and + change its aggression.");
+            return;
+        }
+
         if (_layout is null || _lapLine is null)
         {
-            _hud.Flash("The autodriver needs the test ground's corner lap.");
+            _hud.Flash("The autodriver needs the test ground's corner lap or a track.");
             return;
         }
 
@@ -675,7 +726,7 @@ public partial class Main : Node3D
     /// </summary>
     private void ChangeAggression(int steps)
     {
-        if (_car is null || _hud is null || _lapLine is null)
+        if (_car is null || _hud is null || DrivenLine is null)
         {
             return;
         }
@@ -700,14 +751,14 @@ public partial class Main : Node3D
     /// </summary>
     private void DrawLine(CarSpec spec)
     {
-        if (_lapLine is null)
+        if (DrivenLine is not RacingLine line)
         {
             return;
         }
 
         bool visible = _lineView?.Visible ?? true;
         _lineView?.QueueFree();
-        _lineView = RacingLineView.Build(_lapLine, _lapLine.SpeedProfile(spec, _caution), _lapLine.SpeedProfile(spec, Autodriver.DefaultCaution));
+        _lineView = RacingLineView.Build(line, line.SpeedProfile(spec, _caution), line.SpeedProfile(spec, Autodriver.DefaultCaution));
         _lineView.Visible = visible;
         AddChild(_lineView);
     }
@@ -722,7 +773,8 @@ public partial class Main : Node3D
             (-basis.Z).Normalized().ToCore(),
             up.ToCore(),
             _car.LinearVelocity.ToCore(),
-            -_car.AngularVelocity.Dot(up));
+            -_car.AngularVelocity.Dot(up),
+            airborne: _car.GroundedCount == 0);
         return new DriverInput { Throttle = cmd.Throttle, Brake = cmd.Brake, Steer = cmd.Steer };
     }
 

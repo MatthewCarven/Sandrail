@@ -124,13 +124,13 @@ public partial class Oracle : Node
 
     /// <summary>
     /// One of <see cref="Straight"/>, <see cref="Drop"/>, <see cref="Brake"/>, <see cref="Circle"/>,
-    /// <see cref="Handbrake"/>, <see cref="Sweeper"/>, <see cref="Respawn"/>, <see cref="Jump"/>, <see cref="Air"/>, <see cref="Loop"/>, <see cref="Bumps"/>, <see cref="Lap"/>.
+    /// <see cref="Handbrake"/>, <see cref="Sweeper"/>, <see cref="Respawn"/>, <see cref="Jump"/>, <see cref="Air"/>, <see cref="Loop"/>, <see cref="Bumps"/>, <see cref="Lap"/>, <see cref="Pieces"/>, <see cref="TrackDrive"/>.
     /// </summary>
     public required string Kind { get; init; }
 
     public required Buggy Car { get; init; }
 
-    public static bool IsKnown(string kind) => kind is Straight or Drop or Brake or Circle or Handbrake or Sweeper or Respawn || NeedsTestGround(kind) || NeedsShowroom(kind);
+    public static bool IsKnown(string kind) => kind is Straight or Drop or Brake or Circle or Handbrake or Sweeper or Respawn || NeedsTestGround(kind) || NeedsShowroom(kind) || NeedsTrack(kind);
 
     private float Time => _tick / (float)Engine.PhysicsTicksPerSecond;
 
@@ -186,6 +186,9 @@ public partial class Oracle : Node
                 break;
             case Air:
                 RunAir();
+                break;
+            case TrackDrive:
+                RunTrack();
                 break;
         }
     }

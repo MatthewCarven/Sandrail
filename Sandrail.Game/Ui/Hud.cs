@@ -28,6 +28,9 @@ public partial class Hud : CanvasLayer
     /// <summary>A large line in the middle of the screen, such as the auto-respawn's countdown; null hides it.</summary>
     public string? Alert { get; set; }
 
+    /// <summary>On a track: the keys line offers checkpoints and a restart instead of stations, which a track hasn't.</summary>
+    public bool OnATrack { get; init; }
+
     private Label _laps = null!;
     private Label _alert = null!;
 
@@ -85,7 +88,8 @@ public partial class Hud : CanvasLayer
 
         var keys = new Label
         {
-            Text = "W/S: throttle, brake, reverse  ·  A/D: steer (Shift: wide lock)  ·  Space: handbrake  ·  R: respawn  ·  1-9, [ ]: stations  ·  C: camera\n"
+            Text = "W/S: throttle, brake, reverse  ·  A/D: steer (Shift: wide lock)  ·  Space: handbrake  ·  "
+                + (OnATrack ? "R: last checkpoint  ·  Backspace: start again" : "R: respawn  ·  1-9, [ ]: stations") + "  ·  C: camera\n"
                 + "In the air: W/S nose up and down, A/D turn  ·  P: autodriver (-/+: its aggression)  ·  L: racing line  ·  F2: tuning  ·  F3: telemetry  ·  F4: record",
             LabelSettings = Settings(16),
         };
