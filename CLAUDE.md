@@ -19,7 +19,7 @@ free of Godot. Its generator's `Hash64` and `GradientNoise` are ported here unch
 | [docs/PLAN.md](docs/PLAN.md) | **The plan**: his decisions, Claude's suggestions, the car, pieces, generator, ghosts, milestones M0–M6, and the decisions still his. |
 | [docs/M1-PLAN.md](docs/M1-PLAN.md) | **M1, the buggy**: six facts, the car's model written down with its starting numbers, six decisions (all taken 2026-10-31), slices M1a–M1e with their checks, and the named levers. Read "The car's model" before touching `Buggy` or `CarSpec`. |
 | [docs/M2-PLAN.md](docs/M2-PLAN.md) | **M2, pieces and the track file**: eight facts (corner radii on a grid, connectors, crests, the loop on the grid, checkpoints, gap jumps), the model written down (grid, piece, placement, track, validation), six decisions (his, written 2026-11-23), slices M2a–M2e. Read "The model" before touching pieces or tracks. |
-| [docs/M3-PLAN.md](docs/M3-PLAN.md) | **M3, the generator**: eight facts (the noise's reach, how fast the road can climb, how steep the car can, why the route is walked in pieces, why a stunt can only replace its own footprint, the height field, painted ground, terrain in the track file), the model (settings, a seed per stage, terrain, route, stunts, the bed), six decisions (his, awaiting answers), slices M3a–M3f. |
+| [docs/M3-PLAN.md](docs/M3-PLAN.md) | **M3, the generator**: eight facts (the noise's reach, how fast the road can climb, how steep the car can, why the route is walked in pieces, why a stunt can only replace its own footprint, the height field, painted ground, terrain in the track file), the model (settings, a seed per stage, terrain, route, stunts, the bed), ten decisions (his, all taken: six on 2026-11-23, four on circuits on 2026-11-24), slices M3a–M3f and M3g, circuits (walked out and walked home, 3 laps of 0.8–1.5 km, half the seeds; built after M3c). |
 | [WORKLOG.md](WORKLOG.md) | What happened and why, newest first. Findings worth keeping live here. |
 
 ## Non-negotiables
@@ -191,7 +191,9 @@ generator, is planned (`docs/M3-PLAN.md`, its six decisions taken as recommended
 terrain from a seed (`--terrain=<seed>`, the `climb` oracle, the bench's `--terrain` arm), is built;
 M3b, the route (`--seed=<n>`, the S-bend piece, the bench's `--generate`), is built too, and M3d's bed
 came next at his word (25° dirt banks and cuttings; the `bank` oracle); M3c, stunts and checkpoints, is
-next, then the rest of M3d (rocks). **The stock car has his
+next, then **M3g, circuits** (planned 2026-11-24 at his ask: half the seeds, 3 laps of 0.8–1.5 km; seed
+5, which he's learning, stays a sprint, and every seed that stays a sprint stays the same track), then
+the rest of M3d (rocks). Every generated track so far is a sprint, edge to edge. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles

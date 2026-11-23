@@ -1,6 +1,6 @@
 # M3 — The generator
 
-> Planned 2026-11-23, before any code. Split M3a–M3f. Read [PLAN.md](PLAN.md) first, especially "The
+> Planned 2026-11-23, before any code. Split M3a–M3f, and M3g (circuits) added 2026-11-24. Read [PLAN.md](PLAN.md) first, especially "The
 > generator, point-to-point first", "What carries over from Overburden's generator" and suggestions 4
 > and 5, and [M2-PLAN.md](M2-PLAN.md)'s model, which is what the generator writes. Every number here is
 > a starting point labelled as one; the decisions at the end are his.
@@ -11,12 +11,13 @@ swapped in where the car can make them, checkpoints, and the road set into a bed
 output is an ordinary track (M2c's file, with its terrain), so everything M2 built (the validation, the
 timer, the autodriver, the `track` oracle) works on a generated track unchanged.
 
-Six things ship: **terrain** (M3a), **the route** (M3b), **stunts and checkpoints** (M3c), **the bed and
-the ground** (M3d), **seeds in the game** (M3e), and **a play** (M3f), which is his: whether the tracks
-it makes are ones he wants to drive.
+Seven things ship: **terrain** (M3a), **the route** (M3b), **stunts and checkpoints** (M3c), **circuits**
+(M3g, added 2026-11-24 and built after M3c), **the bed and the ground** (M3d), **seeds in the game**
+(M3e), and **a play** (M3f), which is his: whether the tracks it makes are ones he wants to drive.
 
 Out of scope, on purpose: track codes, ghosts and replays, and with them the replay cameras (M4); the
-editor (M5); closed circuits (M6); pillars and bridges; scenery beyond rocks; sound.
+editor (M5) and circuits in it (M6); pillars and bridges, and so circuits that cross themselves; scenery
+beyond rocks; sound.
 
 **M2e is still his.** The shakedown play (are the pieces the right size and shape?) can happen whenever
 he likes. The generator reads the piece catalogue, so a piece he wants changed changes every generated
@@ -149,6 +150,22 @@ recommended, 2026-11-23**: *"Yes, as recommended"*.
    its middle, so the car can go off the grid and come back. The alternative is a fence or a drop at the
    grid's edge.
 
+**Four more, on circuits, 2026-11-24**, when he asked whether any track made a complete circuit (none
+did) and wanted about half of them to: *"Ok do any of the tracks make a complete circuit i want about 50%
+of them too if it isn't too difficult to pull off what do you thing Claude plan with me please?"*. **All
+four taken as recommended**: *"Yes, as recommended"*. They move the generator's half of PLAN's M6 into M3.
+
+7. **Circuits come right after M3c, before M3e**: they need M3c's checkpoints (a circuit's middle invites
+   cutting across), and M3e's menu and saving then know about circuits from the start. The alternative
+   was before M3c, or leaving them in M6.
+8. **A run on a circuit is 3 laps, timed in total**, with each lap's time shown and his best lap kept
+   beside his best run. The alternative was endless laps, the best one counting, like station 6.
+9. **A lap is 0.8 to 1.5 km**: 3 laps of 1.2 km is about 2 min 40 s at the autodriver's 80% pace on the
+   shakedown. The alternative was a sprint's 1 to 2 km a lap, up to about 4½ minutes a run.
+10. **The seed decides, half and half, by a dial** (`CircuitShare`, 0.5): a seed is always the same kind,
+    so a shared seed is the same track; M3e's menu can ask for either kind. The alternative was the kind
+    chosen in the menu only.
+
 ---
 
 ## M3a — terrain
@@ -199,6 +216,74 @@ eight at 70%, the rest running wide off raised road with sheer sides, M3d's to f
   the estimate approved; the `track` oracle drives ten seeds start to finish, and where one fails it says
   where, which is either a stunt the estimate shouldn't have approved or a lesson for the autodriver.
 
+## M3g — circuits
+
+**Planned 2026-11-24, to be built after M3c** (decisions 7-10). The letter comes after the others so
+that older references to M3d, M3e and M3f still mean what they did; the order is M3c, M3g, then the rest.
+
+**Seven facts that shape it:**
+
+1. **Closing a loop on the grid is a fitting problem.** The walk has to come back to the start-finish
+   gate on exactly the right tile, facing along it, and corners are 2 × 2 and 3 × 3 tiles (fact 4), so
+   the last few pieces must land exactly. A one-tile straight closes a gap along the way home; a gap to
+   the side needs an S-bend or a chicane, each a tile across.
+2. **PLAN's old idea, growing a loop by pushing its edges out, hides the same problem.** It closes by
+   construction, but in single tiles; making its turns into 2 × 2 and 3 × 3 corners is the fitting
+   problem again, and it would give up what the walker already does with the ground (fact 2), its piece
+   weights and its turniness. So circuits are **walked out and walked home** instead.
+3. **The grid has room.** A lap of 0.8 to 1.5 km is 40 to 75 tiles of road; the grid's edge alone is 128
+   tiles (2.56 km).
+4. **The road has to finish at the level it started**: as many slopes up as down round a lap.
+5. **The start gate's back is closed** (its way in is `closed`), so a circuit needs a gate that's road at
+   both ends.
+6. **A circuit's middle invites a shortcut**, since the ground is drivable. On a sprint, cutting a corner
+   between checkpoints is allowed and stays allowed; on a circuit the gain is bigger, so checkpoints are
+   denser (at least three a lap), and the order rule (M2d) does the rest, as the lap timer's quarters do
+   on station 6.
+7. **Choosing the kind by seed changes half the seeds**, whichever half. The kind is drawn from a stage
+   seed of its own, and of the two halves the one chosen keeps **seed 5, which he's learning, a sprint**
+   (with the obvious rule it came out a circuit): a seed is a circuit when its draw is at least 1 −
+   `CircuitShare`. Seeds 1, 3, 5 and 7 stay sprints; 2, 4, 6 and 8 become circuits. **Sprints are walked
+   exactly as today**, so every seed that stays a sprint is the same track, piece for piece.
+
+**The model:**
+
+- **Settings:** `CircuitShare` (0.5), the lap's length (0.8 to 1.5 km) and laps (3), beside the sprint's
+  length in `RouteSettings`; a new stage, `GenStage.Kind` (`0x7E44A1_0005`, the next after `Ground`, which
+  fact 7's seeds were worked out with), draws the kind.
+- **The start-finish gate** (`base:start-finish`): a straight with an arch, open at both ends.
+- **The walk:** the gate goes on a tile well inside the grid, so the loop has room on every side. The
+  walk sets off from its front with no pull, as the sprint's does, and **turns for home** about halfway
+  round its length target: pulled toward the tile behind the gate, refusing a step that would leave home
+  out of reach over free tiles (the sprint's finish check, with home for the edge). **The close**: within
+  a few tiles of home, a search over every run of the last few pieces for one that ends on home's tile
+  facing along the gate, within the lap's length; none, and the walker backs out as from a dead end.
+- **Levels:** the chooser runs round the loop with one more rule, the last level equals the first.
+  Banks, the bed and M3c's stunts and checkpoints run unchanged, the speed estimate going round twice
+  for a flying lap, as `SpeedProfile` does on a closed line.
+- **The file:** `"laps": 3` makes a track a circuit, and **format 3** (a format-2 reader must refuse it,
+  not lay it wrongly). `Lay` finds the route from the gate round to it: the last piece's way out meets
+  the gate's way in, and every piece is on it.
+- **Racing it:** the timer's gates are the line, the checkpoints and the line again, once a lap, so
+  `RaceTimer` stays as it is and each lap's time is the split at the line. The board says the lap
+  (2 of 3), the run's clock, the last lap and the best; bests are kept for the run and for a lap, his and
+  the autodriver's apart. R is as on a sprint: the last gate passed, the line included, with the clock
+  running; before the first checkpoint of lap 1 it starts again; held, it starts again from anywhere.
+- **The autodriver** gets the route as a closed line, which it already laps at station 6; the `track`
+  oracle drives the laps and gives each one's time.
+
+**Checks:**
+
+- **Before any of it, seed 5 pinned**: a test that its track is today's, piece for piece; and after,
+  that seeds 1, 3, 5 and 7 are unchanged.
+- **Bench `--generate`** reports sprints and circuits apart: how many of each over a thousand seeds
+  (about half), lap lengths, attempts and backtracks, and how many circuits never closed or `Lay` refused,
+  which must be none, as for sprints.
+- **Tests:** the same seed gives the same kind and track; `CircuitShare` at 0 gives every seed a sprint
+  and at 1 a circuit; a circuit's last level is its first; a format-2 reader refuses a circuit; a circuit
+  saved and loaded is the same track.
+- **The `track` oracle** laps ten circuit seeds at 70%, and screenshots of circuits from above.
+
 ## M3d — the bed and the ground
 
 **Begun 2026-11-23, ahead of M3c, at his word**: after driving generated tracks he wanted raised road's
@@ -235,7 +320,9 @@ Terrain comes first because the route walker looks at the ground, and its dials 
 before anything is built on them (fact 1). The route comes before stunts because stunts are swapped into
 a route that already exists (fact 5). The bed comes after both, because it carves to the road, which
 needs its levels. The game's menu comes last because it's the generator's front door, not its insides.
-Each slice ends runnable and committed, and the bench grows an arm with each.
+Circuits (M3g) come after stunts and checkpoints because a circuit needs its checkpoints, and before the
+menu and saving so those know about circuits from the start. Each slice ends runnable and committed, and
+the bench grows an arm with each.
 
 ## Levers, named now so nobody has to rediscover them
 
@@ -243,4 +330,5 @@ Terrain amplitude, feature size and relief rarity; how steep counts as a wall; t
 the finish, its turn rate and length target; how fast a corner has to be taken before it's banked; the
 stunt density and weights; how much margin the speed estimate keeps on a hint; checkpoint spacing; the
 bed's blend width and the embankment's batter; rock density and how far from the line they stay; the
-size of the ground beyond the grid.
+size of the ground beyond the grid; the share of circuits, a lap's length and the laps in a run, where
+the walk turns for home, how hard home pulls, and how many pieces the closing search tries.

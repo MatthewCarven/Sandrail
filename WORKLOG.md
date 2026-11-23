@@ -2,6 +2,32 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — Circuits planned: M3g
+
+*"Ok do any of the tracks make a complete circuit i want about 50% of them too if it isn't too difficult to
+pull off what do you thing Claude plan with me please?"*. None did: every generated track runs from a
+start gate on one edge to a finish on the opposite one, and PLAN had circuits in M6, after the editor
+(his decision 1 of 2026-10-31). Claude's view: a medium job, about M3b's size, because most of it is
+built (a closed racing line the autodriver laps at station 6, the lap timer with its quarters, a race
+timer that's only gates in order, and terrain, levels, banks and the bed, which work on any route). The
+hard part is closing the loop exactly on the grid with 2 × 2 and 3 × 3 corners. Four decisions, **taken
+as recommended**: *"Yes, as recommended"*. Circuits come right after M3c (they need its checkpoints)
+and before M3e; a run is 3 laps timed in total, with lap times and a best lap; a lap is 0.8 to 1.5 km;
+the seed decides, half and half, by a dial.
+
+Written up as **M3g** in M3-PLAN (facts, model, checks), with PLAN's decision 1, its generator section
+and M6 changed to match. Two things the planning turned up:
+
+- **PLAN's way of making a circuit is replaced.** Growing a loop by pushing its edges out closes by
+  construction, but in single tiles, so fitting corners into it is the same problem as closing a walk,
+  and it would lose what the walker does with the ground. Circuits are walked out and walked home: the
+  walk turns for home halfway round, and a search over the last few pieces closes it exactly.
+- **Seed 5 would have become a circuit.** The kind is drawn from a stage seed of its own
+  (`GenStage.Kind`, `0x7E44A1_0005`), and with "a circuit when the draw is under the share" seeds 1, 3, 5
+  and 7 come out circuits (515 of the first 1000 are). Either half is as good as the other, so the rule is
+  "at least 1 − share", which keeps seed 5 the sprint he's learning; seeds 2, 4, 6 and 8 become circuits.
+  Sprints will be walked exactly as now, pinned by a test on seed 5 before any of it is built.
+
 ## 2026-11-24 — Hold R to start again
 
 To learn seed 5 in whole runs: *"fully reset the timer when you press the lap reset button"*. His pad has

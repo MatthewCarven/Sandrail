@@ -14,7 +14,9 @@ remake of any one game. Cheap physics, not the Taj Mahal.
 
 ## His words, 2026-10-31, as decisions
 
-1. **Point-to-point first.** Closed circuits wait until the editor is near, or after it.
+1. **Point-to-point first.** Closed circuits wait until the editor is near, or after it. **Changed by
+   him 2026-11-24**: the generator makes circuits too, about half its seeds, in M3 right after its
+   checkpoints (M3-PLAN, decisions 7-10 and M3g); circuits in the editor stay with M6.
 2. **Off the road is real ground.** The buggy can leave the track; terrain is drivable with less grip.
 3. **C#, Core/Game split, Godot 4.7.1 mono**, the way Overburden is built.
 4. **"Better" means:** lightweight physics that doesn't drag the frame rate; multiplayer possible later,
@@ -139,8 +141,12 @@ Each stage has its own derived seed and reads only the stages before it.
 output changes, the version goes up; an older code then says which version it was made for rather than
 quietly producing a different track. Edited tracks are shared as their file, which is a few KB.
 
-**Closed circuits, later (decision 1):** grow a loop by pushing its edges out at random, which is closed
-and self-avoiding by construction. Then stages 3–5 run unchanged.
+**Closed circuits (decision 1, changed 2026-11-24):** first written here as a loop grown by pushing its
+edges out at random, closed and self-avoiding by construction. **Now walked out and walked home
+instead** (M3-PLAN, M3g): the grown loop works in single tiles, and turning it into 2 × 2 and 3 × 3
+corners is the same fitting problem as closing a walk, without what the walker knows about the ground.
+The walk turns for home halfway round, and a search over the last few pieces closes it exactly. Then
+stages 3–5 run unchanged.
 
 ## Ghosts, replays, and later multiplayer
 
@@ -169,11 +175,13 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
   hand-written point-to-point track, start gate, checkpoints, finish, timer. **Planned 2026-11-23**:
   [M2-PLAN.md](M2-PLAN.md), its decisions his.
 - **M3, the generator.** Stages 1–5, with the seed on the command line and in a menu, the bench, and
-  terrain you can drive on. **Planned 2026-11-23**: [M3-PLAN.md](M3-PLAN.md), its decisions his.
+  terrain you can drive on, and since 2026-11-24 circuits for about half the seeds (M3g). **Planned
+  2026-11-23**: [M3-PLAN.md](M3-PLAN.md), its decisions his.
 - **M4, ghosts, replays and track codes.**
 - **M5, the editor.** Grid cursor, piece palette, rotate, raise and lower, place and erase; generate
   from a code and then edit; test-drive from the cursor; validate; save and load.
-- **M6, closed circuits.** The loop generator, laps, and circuits in the editor.
+- **M6, closed circuits.** Circuits in the editor. The loop generator and laps moved into M3 (M3g) at
+  his word, 2026-11-24.
 - **Later:** multiplayer on the snapshot stream, AI opponents following the centreline, more cars, a daily
   seed.
 
