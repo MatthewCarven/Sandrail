@@ -210,7 +210,10 @@ Each is a number in `CarSpec`, where 0 means off, so the panel can switch it on 
   throttle nose up, brake nose down, and steering turns and rolls the car. Each is a spin added per second
   (`airPitchDegPerS2`, `airYawDegPerS2`, `airRollDegPerS2`, 0 off). It's capped against spinning faster,
   never against slowing, and does nothing with no input. The `air` oracle. Worklog, that date.
-- **The auto-respawn** (decision 4), and continuous collision detection if fact 3 bites.
+- **The auto-respawn** (decision 4), and continuous collision detection if fact 3 bites. **Built
+  2026-11-23**: `StuckWatch` in Core puts the car back after 3 s tipped more than 70° and under 2 m/s
+  (on its side counts), and at once below the world; a HUD countdown; the `respawn` oracle. Fact 3 hasn't
+  bitten. Worklog, that date. **M1d is complete.**
 
 ## M1e — the play
 
@@ -227,6 +230,10 @@ three places the pass names.
 **2026-11-22, after driving the test ground:** *"can we try shift doubles the lock to lock of the
 angle?"*. Built as wide lock on Shift (`wideLockFactor` 2, with the turn rates scaled to match), and it
 needed Ackermann steering (`ackermannShare` 1) to work at 60°. Worklog, that date.
+
+**2026-11-23, with M1d done:** *"Lets continue Claude i'll do better tuning after the track editor is
+complete"*. **The play is deferred to after M5**, when there are real tracks to tune on. M1 is built,
+and its pass on his word waits for then.
 
 ---
 

@@ -76,12 +76,13 @@ pwsh tools/oracles.ps1
 ```
 
 `-Oracles drop` runs one; `-Spec variant.json` drives a variant file instead of the shipped buggy, which
-is how to try numbers without touching what plays. There are eleven: `straight`, `drop`, `brake` and
+is how to try numbers without touching what plays. There are twelve: `straight`, `drop`, `brake` and
 `circle` on the bare plain with road grip (their M1a figures are in the 2026-10-31 worklog entry;
 `straight` runs off the plain's end at 26 s and counts top speed only before), `handbrake` there too (a
 stop on it alone, and a full-lock turn with and without it; the M1d entry), `sweeper` there too (the
 most grip at speed, on a 120 m circle with the speed creeping up: where a wing shows; the downforce
-entry), `jump`, `loop` and `bumps` on the test ground (figures in the M1c entry), `air` there too
+entry), `respawn` there too (the one oracle with the auto-respawn on: dropped on its roof, then past
+the plain's end, which is 1000 m out, Jolt's world boundary), `jump`, `loop` and `bumps` on the test ground (figures in the M1c entry), `air` there too
 (station 1's jump five times with one input held or tapped in flight; the air-control entry), and
 `lap`, the autodriver
 lapping station 6 (figures in the 2026-11-23 autodriver entry). **`lap` is how a tune is compared**: run
@@ -116,8 +117,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   the road: `Frame`, the centrelines (line, pitch, banked turn, loop), `Chain`, `Profile`, the `Sweep`
   mesher and the `TestGroundLayout`. `Driving/` is the autodriver: `RacingLine` (samples, curvature,
   bank, speed plan, and `MinimumCurvature`, the racing line inside the wheels' room) and `Autodriver`
-  (a front-axle Stanley tracker with yaw damping and slip guards); and `LapTimer`, which times laps
-  line to line for the game and the lap oracle alike. `Pads/` is `PadProfile`. The track
+  (a front-axle Stanley tracker with yaw damping and slip guards); `LapTimer`, which times laps
+  line to line for the game and the lap oracle alike; and `StuckWatch`, the auto-respawn's rule. `Pads/` is `PadProfile`. The track
   grid, generator and formats land beside them.
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
@@ -130,8 +131,10 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 
 ## Where things stand
 
-**2026-11-23: M1a, M1b and M1c are built, plus wide lock, his pad's layout, a lap of corners and the
-autodriver; M1d has the handbrake, downforce and air control.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
+**2026-11-23: M1 is built (M1a-M1d), plus wide lock, his pad's layout, a lap of corners and the
+autodriver. The play that passes it waits, at his word, until after the track editor (M5): "i'll do
+better tuning after the track editor is complete". Next is M2: its plan doc first, as every milestone
+starts.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
 jump, a slope and plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels
 straight, a dirt bump patch, and a 526 m lap of six different corners (flat to 35° bank, 18 to 60 m
 radius, one left-hander), which is also the shortlist for M2's corner tiles. **The autodriver** (his
@@ -155,7 +158,9 @@ only makes the car run wide; at the middle, 1.22 g at 136 km/h against 0.97 g ba
 wing turns the car to follow its arc. **Air control**: with no wheel down, throttle lifts the nose,
 brake drops it, and steering turns and rolls the car (F2's Air group; 0 is off). Doing nothing leaves
 the jump's own rotation alone. A 0.3 s tap of brake is worth 11° at touchdown, and holding throttle
-through the whole jump 36°. Eleven oracles (committed spec `964252ce`): the loop
+through the whole jump 36°. **The auto-respawn** puts the car back where R would after 3 s tipped over
+and nearly stopped (on its roof or side), with a countdown, and at once if it falls off the world.
+Twelve oracles (committed spec `964252ce`): the loop
 goes through 0.1 m off centre, but **the suspension bottoms out on the jump's landing and through the
 loop** (worklog, M1c). **Steering is his to open**: Shift doubles the lock (`wideLockFactor`), with
 Ackermann steering (`ackermannShare`) to make 60° work. **He drives with his mum's clone pad**, with a
@@ -164,6 +169,5 @@ from GitHub at his word on the evening of 2026-11-23. **His own tune is kept out
 `%APPDATA%\Godot\app_userdata\Sandrail\tunes\matthew-2026-11-23.json`, and `start.cmd
 --spec=<that path>` drives it. It's a heavier, much faster car (1004 kg, 243 kW, grip 1.4), but its
 springs are too soft for its weight, so it bottoms out (worklog). He's thinking of making **building
-your car part of the game** (PLAN, "His ideas"). **The rest of M1d is the auto-respawn**, and the
-bottoming is a
-lever to bring to his play rather than to change unasked.
+your car part of the game** (PLAN, "His ideas"). The bottoming is a lever to bring to his play rather
+than to change unasked.

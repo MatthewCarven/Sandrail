@@ -162,7 +162,9 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
   `GradientNoise` ported with their tests; `CLAUDE.md`; `start.cmd`. **Built 2026-10-31** (WORKLOG).
 - **M1, the buggy.** Flat ground with a handful of test pieces (a ramp, a bump field, a banked curve, a
   loop) from the first version of the piece mesher; the raycast car; chase camera; respawn; the tuning
-  panel. **It passes when he drives it and says it feels right.**
+  panel. **It passes when he drives it and says it feels right.** **Built 2026-11-23** (M1a-M1d, with an
+  autodriver, a lap timer, wings and air control besides); the pass waits, at his word, until after the
+  track editor (M5), when there are real tracks to tune on.
 - **M2, pieces and the track file.** The grid and catalogue in Core, the full starter set, a
   hand-written point-to-point track, start gate, checkpoints, finish, timer.
 - **M3, the generator.** Stages 1–5, with the seed on the command line and in a menu, the bench, and

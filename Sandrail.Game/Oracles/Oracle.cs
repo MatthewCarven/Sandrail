@@ -23,7 +23,7 @@ namespace Sandrail.Game.Oracles;
 /// </para>
 /// <para>
 /// Straight, drop, brake and circle run on the bare plain with road grip, as they did at M1a, so their
-/// figures stay comparable, and so do handbrake and sweeper (M1d); jump, air, loop, bumps and lap run on the test
+/// figures stay comparable, and so do handbrake, sweeper and respawn (M1d); jump, air, loop, bumps and lap run on the test
 /// ground (<c>Oracle.Ground.cs</c>).
 /// </para>
 /// </remarks>
@@ -35,6 +35,7 @@ public partial class Oracle : Node
     public const string Circle = "circle";
     public const string Handbrake = "handbrake";
     public const string Sweeper = "sweeper";
+    public const string Respawn = "respawn";
 
     /// <summary>The sweeper's circle, metres: its centre is this far to the right of the start, so the car starts on it, facing along it.</summary>
     private const float SweepRadius = 120.0f;
@@ -94,6 +95,19 @@ public partial class Oracle : Node
     private float _sweepBestDownforce;
     private float _sweepShort;
 
+    // respawn: the car stuck two ways, 20 m from the start, and how it's brought back
+    private enum StuckRun { OnItsRoof, BelowTheWorld }
+
+    private StuckRun _stuckRun;
+    private float? _stuckPutAt;
+    private bool _stuckArrived;
+    private float? _stuckRestingAt;
+    private float _stuckRestedFrom;
+    private float _stuckLowest;
+
+    private float StuckAwayX => _stuckRun == StuckRun.OnItsRoof ? 20.0f : 1050.0f;
+    private readonly List<string> _stuckFigures = new();
+
     // handbrake: three runs from the same spot, each from rest
     private enum HandbrakeRun { Stop, SteeringAlone, WithTheHandbrake }
 
@@ -110,13 +124,13 @@ public partial class Oracle : Node
 
     /// <summary>
     /// One of <see cref="Straight"/>, <see cref="Drop"/>, <see cref="Brake"/>, <see cref="Circle"/>,
-    /// <see cref="Handbrake"/>, <see cref="Sweeper"/>, <see cref="Jump"/>, <see cref="Air"/>, <see cref="Loop"/>, <see cref="Bumps"/>, <see cref="Lap"/>.
+    /// <see cref="Handbrake"/>, <see cref="Sweeper"/>, <see cref="Respawn"/>, <see cref="Jump"/>, <see cref="Air"/>, <see cref="Loop"/>, <see cref="Bumps"/>, <see cref="Lap"/>.
     /// </summary>
     public required string Kind { get; init; }
 
     public required Buggy Car { get; init; }
 
-    public static bool IsKnown(string kind) => kind is Straight or Drop or Brake or Circle or Handbrake or Sweeper || NeedsTestGround(kind);
+    public static bool IsKnown(string kind) => kind is Straight or Drop or Brake or Circle or Handbrake or Sweeper or Respawn || NeedsTestGround(kind);
 
     private float Time => _tick / (float)Engine.PhysicsTicksPerSecond;
 
@@ -151,6 +165,9 @@ public partial class Oracle : Node
                 break;
             case Sweeper:
                 RunSweeper();
+                break;
+            case Respawn:
+                RunRespawn();
                 break;
             case Jump:
                 RunJump();
@@ -376,6 +393,70 @@ public partial class Oracle : Node
         else if (Time - _rampFrom.Value >= RampSeconds + 3.0f)
         {
             Finish($"{held} | held to full lock (body slip {bodySlip:F1}°, speed {v:F1} m/s)");
+        }
+    }
+
+    /// <summary>
+    /// The auto-respawn's oracle (M1d, decision 4), the one oracle that runs with it: the car dropped on its
+    /// roof 20 m from the start, then dropped just past the plain's end, and when each time it's back at
+    /// the start on its wheels. On its roof it should be three seconds from coming to rest; past the end,
+    /// as soon as it's 30 m down. (The plain is Jolt's world boundary: solid all the way down, so a car put
+    /// under it is pushed back up, and 2 km across, its default size, so it ends 1000 m out. On its side
+    /// isn't tried: the chassis box, its centre of mass low, tips back onto its wheels.
+    /// <c>StuckWatchTests</c> covers it.)
+    /// </summary>
+    private void RunRespawn()
+    {
+        Car.Driver = default;
+        if (_stuckPutAt is null)
+        {
+            Transform3D at = _stuckRun == StuckRun.OnItsRoof
+                ? new Transform3D(new Basis(Vector3.Back, Mathf.Pi), new Vector3(StuckAwayX, 1.5f, 0.0f))
+                : new Transform3D(Basis.Identity, new Vector3(StuckAwayX, 5.0f, 0.0f));
+            Car.Respawn(at);
+            _stuckPutAt = Time;
+            _stuckArrived = false;
+            _stuckRestingAt = null;
+            _stuckLowest = float.MaxValue;
+            return;
+        }
+
+        Vector3 p = Car.GlobalPosition;
+        float upright = Car.GlobalBasis.Y.Normalized().Dot(Vector3.Up);
+        _stuckArrived |= MathF.Abs(p.X - StuckAwayX) < 2.0f;
+        _stuckLowest = MathF.Min(_stuckLowest, p.Y);
+
+        // When it last came to rest tipped over: the moment the auto-respawn's three seconds start from.
+        bool resting = upright <= Core.Driving.StuckWatch.TippedCosine && Car.LinearVelocity.Length() < Core.Driving.StuckWatch.NearlyStoppedMps;
+        _stuckRestingAt = resting ? _stuckRestingAt ?? Time : null;
+        if (_stuckRestingAt is float restingFrom)
+        {
+            _stuckRestedFrom = restingFrom;
+        }
+
+        if (_stuckArrived && MathF.Abs(p.X) < 1.0f && upright > 0.9f)
+        {
+            _stuckFigures.Add(_stuckRun == StuckRun.OnItsRoof
+                ? $"on its roof: back at the start on its wheels {Time - _stuckRestedFrom:F2} s after it came to rest ({Time - _stuckPutAt.Value:F2} s after the drop)"
+                : $"dropped past the plain's end: back {Time - _stuckPutAt.Value:F2} s after the drop, from {_stuckLowest:F0} m");
+            if (_stuckRun == StuckRun.BelowTheWorld)
+            {
+                Finish(string.Join("; ", _stuckFigures));
+                return;
+            }
+
+            _stuckRun++;
+            _stuckPutAt = null;
+            return;
+        }
+
+        if (_stuckRun == StuckRun.OnItsRoof && _stuckRestingAt is float rest && Time - rest > Core.Driving.StuckWatch.Seconds + 0.5f)
+        {
+            Finish($"on its roof: NOT put back, {Time - rest:F1} s at rest upside down");
+        }
+        else if (Time - _stuckPutAt.Value > 20.0f)
+        {
+            Finish($"{_stuckRun}: NOT put back in 20 s (upright {upright:F2}, at {p.X:F1}, {p.Y:F1}, {p.Z:F1})");
         }
     }
 

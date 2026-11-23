@@ -25,7 +25,11 @@ public partial class Hud : CanvasLayer
     /// <summary>The lap board at the top right, three lines; null hides it.</summary>
     public string? Laps { get; set; }
 
+    /// <summary>A large line in the middle of the screen, such as the auto-respawn's countdown; null hides it.</summary>
+    public string? Alert { get; set; }
+
     private Label _laps = null!;
+    private Label _alert = null!;
 
     public override void _Ready()
     {
@@ -65,6 +69,16 @@ public partial class Hud : CanvasLayer
         _laps.GrowHorizontal = Control.GrowDirection.Begin;
         AddChild(_laps);
 
+        _alert = new Label
+        {
+            LabelSettings = new LabelSettings { FontSize = 30, FontColor = new Color(1.0f, 0.8f, 0.3f), OutlineSize = 7, OutlineColor = Colors.Black },
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Visible = false,
+        };
+        Pin(_alert, 0.5f, 0.3f, Vector2.Zero);
+        _alert.GrowHorizontal = Control.GrowDirection.Both;
+        AddChild(_alert);
+
         _message = new Label { LabelSettings = Settings(18), Visible = false };
         Pin(_message, 0.0f, 1.0f, new Vector2(24.0f, -74.0f), growUp: true);
         AddChild(_message);
@@ -103,6 +117,8 @@ public partial class Hud : CanvasLayer
         _banner.Text = Banner ?? string.Empty;
         _laps.Visible = Laps is not null;
         _laps.Text = Laps ?? string.Empty;
+        _alert.Visible = Alert is not null;
+        _alert.Text = Alert ?? string.Empty;
 
         if (_messageLeft > 0.0)
         {

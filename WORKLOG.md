@@ -2,6 +2,35 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — M1d's last: the auto-respawn; M1 is built, its tuning after the editor
+
+His word, after air control: *"Lets continue Claude i'll do better tuning after the track editor is
+complete"*. So M1d finishes here, and **M1e's play, the pass on his word that it feels right, waits for
+the track editor (M5)**, when there are real tracks to tune it on. M1 is built; the next thing is M2's
+plan.
+
+**The auto-respawn** (decision 4: R any time, and by itself after 3 s upside down and nearly stopped):
+- **The rule is `StuckWatch`, in Core** (9 tests), fed numbers rather than a body, so a player, an
+  oracle and later a bot share it. **Tipped over** is more than 70° from upright, which takes in on its
+  side as well as on its roof, since a raycast car on its side can't reach the ground with a wheel
+  either. **Nearly stopped** is under 2 m/s, which is what keeps the top of a loop (upside down at
+  80 km/h) from counting. Any moment upright or moving starts the three seconds again.
+- **Also below the world, at once**: 30 m under the ground. The plain is Jolt's world boundary, 2 km
+  across by its default, so a car off its end fell for ever.
+- **`AutoRespawn`**, a node in Game, puts the car where R would (the station it started from), and the
+  HUD counts down in the middle of the screen after half a second stuck ("back on your wheels in 2,
+  R now"). R resets the count. The other oracles run without it, so a crash in one is still reported as
+  a crash.
+
+**The `respawn` oracle** (twelve now), on the bare plain: dropped on its roof 20 m from the start, it's
+back on its wheels at the start **3.00 s after it came to rest** (3.51 s after the drop); dropped just
+past the plain's end, it's back **2.71 s** after, the moment it passes 30 m down. On its side isn't
+tried: the chassis box, its centre of mass low, tips back onto its wheels. Putting it under the plain
+doesn't work either, because the world boundary is solid all the way down and pushes it back up.
+
+The other eleven read exactly as at `964252ce`; 141 tests. Not checked: the countdown on screen, since
+no oracle runs windowed and a screenshot can't turn the car over.
+
 ## 2026-11-23 — M1d: air control
 
 His go-ahead: *"Go on to air control"*. M1-PLAN's line: a little pitch from throttle and brake, roll and
