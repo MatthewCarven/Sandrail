@@ -110,7 +110,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   the road: `Frame`, the centrelines (line, pitch, banked turn, loop), `Chain`, `Profile`, the `Sweep`
   mesher and the `TestGroundLayout`. `Driving/` is the autodriver: `RacingLine` (samples, curvature,
   bank, speed plan, and `MinimumCurvature`, the racing line inside the wheels' room) and `Autodriver`
-  (a front-axle Stanley tracker with yaw damping and slip guards). `Pads/` is `PadProfile`. The track
+  (a front-axle Stanley tracker with yaw damping and slip guards); and `LapTimer`, which times laps
+  line to line for the game and the lap oracle alike. `Pads/` is `PadProfile`. The track
   grid, generator and formats land beside them.
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
@@ -132,6 +133,9 @@ idea) laps it on a minimum-curvature racing line drawn on the road (P to hand ov
 - and + for its aggression, 50-100%): at 80% the shipped car does 24.5 s clean, and his tune 24.0 s but
 about 2 m wide into corner 1 under braking, **at every aggression down to 60%**, so that's his car's
 braking, not its speed. His tune is quickest at 85% (23.7 s); the shipped car spins from 90%.
+**A lap timer** times the corner lap (a standing start from station 6 on the first throttle, then line
+to line), with his best and the autodriver's on the board side by side. **The wheel-spin gauge is
+his to decide**: the car has no wheel spin to measure, so it waits on whether he wants real wheel spin.
 Eight oracles (committed spec `a2e24a2b`): the loop
 goes through 0.1 m off centre, but **the suspension bottoms out on the jump's landing and through the
 loop** (worklog, M1c). **Steering is his to open**: Shift doubles the lock (`wideLockFactor`), with

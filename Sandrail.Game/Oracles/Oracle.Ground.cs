@@ -83,9 +83,9 @@ public partial class Oracle
     private RacingLine? _lapLine;
     private Autodriver? _autodriver;
     private float[] _planned = [];
-    private int _lastIndex = -1;
-    private float _lapFrom;
+    private LapTimer? _lapTimer;
     private readonly List<float> _lapTimes = new();
+    private bool _allCounted = true;
     private readonly float[] _cornerSlowest = new float[TestGroundLayout.Corners.Length];
     private readonly float[] _cornerPlanned = new float[TestGroundLayout.Corners.Length];
     private int _offRoadTicks;
@@ -119,6 +119,12 @@ public partial class Oracle
             }
 
             _roadHalf = lap.Profile.SurfaceWidth / 2.0f;
+
+            // Timed as the game times him: the clock starts at the first throttle, and a lap ends where
+            // it crosses the line, interpolated between ticks (since 2026-11-23; before, at the tick the
+            // nearest sample wrapped round, which put both a few hundredths early).
+            _lapTimer = new LapTimer(new RacingLine(lap.Pieces, closed: true));
+            _lapTimer.StandingStart();
         }
 
         RacingLine line = _lapLine!;
@@ -130,13 +136,17 @@ public partial class Oracle
         Car.Driver = new DriverInput { Throttle = cmd.Throttle, Brake = cmd.Brake, Steer = cmd.Steer };
 
         int index = _autodriver.Index;
-        if (_lastIndex > line.Count * 3 / 4 && index < line.Count / 4)
+        LapEvent crossing = _lapTimer!.Update(Car.GlobalPosition.ToCore(), Time);
+        if (_lapTimer.Armed && cmd.Throttle > 0.0f)
         {
-            _lapTimes.Add(Time - _lapFrom);
-            _lapFrom = Time;
+            _lapTimer.Go(Time);
         }
 
-        _lastIndex = index;
+        if (crossing.Kind == LapEventKind.Finished)
+        {
+            _lapTimes.Add((float)crossing.Seconds);
+            _allCounted &= crossing.Counted;
+        }
 
         // Below 5 m/s a slide angle means nothing: pulling away with the wheels turned reads as 30° at walking pace.
         bool moving = Car.LinearVelocity.Length() > 5.0f;
@@ -190,7 +200,7 @@ public partial class Oracle
                 .Where(p => _offRoadByPiece[p] > 0)
                 .Select(p => $"{PieceName(p)} {_offRoadByPiece[p] / tps:F2} s"));
             Finish(
-                $"caution {Caution:F2}: standing lap {_lapTimes[0]:F2} s, flying lap {_lapTimes[1]:F2} s | slowest in each corner, km/h driven/planned: {corners} | "
+                $"caution {Caution:F2}: standing lap {_lapTimes[0]:F2} s, flying lap {_lapTimes[1]:F2} s{(_allCounted ? string.Empty : " (NOT ALL COUNTED: it cut or left the lap)")} | slowest in each corner, km/h driven/planned: {corners} | "
                 + $"wheels off the road {_offRoadTicks / tps:F2} s{(offWhere.Length > 0 ? $" ({offWhere})" : string.Empty)}, "
                 + $"widest off the line {_worstFromLine:F2} m ({PieceName(_worstFromLinePiece)}), "
                 + $"worst slide {_worstSlip:F0}°, spins {_spins}{(_firstSpin is null ? string.Empty : $" | {_firstSpin}")}");

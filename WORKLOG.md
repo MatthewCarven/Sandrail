@@ -2,6 +2,37 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — a lap timer for the corner lap; the wheel-spin gauge waits on him
+
+His ask: *"a lap timer for the main track please Claude and a whellspin indicator i think?"*
+
+**The lap timer** (`Driving/LapTimer.cs`, in Core, 7 tests): a lap runs from crossing station 6's
+line forwards to crossing it again, with **the moment of crossing interpolated between ticks**.
+Progress is measured along the road's middle, and **a lap counts only if it goes through each quarter
+of the lap in order and never strays more than 15 m from the middle**, so half a lap in one tick (a
+cut, or the car moved) or a trip across the sand makes it "not counted". Cutting a corner's inside isn't
+caught. Reversing back over the line and forward again restarts the lap. **At station 6 it's a standing
+start**: the clock waits for the first throttle (or reverse), so settling on the springs never starts
+it. Arming waits two ticks after a respawn, until the car really is on the line: armed at once, a held
+throttle would start the clock with the car still where it was.
+
+**In the game**, a board at the top right: the lap running (or "ready", or "cross the line"), the last
+lap, and **the best of his laps and of the autodriver's, kept apart**. A lap is the autodriver's if it
+had the car at any point of it, so he can race it. Each finished lap flashes its time against the best.
+Bests last the session; keeping them belongs with ghosts (M4).
+
+**The lap oracle now times with the same timer.** Flying laps read exactly as before (24.52 s shipped,
+24.03 s his tune). Standing laps read 0.03 s longer (26.93 and 26.70), because the old count ended at
+the tick the nearest sample wrapped round, about half a metre short of the line. A minute of the
+autodriver in the game, headless, timed 26.92 and 24.52, the same as the oracle.
+
+**The wheel-spin gauge is on hold, at his word.** The car has no wheel spin to measure: its wheels have
+no speed of their own, and the tyre goes straight from the engine's push to the grip's limit (2026-11-22
+entry). A gauge of his ratio, wheel speed over ground speed, would read 1.0 all the time. Told so, he
+said *"If there is no wheels spin i'll reconsider"*. The choice is his: real wheel spin (each wheel
+with its own speed; a real change in feel and a retune, his tune included) with the gauge on top, or no
+gauge for now.
+
 ## 2026-11-23 — the autodriver's aggression, on - and +
 
 His word, after driving with it: *"i like the autodriver i only wish i could tune the aggressiveness"*.

@@ -4,8 +4,8 @@ using Sandrail.Game.Cars;
 namespace Sandrail.Game.Ui;
 
 /// <summary>
-/// The speedometer, the keys, the recording light, and a line for passing messages. The F3 overlay
-/// and the F2 panel hang off it too, so everything drawn over the world shares one layer.
+/// The speedometer, the keys, the recording light, the lap board, and a line for passing messages. The
+/// F3 overlay and the F2 panel hang off it too, so everything drawn over the world shares one layer.
 /// </summary>
 public partial class Hud : CanvasLayer
 {
@@ -21,6 +21,11 @@ public partial class Hud : CanvasLayer
 
     /// <summary>A standing line under the recording light, such as the autodriver's; null hides it.</summary>
     public string? Banner { get; set; }
+
+    /// <summary>The lap board at the top right, three lines; null hides it.</summary>
+    public string? Laps { get; set; }
+
+    private Label _laps = null!;
 
     public override void _Ready()
     {
@@ -43,6 +48,22 @@ public partial class Hud : CanvasLayer
         };
         Pin(_banner, 0.5f, 0.0f, new Vector2(-110.0f, 56.0f));
         AddChild(_banner);
+
+        // Monospace, so the times line up; it grows leftward from the right edge, under the banner.
+        _laps = new Label
+        {
+            LabelSettings = new LabelSettings
+            {
+                Font = new SystemFont { FontNames = ["Consolas", "Cascadia Mono", "Courier New", "monospace"] },
+                FontSize = 20,
+                OutlineSize = 5,
+                OutlineColor = Colors.Black,
+            },
+            Visible = false,
+        };
+        Pin(_laps, 1.0f, 0.0f, new Vector2(-24.0f, 100.0f));
+        _laps.GrowHorizontal = Control.GrowDirection.Begin;
+        AddChild(_laps);
 
         _message = new Label { LabelSettings = Settings(18), Visible = false };
         Pin(_message, 0.0f, 1.0f, new Vector2(24.0f, -74.0f), growUp: true);
@@ -80,6 +101,8 @@ public partial class Hud : CanvasLayer
 
         _banner.Visible = Banner is not null;
         _banner.Text = Banner ?? string.Empty;
+        _laps.Visible = Laps is not null;
+        _laps.Text = Laps ?? string.Empty;
 
         if (_messageLeft > 0.0)
         {

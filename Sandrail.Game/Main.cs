@@ -91,6 +91,17 @@ public partial class Main : Node3D
     private float _caution = Autodriver.DefaultCaution;
     private MeshInstance3D? _lineView;
 
+    // The corner lap's timer, and the laps it has timed: his and the autodriver's are kept apart.
+    private LapTimer? _lapTimer;
+    private int _spawnStation;
+    private int _standingIn;
+    private bool _autoThisLap;
+    private double? _lastLap;
+    private bool _lastLapAuto;
+    private bool _lastLapCounted;
+    private double? _bestYou;
+    private double? _bestAuto;
+
     public override void _Ready()
     {
         string version = typeof(Main).Assembly
@@ -193,7 +204,9 @@ public partial class Main : Node3D
             // The corner lap's racing line, for the autodriver (P), drawn on the road by planned speed (L).
             _lapLine = TestGround.CornerLapLine(_layout, spec);
             DrawLine(spec);
+            _lapTimer = new LapTimer(new RacingLine(_layout.Runs.Single(r => r.Name == "corners").Pieces, closed: true));
             _spawn = SpawnAt(_layout.Stations[station - 1].Start, spec);
+            PutDown(station);
         }
         else
         {
@@ -273,8 +286,118 @@ public partial class Main : Node3D
         Station station = _layout.Stations[number - 1];
         _spawn = SpawnAt(station.Start, _car.Spec);
         _car.Respawn(_spawn);
+        PutDown(number);
         _hud?.Flash($"{station.Number}. {station.Name}: {station.Hint}", 8.0);
     }
+
+    /// <summary>
+    /// The car has been put at a station. At station 6 it sits on the corner lap's line, so the timer arms
+    /// a standing start; anywhere else no lap is running until the car next crosses the line.
+    /// </summary>
+    /// <remarks>
+    /// The arming waits two ticks, until the respawn has really moved the car: armed at once, a driver
+    /// already holding the throttle would start the clock with the car still where it was.
+    /// </remarks>
+    private void PutDown(int station)
+    {
+        _spawnStation = station;
+        _lapTimer?.Stop();
+        _standingIn = station == 6 ? 2 : 0;
+    }
+
+    /// <summary>
+    /// Once a tick: the lap timer sees where the car is, starts a standing lap when the driver (or the
+    /// autodriver) first asks for throttle or reverse, and files any lap finished.
+    /// </summary>
+    private void TimeLap()
+    {
+        if (_lapTimer is null || _car is null || _hud is null)
+        {
+            return;
+        }
+
+        double now = _ticks / (double)Engine.PhysicsTicksPerSecond;
+        if (_standingIn > 0 && --_standingIn == 0)
+        {
+            _lapTimer.StandingStart();
+        }
+
+        LapEvent lap = _lapTimer.Update(_car.GlobalPosition.ToCore(), now);
+        if (_lapTimer.Armed && (_car.Driver.Throttle > 0.0f || _car.Driver.Brake > 0.0f))
+        {
+            _lapTimer.Go(now);
+            lap = new LapEvent(LapEventKind.Started);
+        }
+
+        if (lap.Kind == LapEventKind.Finished)
+        {
+            FileLap(lap);
+        }
+
+        if (lap.Kind != LapEventKind.None)
+        {
+            // The next lap begins now: it's the autodriver's if it has the car at any point of it.
+            _autoThisLap = _autodriver is not null;
+        }
+
+        _autoThisLap |= _autodriver is not null;
+    }
+
+    private void FileLap(LapEvent lap)
+    {
+        _lastLap = lap.Seconds;
+        _lastLapAuto = _autoThisLap;
+        _lastLapCounted = lap.Counted;
+        string who = _autoThisLap ? "Autodriver's lap" : "Lap";
+        if (!lap.Counted)
+        {
+            _hud!.Flash($"{who} {LapTime(lap.Seconds)}, not counted: it cut across or left the lap.", 5.0);
+            return;
+        }
+
+        double? best = _autoThisLap ? _bestAuto : _bestYou;
+        string verdict = best is null ? string.Empty
+            : lap.Seconds < best ? $", a new best by {best.Value - lap.Seconds:F2} s"
+            : $", +{lap.Seconds - best.Value:F2} s on the best";
+        if (best is null || lap.Seconds < best)
+        {
+            if (_autoThisLap)
+            {
+                _bestAuto = lap.Seconds;
+            }
+            else
+            {
+                _bestYou = lap.Seconds;
+            }
+        }
+
+        _hud!.Flash($"{who} {LapTime(lap.Seconds)}{verdict}.", 5.0);
+    }
+
+    /// <summary>The lap board for the HUD, or null while there's nothing to show.</summary>
+    private string? LapBoard()
+    {
+        if (_lapTimer is null || (!_lapTimer.Running && !_lapTimer.Armed && _standingIn == 0 && _lastLap is null))
+        {
+            return null;
+        }
+
+        double now = _ticks / (double)Engine.PhysicsTicksPerSecond;
+        string current = _lapTimer.Running
+            ? $"{LapTime(_lapTimer.Elapsed(now))}{(_lapTimer.Clean ? string.Empty : "  not counting")}"
+            : _lapTimer.Armed || _standingIn > 0 ? $"{LapTime(0.0)}  ready" : "cross the line";
+        string last = _lastLap is double l
+            ? $"{LapTime(l)}{(_lastLapAuto ? "  auto" : string.Empty)}{(_lastLapCounted ? string.Empty : "  not counted")}"
+            : "-";
+        string best = $"you {(_bestYou is double y ? LapTime(y) : "-")}   auto {(_bestAuto is double a ? LapTime(a) : "-")}";
+        return $"LAP   {current}\nLAST  {last}\nBEST  {best}";
+    }
+
+    /// <summary>Seconds to hundredths, with minutes once there are any: 24.52, 1:03.40.</summary>
+    private static string LapTime(double seconds) =>
+        seconds < 60.0
+            ? seconds.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)
+            : $"{(int)(seconds / 60.0)}:{(seconds % 60.0).ToString("00.00", System.Globalization.CultureInfo.InvariantCulture)}";
 
     public override void _PhysicsProcess(double delta)
     {
@@ -288,6 +411,7 @@ public partial class Main : Node3D
         {
             bool driving = _ticks > 2 * Engine.PhysicsTicksPerSecond;
             _car.Driver = !driving ? default : _autodriver is not null ? AutodriverInput(_autodriver) : _screenshotDrive;
+            TimeLap();
             return;
         }
 
@@ -316,7 +440,10 @@ public partial class Main : Node3D
         if (Input.IsActionJustPressed(Controls.Respawn))
         {
             _car.Respawn(_spawn);
+            PutDown(_spawnStation);
         }
+
+        TimeLap();
     }
 
     public override void _Process(double delta)
@@ -364,6 +491,11 @@ public partial class Main : Node3D
         if (Input.IsActionJustPressed(Controls.ShowLine) && _lineView is not null)
         {
             _lineView.Visible = !_lineView.Visible;
+        }
+
+        if (_hud is not null)
+        {
+            _hud.Laps = LapBoard();
         }
 
         if (_screenshot is not null)
