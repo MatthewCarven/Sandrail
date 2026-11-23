@@ -130,7 +130,7 @@ public partial class Oracle : Node
 
     public required Buggy Car { get; init; }
 
-    public static bool IsKnown(string kind) => kind is Straight or Drop or Brake or Circle or Handbrake or Sweeper or Respawn || NeedsTestGround(kind);
+    public static bool IsKnown(string kind) => kind is Straight or Drop or Brake or Circle or Handbrake or Sweeper or Respawn || NeedsTestGround(kind) || NeedsShowroom(kind);
 
     private float Time => _tick / (float)Engine.PhysicsTicksPerSecond;
 
@@ -168,6 +168,9 @@ public partial class Oracle : Node
                 break;
             case Respawn:
                 RunRespawn();
+                break;
+            case Pieces:
+                RunPieces();
                 break;
             case Jump:
                 RunJump();

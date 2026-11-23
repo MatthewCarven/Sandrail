@@ -1,0 +1,14 @@
+{
+  "id": "base:landing",
+  "name": "Landing ramp",
+  "tiles": [[0, 0], [0, 1], [0, 2]],
+  "in": "landing",
+  "out": { "tile": [0, 2], "side": "front", "rise": -1 },
+  "path": [
+    { "line": 10 },
+    { "pitch": { "angle": -8, "radius": 30 } },
+    { "line": 13.06836 },
+    { "pitch": { "angle": 8, "radius": 40 } },
+    { "line": 27.3167 }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "id": "base:launch-short",
+  "name": "Launch ramp, short",
+  "tiles": [[0, 0]],
+  "out": { "tile": [0, 0], "side": "front", "kind": "lip", "rise": 1, "lipHeightM": 2.95673, "lipPitchDeg": 20, "gap": 1 },
+  "path": [{ "line": 9.23154 }, { "pitch": { "angle": 20, "radius": 15 } }, { "line": 6 }],
+  "speedKmh": [85, 95]
+}

@@ -148,9 +148,11 @@ public class PieceCatalogueTests
     public void TheShowroomLaysEveryPieceOnceOnTheGridWithoutOverlap()
     {
         PieceCatalogue catalogue = PieceCatalogue.Parse(ShippedFiles().Append(("corner.json", Corner30)).Append(("slope.json", Slope())));
-        (IReadOnlyList<PlacedPiece> pieces, IReadOnlyList<Station> stations) = Showroom.Lay(catalogue);
+        ShowroomLayout layout = Showroom.Lay(catalogue);
+        IReadOnlyList<PlacedPiece> pieces = layout.Pieces;
+        IReadOnlyList<Station> stations = layout.Stations;
 
-        Assert.Equal(catalogue.All.Count, stations.Count);
+        Assert.Equal(catalogue.All.Count(p => p.In != ConnectorKind.Landing), stations.Count);
         var tiles = pieces.SelectMany(p => p.Tiles).ToList();
         Assert.Equal(tiles.Count, tiles.Distinct().Count());
         Assert.All(tiles, t => Assert.True(TrackGrid.Contains(t), $"{t} is off the grid"));
@@ -163,6 +165,74 @@ public class PieceCatalogueTests
                 Assert.True(Vector3.Distance(pieces[i - 1].Road().End.Position, pieces[i].Start.Position) < PieceDef.FitM);
             }
         }
+    }
+
+    [Fact]
+    public void TheLoopLeavesOneTileAcrossSquareToTheGridAndStandsTall()
+    {
+        PieceDef loop = Shipped().Find("base:loop")!;
+        var placed = new PlacedPiece(loop, new Placement(loop.Id, new Tile(10, 20), 0, 0, false));
+
+        Assert.Equal(new WorldConnector(new Tile(11, 16), Compass.North, 0, ConnectorKind.Road), placed.Out);
+        float top = placed.Road().Pieces.Max(p => Enumerable.Range(0, 101).Max(k => p.FrameAt(p.Length * k / 100.0f).Position.Y));
+        Assert.InRange(top, 22.0f, 24.0f);
+
+        // Its S-bends are gentle: about 120 m, 0.6 g at the loop's 97 km/h (M2-PLAN fact 4).
+        TurnCentreline bend = placed.Road().Pieces.OfType<TurnCentreline>().First();
+        Assert.InRange(bend.Length / (bend.TurnDeg * MathF.PI / 180.0f), 115.0f, 130.0f);
+
+        var mirrored = new PlacedPiece(loop, new Placement(loop.Id, new Tile(10, 20), 0, 0, true));
+        Assert.Equal(new Tile(9, 16), mirrored.Out.Tile);
+    }
+
+    [Fact]
+    public void ALipIsRaisedAndPitchedAndItsLandingIsAcrossTheGap()
+    {
+        PieceDef ramp = Shipped().Find("base:launch-short")!;
+        var placed = new PlacedPiece(ramp, new Placement(ramp.Id, new Tile(6, 20), 0, 0, false));
+        WorldConnector lip = placed.Out;
+
+        Assert.Equal(ConnectorKind.Lip, lip.Kind);
+        Assert.Equal(1, lip.Level);
+        Assert.Equal(new Tile(6, 18), lip.Landing);
+        Frame f = lip.Frame;
+        Assert.Equal(TrackGrid.Origin.Y + 2.95673f, f.Position.Y, 3);
+        Assert.Equal(20.0f, MathF.Asin(f.Forward.Y) * 180.0f / MathF.PI, 2);
+    }
+
+    [Fact]
+    public void ALaunchInTheShowroomComesDownOnItsLandingAtItsLevel()
+    {
+        PieceCatalogue catalogue = Shipped();
+        IReadOnlyList<PlacedPiece> pieces = Showroom.Lay(catalogue).Pieces;
+        PlacedPiece launch = pieces.First(p => p.Def.Id == "base:launch-short");
+        PlacedPiece landing = pieces[pieces.ToList().IndexOf(launch) + 1];
+
+        Assert.Equal("base:landing", landing.Def.Id);
+        Assert.Equal(launch.Out.Landing, landing.Placement.At);
+        Assert.Equal(launch.Out.Level, landing.Placement.Level);
+        Assert.Equal(TrackGrid.Opposite(launch.Out.Facing), landing.In.Facing);
+    }
+
+    [Fact]
+    public void RaisedRoadSitsOnEarthworksAndALoopOnNone()
+    {
+        PieceCatalogue catalogue = Shipped();
+        float Depth(string id, int level) => new PlacedPiece(catalogue.Find(id)!, new Placement(id, new Tile(5, 5), level, 0, false)).DepthM;
+
+        Assert.Equal(0.5f, Depth("base:straight", 0), 3);
+        Assert.Equal(0.5f + (1.2f * TrackGrid.LevelM), Depth("base:straight", 1), 2);
+        Assert.Equal(0.5f + (1.2f * TrackGrid.LevelM), Depth("base:slope-up", 0), 2);
+        Assert.Equal(0.5f, Depth("base:loop", 0), 3);
+    }
+
+    [Fact]
+    public void ALoopThatCantFitItsLengthIsRefusedWithWhatItNeeds()
+    {
+        string tight = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "content", "base", "pieces", "loop.json"))
+            .Replace("\"length\": 100", "\"length\": 60");
+        var e = Assert.Throws<InvalidDataException>(() => PieceCatalogue.ParsePiece(tight));
+        Assert.Contains("need", e.Message);
     }
 
     [Fact]

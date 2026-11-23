@@ -46,10 +46,19 @@ public sealed record PieceConnector
     /// <summary>The side of that tile it's on.</summary>
     public PieceSide Side { get; init; } = PieceSide.Front;
 
-    /// <summary>How many levels above the piece's way in.</summary>
+    /// <summary>How many levels above the piece's way in; for a lip, the level its landing is at.</summary>
     public int Rise { get; init; }
 
     public ConnectorKind Kind { get; init; } = ConnectorKind.Road;
+
+    /// <summary>A lip's height above the piece's way in, metres. Lips aren't level, so they aren't on a level.</summary>
+    public float LipHeightM { get; init; }
+
+    /// <summary>How steeply a lip points up, degrees.</summary>
+    public float LipPitchDeg { get; init; }
+
+    /// <summary>How many empty tiles a lip's jump clears before its landing begins.</summary>
+    public int Gap { get; init; }
 }
 
 /// <summary>A climb or a dip in the road: an arc in its own vertical plane, as <see cref="PitchCentreline"/> draws.</summary>
@@ -75,16 +84,62 @@ public sealed record TurnStep
     public float Ease { get; init; } = 0.5f;
 }
 
-/// <summary>A loop, as <see cref="LoopCentreline"/> draws: offset to the right, and to the left mirrored.</summary>
+/// <summary>
+/// A loop that fits the grid (M2-PLAN fact 4): an S-bend onto the loop's skew, the loop as
+/// <see cref="LoopCentreline"/> draws it, an S-bend off again, and a straight to finish, so it's entered
+/// and left square to the grid, <see cref="Across"/> to the right (the left, mirrored).
+/// </summary>
+/// <remarks>
+/// The loop is driven with the wheels straight because its offset grows evenly with distance round, and
+/// the price is that its road meets it at a skew. The S-bends carry that skew inside the piece: their
+/// radius is solved so that they and the offset together come to <see cref="Across"/>, and the closing
+/// straight so that the whole step comes to <see cref="Length"/>, which keeps a piece file exact without
+/// its author working either out to the millimetre.
+/// </remarks>
 public sealed record LoopStep
 {
+    /// <summary>Its radius at the foot, where the car is fast and low.</summary>
     public float Foot { get; init; }
 
+    /// <summary>Its radius at the top, where it's slow and high.</summary>
     public float Top { get; init; }
 
+    /// <summary>How far to the side the loop's own exit is from its entry.</summary>
     public float Offset { get; init; }
 
     public float Sharpness { get; init; } = 1.5f;
+
+    /// <summary>How far to the side the whole step ends: a tile, to leave by the next tile's edge.</summary>
+    public float Across { get; init; }
+
+    /// <summary>How far forward the whole step goes.</summary>
+    public float Length { get; init; }
+
+    /// <summary>
+    /// A straight at the skew before the loop and again after it, so the car arrives at the foot settled
+    /// rather than still turning out of the S-bend: without it the bend's yaw carried into the loop, where
+    /// the wheels are straight, and the car came off on the way down (2026-11-23).
+    /// </summary>
+    public float Settle { get; init; }
+
+    /// <summary>The loop's skew (signed degrees), the S-bends' radius, and how far forward the loop itself goes, worked out once.</summary>
+    internal (float SkewDeg, float BendM, float ClosureM) Plan(float sign)
+    {
+        var probe = new LoopCentreline(Frame.Level(Vector3.Zero, 0.0f), Foot, Top, sign * Offset, Sharpness);
+        float skew = probe.EntryHeadingDeg;
+        float s = MathF.Abs(skew) * (MathF.PI / 180.0f);
+        float closure = -probe.FrameAt(probe.Length).Position.Z;
+        float bend = (Across - MathF.Abs(Offset) - (2.0f * Settle * MathF.Sin(s))) / (2.0f * (1.0f - MathF.Cos(s)));
+        return (skew, bend, closure);
+    }
+
+    /// <summary>How far forward the S-bends, the settling straights and the loop take, before the closing straight.</summary>
+    internal float Needed()
+    {
+        (float skew, float bend, float closure) = Plan(1.0f);
+        float s = MathF.Abs(skew) * (MathF.PI / 180.0f);
+        return (2.0f * bend * MathF.Sin(s)) + (2.0f * Settle * MathF.Cos(s)) + closure;
+    }
 }
 
 /// <summary>One step of a piece's road. Exactly one of the four is given.</summary>
@@ -213,6 +268,23 @@ public sealed record PieceDef
             problems.Add("out can't be a landing: a jump comes down at a way in");
         }
 
+        if (Out.Kind == ConnectorKind.Lip)
+        {
+            if (!(Out.LipHeightM > 0.0f && Out.LipHeightM <= 30.0f && Out.LipPitchDeg > 0.0f && Out.LipPitchDeg <= 45.0f))
+            {
+                problems.Add("a lip needs lipHeightM above 0 and lipPitchDeg from above 0 to 45");
+            }
+
+            if (Out.Gap is < 0 or > 10)
+            {
+                problems.Add($"out.gap is {Out.Gap}, and must be from 0 to 10 tiles");
+            }
+        }
+        else if (Out.LipHeightM != 0.0f || Out.LipPitchDeg != 0.0f || Out.Gap != 0)
+        {
+            problems.Add("lipHeightM, lipPitchDeg and gap are only for a lip");
+        }
+
         if (!(WidthM >= 4.0f && WidthM <= 20.0f))
         {
             problems.Add($"widthM is {WidthM}, and must be from 4 to 20");
@@ -298,9 +370,24 @@ public sealed record PieceDef
             }
         }
 
-        if (step.Loop is LoopStep loop && !(loop.Top > 0.0f && loop.Foot >= loop.Top && loop.Foot <= 1000.0f && float.IsFinite(loop.Offset) && loop.Sharpness > 0.0f))
+        if (step.Loop is LoopStep loop)
         {
-            problems.Add($"{at}.loop needs 0 < top <= foot, a finite offset and a sharpness above 0");
+            if (!(loop.Top > 0.0f && loop.Foot >= loop.Top && loop.Foot <= 1000.0f && loop.Offset > 0.0f && loop.Sharpness > 0.0f && loop.Sharpness <= 10.0f))
+            {
+                problems.Add($"{at}.loop needs 0 < top <= foot, an offset above 0 and a sharpness above 0");
+            }
+            else if (!(loop.Across > loop.Offset && loop.Across <= 1000.0f && loop.Settle >= 0.0f && loop.Settle <= 1000.0f))
+            {
+                problems.Add($"{at}.loop.across is {loop.Across}, and must be more than its offset ({loop.Offset}); settle can't be negative");
+            }
+            else if (!(loop.Plan(1.0f).BendM > 0.0f))
+            {
+                problems.Add($"{at}.loop: its offset and settling straights already go more than {loop.Across} m across, leaving its S-bends nothing to do");
+            }
+            else if (!(loop.Length >= loop.Needed() && loop.Length <= 10_000.0f))
+            {
+                problems.Add($"{at}.loop.length is {loop.Length}, and its S-bends and loop need {loop.Needed():0.##} m");
+            }
         }
     }
 }

@@ -1,0 +1,8 @@
+{
+  "id": "base:finish",
+  "name": "Finish gate",
+  "tiles": [[0, 0]],
+  "out": { "tile": [0, 0], "side": "front", "kind": "closed" },
+  "path": [{ "line": 20 }],
+  "gate": "finish"
+}

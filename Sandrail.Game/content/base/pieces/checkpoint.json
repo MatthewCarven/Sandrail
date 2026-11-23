@@ -1,0 +1,8 @@
+{
+  "id": "base:checkpoint",
+  "name": "Checkpoint",
+  "tiles": [[0, 0]],
+  "out": { "tile": [0, 0], "side": "front" },
+  "path": [{ "line": 20 }],
+  "gate": "checkpoint"
+}

@@ -92,6 +92,8 @@ public partial class Main : Node3D
 
     /// <summary>Where the number keys put the car: the test ground's stations, or the showroom's.</summary>
     private IReadOnlyList<Station>? _stations;
+
+    private ShowroomLayout? _showroom;
     private RacingLine? _lapLine;
     private Autodriver? _autodriver;
     private float _caution = Autodriver.DefaultCaution;
@@ -143,14 +145,15 @@ public partial class Main : Node3D
 
         if (oracle is not null && !Oracle.IsKnown(oracle))
         {
-            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle, handbrake, sweeper, respawn, jump, air, loop, bumps, lap.");
+            Refuse($"Unknown oracle '{oracle}'. Known: straight, drop, brake, circle, handbrake, sweeper, respawn, jump, air, loop, bumps, lap, pieces.");
             return;
         }
 
         // The M1a oracles, handbrake, sweeper and respawn drive the bare plain on road grip, as at M1a, so their figures
-        // stay comparable; everything else gets the test ground on sand.
-        bool bareOracle = oracle is not null && !Oracle.NeedsTestGround(oracle);
-        string ground = Flag(args, "--ground=") ?? (bareOracle ? "bare" : "test");
+        // stay comparable; pieces drives the showroom; everything else gets the test ground on sand.
+        bool showroomOracle = oracle is not null && Oracle.NeedsShowroom(oracle);
+        bool bareOracle = oracle is not null && !Oracle.NeedsTestGround(oracle) && !showroomOracle;
+        string ground = Flag(args, "--ground=") ?? (showroomOracle ? "showroom" : bareOracle ? "bare" : "test");
         bool testGround = ground == "test";
         bool showroom = ground == "showroom";
         if (!testGround && !showroom && ground != "bare")
@@ -231,9 +234,9 @@ public partial class Main : Node3D
                 return;
             }
 
-            (IReadOnlyList<PlacedPiece> pieces, IReadOnlyList<Station> stations) = Showroom.Lay(catalogue);
-            TrackView.Build(this, pieces);
-            _stations = stations;
+            _showroom = Showroom.Lay(catalogue);
+            TrackView.Build(this, _showroom.Pieces);
+            _stations = _showroom.Stations;
         }
 
         if (_stations is not null)
@@ -282,7 +285,7 @@ public partial class Main : Node3D
         if (oracle is not null)
         {
             _oracle = true;
-            AddChild(new Oracle { Kind = oracle, Car = _car, Layout = _layout, Caution = _caution });
+            AddChild(new Oracle { Kind = oracle, Car = _car, Layout = _layout, Showroom = _showroom, Caution = _caution });
         }
 
         if (args.Contains("--record"))
@@ -473,12 +476,22 @@ public partial class Main : Node3D
             return;
         }
 
-        for (int number = 1; number <= 6; number++)
+        for (int number = 1; number <= Controls.NumberedStations; number++)
         {
             if (Input.IsActionJustPressed(Controls.Station(number)))
             {
                 GoToStation(number);
             }
+        }
+
+        if (_stations is not null && Input.IsActionJustPressed(Controls.NextStation))
+        {
+            GoToStation((_spawnStation % _stations.Count) + 1);
+        }
+
+        if (_stations is not null && Input.IsActionJustPressed(Controls.PreviousStation))
+        {
+            GoToStation(((_spawnStation + _stations.Count - 2) % _stations.Count) + 1);
         }
 
         _car.Driver = new DriverInput

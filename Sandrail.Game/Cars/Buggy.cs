@@ -82,6 +82,7 @@ public partial class Buggy : RigidBody3D
     private float _brake;
     private float _steerDeg;
     private Transform3D? _pendingRespawn;
+    private float _pendingSpeed;
     private bool _resetInterpolation;
     private Node3D? _wingLook;
     private (string, float, float, float, float) _wingKey;
@@ -235,8 +236,12 @@ public partial class Buggy : RigidBody3D
     public static float RestHeight(CarSpec spec) =>
         -spec.MountHeightM + spec.SuspensionTravelM + spec.WheelRadiusM - WheelModel.RestCompression(spec);
 
-    /// <summary>Teleports the car on the next physics tick, stopped.</summary>
-    public void Respawn(Transform3D at) => _pendingRespawn = at;
+    /// <summary>Teleports the car on the next physics tick, stopped, or rolling forward at a speed (an oracle starting a piece at the speed it's meant for).</summary>
+    public void Respawn(Transform3D at, float speedMps = 0.0f)
+    {
+        _pendingRespawn = at;
+        _pendingSpeed = speedMps;
+    }
 
     public override void _Ready()
     {
@@ -276,7 +281,7 @@ public partial class Buggy : RigidBody3D
         if (_pendingRespawn is Transform3D at)
         {
             state.Transform = at;
-            state.LinearVelocity = Vector3.Zero;
+            state.LinearVelocity = -at.Basis.Z.Normalized() * _pendingSpeed;
             state.AngularVelocity = Vector3.Zero;
             Array.Clear(_compression);
             Array.Clear(_grounded);
@@ -284,7 +289,7 @@ public partial class Buggy : RigidBody3D
             _brake = 0.0f;
             _steerDeg = 0.0f;
             Array.Clear(_wheelSteerDeg);
-            _lastVelocity = Vector3.Zero;
+            _lastVelocity = state.LinearVelocity;
             Acceleration = Vector3.Zero;
             _pendingRespawn = null;
             _resetInterpolation = true;

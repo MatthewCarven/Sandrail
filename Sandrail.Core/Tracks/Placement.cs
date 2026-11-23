@@ -10,14 +10,23 @@ namespace Sandrail.Core.Tracks;
 /// </summary>
 public sealed record Placement(string Piece, Tile At, int Level, int Rotation, bool Mirrored);
 
-/// <summary>A connector where it lands on the grid: a tile, the way out of it, a level, and what it meets.</summary>
-public readonly record struct WorldConnector(Tile Tile, Compass Facing, int Level, ConnectorKind Kind)
+/// <summary>
+/// A connector where it lands on the grid: a tile, the way out of it, a level, and what it meets. A lip
+/// also has how high it stands above that level and how steeply it points up, and the empty tiles its jump
+/// clears; its level is its landing's.
+/// </summary>
+public readonly record struct WorldConnector(Tile Tile, Compass Facing, int Level, ConnectorKind Kind, float HeightM = 0.0f, float PitchDeg = 0.0f, int Gap = 0)
 {
-    /// <summary>The middle of its edge, facing out of the piece.</summary>
-    public Frame Frame => TrackGrid.Edge(Tile, Facing, Level, Facing);
+    /// <summary>The middle of its edge, facing out of the piece: level, or for a lip, raised and pitched up.</summary>
+    public Frame Frame => Kind == ConnectorKind.Lip
+        ? Frame.Pitched(TrackGrid.EdgeMiddle(Tile, Facing, Level) + new Vector3(0.0f, HeightM, 0.0f), TrackGrid.HeadingDeg(Facing), PitchDeg)
+        : TrackGrid.Edge(Tile, Facing, Level, Facing);
 
     /// <summary>The tile across its edge, where whatever it meets begins.</summary>
     public Tile Beyond => Tile.Step(Facing);
+
+    /// <summary>For a lip, the tile its landing begins on: across the gap.</summary>
+    public Tile Landing => Tile.Step(Facing, Gap + 1);
 }
 
 /// <summary>
@@ -60,8 +69,18 @@ public sealed class PlacedPiece(PieceDef def, Placement placement)
     public WorldConnector In => new(Placement.At, Facing(PieceSide.Back), Placement.Level, Def.In);
 
     /// <summary>Its way out, where its declaration puts it.</summary>
-    public WorldConnector Out =>
-        new(TileAt(Def.Out.Tile[0], Def.Out.Tile[1]), Facing(Def.Out.Side), Placement.Level + Def.Out.Rise, Def.Out.Kind);
+    public WorldConnector Out
+    {
+        get
+        {
+            PieceConnector o = Def.Out;
+            Tile tile = TileAt(o.Tile[0], o.Tile[1]);
+            int level = Placement.Level + o.Rise;
+            return o.Kind == ConnectorKind.Lip
+                ? new WorldConnector(tile, Facing(o.Side), level, o.Kind, o.LipHeightM - (o.Rise * TrackGrid.LevelM), o.LipPitchDeg, o.Gap)
+                : new WorldConnector(tile, Facing(o.Side), level, o.Kind);
+        }
+    }
 
     /// <summary>Where its road starts: the way in, facing into the piece.</summary>
     public Frame Start => TrackGrid.Edge(Placement.At, Facing(PieceSide.Back), Placement.Level, Forward);
@@ -87,12 +106,74 @@ public sealed class PlacedPiece(PieceDef def, Placement placement)
             }
             else if (step.Loop is LoopStep loop)
             {
-                Frame foot = Frame.Of(chain.End.Position, chain.End.Forward, chain.End.Up);
-                chain.Add(new LoopCentreline(foot, loop.Foot, loop.Top, sign * loop.Offset, loop.Sharpness));
+                AddLoop(chain, loop, sign);
             }
         }
 
         return chain;
+    }
+
+    /// <summary>
+    /// How deep its slab goes: a raised piece sits on earthworks down past the plain (M2-PLAN fact 8), deep
+    /// enough under its highest edge, a fifth more for a surface that's banked or pitched; a loop is a thin
+    /// road, or its earthworks would fill it.
+    /// </summary>
+    public float DepthM
+    {
+        get
+        {
+            const float Slab = 0.5f;
+            if (Def.Path.Any(s => s.Loop is not null))
+            {
+                return Slab;
+            }
+
+            float highest = 0.0f;
+            float half = Def.WidthM / 2.0f;
+            foreach (ICentreline line in Road().Pieces)
+            {
+                int samples = Math.Max(2, (int)MathF.Ceiling(line.Length / 2.0f));
+                for (int k = 0; k <= samples; k++)
+                {
+                    Frame f = line.FrameAt(line.Length * k / samples);
+                    highest = MathF.Max(highest, MathF.Max(f.Across(-half, 0.0f).Y, f.Across(half, 0.0f).Y) - TrackGrid.Origin.Y);
+                }
+            }
+
+            return Slab + (highest * 1.2f);
+        }
+    }
+
+    /// <summary>
+    /// A loop step (see <see cref="LoopStep"/>): an S-bend onto the loop's skew, the loop on a plane turned
+    /// back by that skew so its own axis is the piece's, an S-bend off, and the closing straight.
+    /// </summary>
+    private static void AddLoop(Chain chain, LoopStep loop, float sign)
+    {
+        (float skewDeg, float bend, float closure) = loop.Plan(sign);
+        chain.Turn(skewDeg, bend);
+        if (loop.Settle > 0.0f)
+        {
+            chain.Line(loop.Settle);
+        }
+
+        Frame end = chain.End;
+        Vector3 right = Vector3.Normalize(Vector3.Cross(end.Forward, end.Up));
+        float skew = skewDeg * (MathF.PI / 180.0f);
+        Vector3 axis = (end.Forward * MathF.Cos(skew)) - (right * MathF.Sin(skew));
+        chain.Add(new LoopCentreline(Frame.Of(end.Position, axis, end.Up), loop.Foot, loop.Top, sign * loop.Offset, loop.Sharpness));
+
+        if (loop.Settle > 0.0f)
+        {
+            chain.Line(loop.Settle);
+        }
+
+        chain.Turn(-skewDeg, bend);
+        float rest = loop.Length - (2.0f * bend * MathF.Sin(MathF.Abs(skew))) - (2.0f * loop.Settle * MathF.Cos(MathF.Abs(skew))) - closure;
+        if (rest > 1e-4f)
+        {
+            chain.Line(rest);
+        }
     }
 
     /// <summary>

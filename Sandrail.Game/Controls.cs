@@ -74,11 +74,15 @@ public static class Controls
         Add(Bolder, Key.Equal, Key.KpAdd, JoyButton.DpadUp);
         Add(Calmer, Key.Minus, Key.KpSubtract, JoyButton.DpadDown);
 
-        Key[] numbers = [Key.Key1, Key.Key2, Key.Key3, Key.Key4, Key.Key5, Key.Key6];
+        Key[] numbers = [Key.Key1, Key.Key2, Key.Key3, Key.Key4, Key.Key5, Key.Key6, Key.Key7, Key.Key8, Key.Key9];
         for (int i = 0; i < numbers.Length; i++)
         {
             Add(Station(i + 1), numbers[i]);
         }
+
+        // [ and ] step through the stations, for the showroom's more than nine (M2b).
+        Add(PreviousStation, Key.Bracketleft);
+        Add(NextStation, Key.Bracketright);
 
         Layout = ApplyPadLayout();
         if (!_listening)
@@ -89,8 +93,14 @@ public static class Controls
         }
     }
 
-    /// <summary>The action that puts the car at a test-ground station: 1 to 5.</summary>
+    /// <summary>The action that puts the car at a station: 1 to 9.</summary>
     public static string Station(int number) => $"station_{number}";
+
+    /// <summary>The highest station a number key reaches.</summary>
+    public const int NumberedStations = 9;
+
+    public const string PreviousStation = "station_previous";
+    public const string NextStation = "station_next";
 
     /// <summary>Where a pad's layout lives, by its GUID.</summary>
     public static string LayoutPath(string guid) => $"{PadFolder}/{PadProfile.FileName(guid)}";

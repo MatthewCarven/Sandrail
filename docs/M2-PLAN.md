@@ -162,6 +162,13 @@ plumbing reaches the screen. 16 tests; worklog, that date.
 
 ## M2b — the starter set
 
+**Built 2026-11-23**, fifteen pieces and the `pieces` oracle. Departures, each in the worklog: **the
+loop is 2 × 5 tiles**, with 15 m of straight at its skew before and after so the car arrives settled,
+which needed its offset cut to 12 m and its road to 8 m; **slope down is its own piece** rather than the
+slope placed backwards, since pieces are driven one way; **the slope throws the car from about 115
+km/h**, not the 143 of fact 3, because its suspension rebounds over the crest. Hints measured: short jump
+85-95 km/h, long 110-118, loop 90-105.
+
 - **The pieces** (PLAN's starter set, sized by the decisions): straight; corners of 30 m and 50 m, flat
   and banked; a slope up a level (and down, as the same piece the other way); a short and a long
   launch ramp and a landing ramp, for a gap jump over empty tiles; the loop, re-derived for the grid

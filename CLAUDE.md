@@ -77,20 +77,21 @@ pwsh tools/oracles.ps1
 ```
 
 `-Oracles drop` runs one; `-Spec variant.json` drives a variant file instead of the shipped buggy, which
-is how to try numbers without touching what plays. There are twelve: `straight`, `drop`, `brake` and
+is how to try numbers without touching what plays. There are thirteen: `straight`, `drop`, `brake` and
 `circle` on the bare plain with road grip (their M1a figures are in the 2026-10-31 worklog entry;
 `straight` runs off the plain's end at 26 s and counts top speed only before), `handbrake` there too (a
 stop on it alone, and a full-lock turn with and without it; the M1d entry), `sweeper` there too (the
 most grip at speed, on a 120 m circle with the speed creeping up: where a wing shows; the downforce
 entry), `respawn` there too (the one oracle with the auto-respawn on: dropped on its roof, then past
 the plain's end, which is 1000 m out, Jolt's world boundary), `jump`, `loop` and `bumps` on the test ground (figures in the M1c entry), `air` there too
-(station 1's jump five times with one input held or tapped in flight; the air-control entry), and
-`lap`, the autodriver
+(station 1's jump five times with one input held or tapped in flight; the air-control entry),
+`pieces` in the showroom (the loop, both jumps and the slope, each at several speeds; the M2b entry),
+and `lap`, the autodriver
 lapping station 6 (figures in the 2026-11-23 autodriver entry). **`lap` is how a tune is compared**: run
 it on two specs and read the flying lap, the corner speeds and where it left the road.
 
 Game flags, after `--` (or passed to `start.cmd`): `--ground=test|showroom|bare` (the showroom is every
-M2 piece on its own with a run-up, a station each), `--station=1..6`,
+M2 piece on its own with a run-up, a station each; [ and ] step through them), `--station=N`,
 `--surface=road|dirt|grass|sand` (sand by default on the test ground), `--spec=<path>`,
 `--oracle=<name>`, `--panels=tuning,telemetry` (opens either at start),
 `--record` (starts a run at start), `--autodrive` (the autodriver from the start; with `--station=6`),
@@ -140,8 +141,12 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 **2026-11-23: M1 is built (M1a-M1d), plus wide lock, his pad's layout, a lap of corners and the
 autodriver. The play that passes it waits, at his word, until after the track editor (M5): "i'll do
 better tuning after the track editor is complete". M2 is under way (`docs/M2-PLAN.md`, its six
-decisions taken as recommended): M2a, the grid and the piece catalogue, is built, with one piece (the
-straight) in a showroom; M2b, the starter set, is next.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
+decisions taken as recommended): M2a, the grid and the piece catalogue, and M2b, the starter set of
+fifteen pieces (corners 30 and 50 m flat and banked, slopes, two launch ramps and a landing, a grid loop,
+a chicane, three gates), are built and shown in the showroom; M2c, the track file and the shakedown
+track, is next. His panel steering (`maxSteerDeg` 15.25, `minSteerDeg` 2.05, saved 2026-11-23 19:39)
+sits uncommitted in `buggy.json`; oracles checking Claude's changes run on the committed spec via
+`-Spec`.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
 jump, a slope and plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels
 straight, a dirt bump patch, and a 526 m lap of six different corners (flat to 35° bank, 18 to 60 m
 radius, one left-hander), which is also the shortlist for M2's corner tiles. **The autodriver** (his

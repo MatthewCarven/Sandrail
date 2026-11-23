@@ -1,0 +1,9 @@
+{
+  "id": "base:start",
+  "name": "Start gate",
+  "tiles": [[0, 0]],
+  "in": "closed",
+  "out": { "tile": [0, 0], "side": "front" },
+  "path": [{ "line": 20 }],
+  "gate": "start"
+}

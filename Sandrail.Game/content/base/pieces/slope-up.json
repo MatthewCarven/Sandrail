@@ -1,0 +1,10 @@
+{
+  "id": "base:slope-up",
+  "name": "Slope up",
+  "tiles": [[0, 0], [0, 1]],
+  "out": { "tile": [0, 1], "side": "front", "rise": 1 },
+  "path": [
+    { "pitch": { "angle": 7.1526687, "radius": 160.625 } },
+    { "pitch": { "angle": -7.1526687, "radius": 160.625 } }
+  ]
+}

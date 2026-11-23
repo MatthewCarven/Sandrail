@@ -2,6 +2,64 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — M2b: the starter set
+
+His go-ahead: *"Go on to M2b"*.
+
+**Fifteen pieces** in `content/base/pieces/`, each held to its way out to a millimetre turned four ways
+and mirrored: straight; corners of 30 m (2 × 2) and 50 m (3 × 3), flat and banked 20°; slope up and slope
+down, a level over two tiles; a short launch ramp (one tile, lip 2.96 m up at 20°, M1c's kicker), a long
+one (two tiles, lip 5.23 m at 20°) and a landing ramp (three tiles, M1c's table and 8° down-ramp, a level
+down); the loop; a chicane (a 4 m jink inside 2 × 1, 26 m arcs); start, checkpoint and finish gates,
+straights with arches (green, blue, red; no collider).
+
+**What the model gained:** a **lip** connector is raised and pitched, at a height of its own, and says
+how many empty tiles its jump clears and what level its landing is at; the **loop step** builds its own
+S-bends; and a placed piece works out its **earthworks** from how high its road climbs (a fifth more
+under a banked or pitched edge), and a loop gets a thin road. **The showroom** puts a launch ramp's
+landing across its gap, starts a slope down a level up, gives pieces meant for over 100 km/h seven
+straights of run-up instead of four, and [ and ] step through its fourteen stations (number keys reach
+nine now). `Buggy.Respawn` can put the car down moving, for the oracle.
+
+**The loop took two goes, which the plan expected** (M2-PLAN fact 4):
+1. **An S-bend straight into the loop's foot dropped the car off the descending side.** The S of 123 m
+   that puts the car on the loop's 11.6° skew ended exactly at the foot, so the car arrived still turning
+   (12°/s of yaw out of the bend) and, with its wheels straight, kept turning and drifted off. A player
+   would have had to unwind the steering at the exact moment the loop began.
+2. **So the car gets 15 m of straight at the skew before the loop and after it** (`settle`). There's
+   only room for that if the loop's own offset shrinks from M1c's 15 m to 12 m, with the road 8 m wide
+   (M1c's loop width) to keep 4 m between the loop's way in and its way out where they pass at ground
+   level. The bends come to 120 m (0.6 g at 97 km/h), and the piece is 2 × 5 tiles. The joint with
+   10 m road either side is a 1 m step each side, which only shows.
+
+**The `pieces` oracle** (thirteen now), each trial started at its run-up already moving:
+
+```
+loop at 90 / 97 / 105 km/h      THROUGH, 0.1-0.2 m off its exit road, slowest over the top 75 / 79 / 84
+short jump at 85 / 90 / 95      at the lip 80 / 85 / 89: lands 34.8 / 40.1 / 45.0 m past it, all on the
+                                landing's down-ramp (34-47 m), pitch -3° to -1°
+long jump at 110 / 115 / 120    at the lip 104 / 109 / 114: 54.8 / 61.9 m on the down-ramp (54-67 m),
+                                68.7 m on its foot; pitch -13°
+slope at 100 / 110 km/h         wheels down
+slope at 120 / 130 / 160        0.15 / 0.36 / 0.70 s in the air
+```
+
+So the hints are **short 85-95, long 110-118** (the long jump needs its longer run-up), **loop 90-105**.
+**The slope throws the car from about 115 km/h, not 143**: the arithmetic took the crest's radius alone,
+but the slope's two arcs meet with no straight between, and the suspension squashed on the foot springs
+back over the crest. Decision 2 wanted slopes to throw the car only near top speed; 115 is two thirds of
+177. Worth his eye in the play rather than a change now.
+
+**His steering, again**: at 19:39, while this was built, he saved `maxSteerDeg` 15.25 and `minSteerDeg`
+2.05 (from 30 and 8) from the panel. It stays in his working copy, uncommitted, as before; the figures
+here are on the committed car (`964252ce`), where circle, handbrake, air and lap read exactly as they
+did. On his numbers the car turns more at 60 km/h, not less (68° against 62° in two seconds at full
+lock, 161° against 142° with the handbrake): at 30° of lock the fronts are past their peak slip.
+
+**Checked:** 162 tests (the catalogue test holds all fifteen pieces every way); the headless check;
+all thirteen oracles; screenshots of the showroom from above and of the loop and the short jump from
+their stations.
+
 ## 2026-11-23 — M2a: the grid and the catalogue
 
 His answer to M2-PLAN's six decisions: *"Yes, as recommended"*. And while M2a was being built, on the

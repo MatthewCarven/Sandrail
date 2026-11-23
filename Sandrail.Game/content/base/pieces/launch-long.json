@@ -1,0 +1,8 @@
+{
+  "id": "base:launch-long",
+  "name": "Launch ramp, long",
+  "tiles": [[0, 0], [0, 1]],
+  "out": { "tile": [0, 1], "side": "front", "kind": "lip", "rise": 2, "lipHeightM": 5.22942, "lipPitchDeg": 20, "gap": 2 },
+  "path": [{ "line": 20.34247 }, { "pitch": { "angle": 20, "radius": 30 } }, { "line": 10 }],
+  "speedKmh": [110, 118]
+}
