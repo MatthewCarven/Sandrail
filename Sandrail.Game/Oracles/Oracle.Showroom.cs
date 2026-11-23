@@ -138,7 +138,7 @@ public partial class Oracle
         }
         else if (Time - _trialFrom > 30.0f)
         {
-            _trialFigures.Add($"{Name(trial)} at {trial.Kmh:F0} km/h: NEVER FINISHED, {along:F0} m along");
+            _trialFigures.Add($"{TrialName(trial)} at {trial.Kmh:F0} km/h: NEVER FINISHED, {along:F0} m along");
         }
     }
 
@@ -213,7 +213,7 @@ public partial class Oracle
                 : into < 32.7f ? "on its foot"
                 : "past it, on the run-out";
             bool upright = Car.GlobalBasis.Y.Normalized().Y > 0.7f;
-            _trialFigures.Add($"{Name(trial)} at {_trialInSpeed * 3.6f:F0} km/h: lands {_trialLandedPast:F1} m past the lip, {where}, "
+            _trialFigures.Add($"{TrialName(trial)} at {_trialInSpeed * 3.6f:F0} km/h: lands {_trialLandedPast:F1} m past the lip, {where}, "
                 + $"pitch {_trialLandedPitch:F0}°{(upright ? string.Empty : ", NOT UPRIGHT")}");
         }
     }
@@ -303,7 +303,7 @@ public partial class Oracle
         return Math.Clamp(steerDeg / MathF.Max(Car.SteerLimitDeg, 1.0f), -1.0f, 1.0f);
     }
 
-    private static string Name(PieceTrial trial) => trial.Piece switch
+    private static string TrialName(PieceTrial trial) => trial.Piece switch
     {
         "base:launch-short" => "short jump",
         "base:launch-long" => "long jump",

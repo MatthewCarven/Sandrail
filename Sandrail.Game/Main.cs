@@ -23,9 +23,10 @@ namespace Sandrail.Game;
 /// <remarks>
 /// <para>
 /// Game flags, after the bare <c>--</c>: <c>--ground=test|showroom|bare</c> (the test ground, every M2 piece on its own, or the empty plain the
-/// bare-plain oracles drive), <c>--station=1..6</c> to start at one of the test ground's stations,
-/// <c>--surface=road|dirt|grass|sand</c> for the plain (sand with the test ground, road on the bare
-/// plain, so the M1a oracles' targets still hold), <c>--oracle=</c> any of the twelve, and
+/// bare-plain oracles drive), <c>--track=base:shakedown</c> (a track by its ID, or a path ending
+/// <c>.json</c>, started at its start gate), <c>--station=</c> to start at one of the stations,
+/// <c>--surface=road|dirt|grass|sand</c> for the plain (sand with the test ground, the showroom or a
+/// track, road on the bare plain, so the M1a oracles' targets still hold), <c>--oracle=</c> any of the thirteen, and
 /// <c>--spec=&lt;path&gt;</c> to drive another spec file than the shipped buggy, so a variant can be tried
 /// without touching what plays. The tuning panel saves to whichever file was loaded.
 /// </para>
@@ -94,6 +95,10 @@ public partial class Main : Node3D
     private IReadOnlyList<Station>? _stations;
 
     private ShowroomLayout? _showroom;
+
+    /// <summary>The track being driven, from <c>--track=</c>; null on the test ground, the showroom or the bare plain.</summary>
+    private LaidTrack? _track;
+
     private RacingLine? _lapLine;
     private Autodriver? _autodriver;
     private float _caution = Autodriver.DefaultCaution;
@@ -153,16 +158,23 @@ public partial class Main : Node3D
         // stay comparable; pieces drives the showroom; everything else gets the test ground on sand.
         bool showroomOracle = oracle is not null && Oracle.NeedsShowroom(oracle);
         bool bareOracle = oracle is not null && !Oracle.NeedsTestGround(oracle) && !showroomOracle;
-        string ground = Flag(args, "--ground=") ?? (showroomOracle ? "showroom" : bareOracle ? "bare" : "test");
+        string? trackName = Flag(args, "--track=");
+        string ground = trackName is not null ? "track" : Flag(args, "--ground=") ?? (showroomOracle ? "showroom" : bareOracle ? "bare" : "test");
         bool testGround = ground == "test";
         bool showroom = ground == "showroom";
-        if (!testGround && !showroom && ground != "bare")
+        if (trackName is not null && Flag(args, "--ground=") is string other && other != "track")
         {
-            Refuse($"Unknown ground '{ground}'. Known: test, showroom, bare.");
+            Refuse($"--track={trackName} and --ground={other} are two places to drive; pick one.");
             return;
         }
 
-        string surfaceName = Flag(args, "--surface=") ?? (testGround || showroom ? "sand" : "road");
+        if (!testGround && !showroom && ground != "bare" && trackName is null)
+        {
+            Refuse($"Unknown ground '{ground}'. Known: test, showroom, bare, or a track with --track=.");
+            return;
+        }
+
+        string surfaceName = Flag(args, "--surface=") ?? (testGround || showroom || trackName is not null ? "sand" : "road");
 
         Surface? surface = Surfaces.Find(surfaceName);
         if (surface is null)
@@ -238,8 +250,32 @@ public partial class Main : Node3D
             TrackView.Build(this, _showroom.Pieces);
             _stations = _showroom.Stations;
         }
+        else if (trackName is not null)
+        {
+            // A track from its file (M2-PLAN, M2c): its pieces on the plain, the car at the start gate.
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                _track = TrackView.LoadTrack(trackName, TrackView.LoadCatalogue());
+            }
+            catch (System.IO.InvalidDataException e)
+            {
+                Refuse(e.Message);
+                return;
+            }
 
-        if (_stations is not null)
+            double loaded = clock.Elapsed.TotalMilliseconds;
+            TrackView.Build(this, _track.Placed);
+            float length = _track.LengthM;
+            GD.Print($"Built {_track.Track.Id} ({_track.Track.Name}): {_track.Placed.Count} pieces, {length / 1000.0f:F2} km of road, "
+                + $"loaded in {loaded:F0} ms and built in {clock.Elapsed.TotalMilliseconds - loaded:F0} ms");
+        }
+
+        if (_track is not null)
+        {
+            _spawn = SpawnAt(TrackStart(_track), spec);
+        }
+        else if (_stations is not null)
         {
             if (station < 1 || station > _stations.Count)
             {
@@ -310,13 +346,22 @@ public partial class Main : Node3D
             overview.Current = true;
         }
 
-        GD.Print($"Driving {spec.Id} {spec.Fingerprint()} on {surface.Id}{(_stations is not null ? $", {ground}, from station {station}" : string.Empty)}");
-        if (_stations is not null && oracle is null && _screenshot is null)
+        string where = _track is not null ? $", {_track.Track.Id}, from its start" : _stations is not null ? $", {ground}, from station {station}" : string.Empty;
+        GD.Print($"Driving {spec.Id} {spec.Fingerprint()} on {surface.Id}{where}");
+        if (_track is not null && oracle is null && _screenshot is null)
+        {
+            float km = _track.LengthM / 1000.0f;
+            _hud.Flash($"{_track.Track.Name}: {km:F1} km, start gate to finish. R puts you back at the start.", 8.0);
+        }
+        else if (_stations is not null && oracle is null && _screenshot is null)
         {
             Station first = _stations[station - 1];
             _hud.Flash($"{first.Number}. {first.Name}: {first.Hint}", 8.0);
         }
     }
+
+    /// <summary>Where a car starts on a track: on the start gate's road, a few metres short of its arch.</summary>
+    private static Frame TrackStart(LaidTrack track) => track.Route[0].Road().Pieces[0].FrameAt(4.0f);
 
     /// <summary>Where the car goes to start from a frame on the road: resting on its wheels, facing along it.</summary>
     private static Transform3D SpawnAt(Frame start, CarSpec spec)

@@ -91,7 +91,9 @@ lapping station 6 (figures in the 2026-11-23 autodriver entry). **`lap` is how a
 it on two specs and read the flying lap, the corner speeds and where it left the road.
 
 Game flags, after `--` (or passed to `start.cmd`): `--ground=test|showroom|bare` (the showroom is every
-M2 piece on its own with a run-up, a station each; [ and ] step through them), `--station=N`,
+M2 piece on its own with a run-up, a station each; [ and ] step through them), `--track=base:shakedown`
+(a track from `content/base/tracks/` by its ID, or `--track=<path>.json`; the car starts at its start
+gate), `--station=N`,
 `--surface=road|dirt|grass|sand` (sand by default on the test ground), `--spec=<path>`,
 `--oracle=<name>`, `--panels=tuning,telemetry` (opens either at start),
 `--record` (starts a run at start), `--autodrive` (the autodriver from the start; with `--station=6`),
@@ -125,8 +127,9 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   `Tracks/` is M2's grid: `TrackGrid` (32 × 32 tiles of 20 m, levels of 2.5 m, on the plain),
   `PieceDef` (a piece as data: tiles, way in, way out, road steps; refused if its road misses its way
   out by a millimetre), `Placement` and `PlacedPiece` (turned and mirrored onto the grid),
-  `PieceCatalogue` (one piece a file from `content/base/pieces/`) and the `Showroom`. `Pads/` is `PadProfile`. The track
-  grid, generator and formats land beside them.
+  `PieceCatalogue` (one piece a file from `content/base/pieces/`), the `Showroom`, and `Track` (the
+  track file, from `content/base/tracks/`: load, save, `Lay` against the catalogue for its problems and
+  its route, start to finish). `Pads/` is `PadProfile`. The generator and its formats land beside them.
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
@@ -144,7 +147,8 @@ better tuning after the track editor is complete". M2 is under way (`docs/M2-PLA
 decisions taken as recommended): M2a, the grid and the piece catalogue, and M2b, the starter set of
 fifteen pieces (corners 30 and 50 m flat and banked, slopes, two launch ramps and a landing, a grid loop,
 a chicane, three gates), are built and shown in the showroom; M2c, the track file and the shakedown
-track, is next. His panel steering (`maxSteerDeg` 15.25, `minSteerDeg` 2.05, saved 2026-11-23 19:39)
+(every piece in 1.28 km, `--track=base:shakedown`), is built too; M2d, racing it (clock, checkpoints,
+respawn at the last one, the autodriver and the `track` oracle), is next. His panel steering (`maxSteerDeg` 15.25, `minSteerDeg` 2.05, saved 2026-11-23 19:39)
 sits uncommitted in `buggy.json`; oracles checking Claude's changes run on the committed spec via
 `-Spec`.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
 jump, a slope and plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels

@@ -19,6 +19,8 @@ public static class TrackView
 {
     public const string PiecesPath = "res://content/base/pieces";
 
+    public const string TracksPath = "res://content/base/tracks";
+
     /// <summary>Every piece file in the game's content, read and checked by Core.</summary>
     /// <exception cref="System.IO.InvalidDataException">A piece is refused; the message says which and why.</exception>
     public static PieceCatalogue LoadCatalogue()
@@ -28,6 +30,39 @@ public static class TrackView
             .OrderBy(f => f, System.StringComparer.Ordinal)
             .Select(f => (f, FileAccess.GetFileAsString($"{PiecesPath}/{f}")));
         return PieceCatalogue.Parse(files);
+    }
+
+    /// <summary>
+    /// A track by its ID from the game's own (<c>base:shakedown</c>), or from a file by its path (one
+    /// ending <c>.json</c>, <c>user://</c> or not), laid on the catalogue and refused if it's unsound.
+    /// </summary>
+    /// <exception cref="System.IO.InvalidDataException">No such track, or it's refused; the message says why.</exception>
+    public static LaidTrack LoadTrack(string idOrPath, PieceCatalogue catalogue)
+    {
+        if (idOrPath.EndsWith(".json", System.StringComparison.OrdinalIgnoreCase))
+        {
+            if (!FileAccess.FileExists(idOrPath))
+            {
+                throw new System.IO.InvalidDataException($"There's no track file at {idOrPath}.");
+            }
+
+            return Track.Load(FileAccess.GetFileAsString(idOrPath), catalogue);
+        }
+
+        var known = new List<string>();
+        foreach (string file in DirAccess.GetFilesAt(TracksPath).Where(f => f.EndsWith(".json", System.StringComparison.Ordinal)).Order())
+        {
+            string json = FileAccess.GetFileAsString($"{TracksPath}/{file}");
+            Track track = Track.Parse(json);
+            if (track.Id == idOrPath)
+            {
+                return Track.Load(json, catalogue);
+            }
+
+            known.Add(track.Id);
+        }
+
+        throw new System.IO.InvalidDataException($"There's no track called {idOrPath}. Known: {string.Join(", ", known)}.");
     }
 
     /// <summary>Each placed piece as a body of its own, named for the piece and its tile, and an arch over each gate.</summary>

@@ -2,6 +2,63 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — M2c: the track file and the shakedown
+
+His go-ahead: *"Go on to M2c"*.
+
+**Built, in Core (`Tracks/Track.cs`):**
+- **`Track`, the file**: a format number (1), an ID (`base:shakedown`), a name, the grid's size, and the
+  placements, each a piece, a tile `[column, row]`, a level, the way it faces and whether it's mirrored.
+  **The file says which way a piece faces (`"east"`), not how many quarter turns it's turned**: the same
+  thing, but one a person can check against the grid. Unknown fields and values are refused by name, and
+  **the format is read before anything else**, so a file from a newer Sandrail is refused as newer rather
+  than for fields this build has never heard of. `Save` writes one placement a line, in the layout the
+  shakedown is written in by hand, so a load and a save leave a hand-written file's text exactly as it
+  was; a test holds the shakedown to that, since the editor will load and save files people wrote.
+- **`Lay`, the validation**, against the catalogue. Every problem is said, each with the placement's
+  index in the file, its piece and its tile: an unknown piece, by name; off the grid; two pieces on one
+  tile; a level below the plain; road leading onto empty ground, off the grid, into a piece's side or
+  onto another level; nothing leading into a piece; a lip with no landing in line, a landing facing
+  elsewhere or at another level, a piece in a jump's gap, a landing no jump reaches; not exactly one start
+  and one finish; no route between them; and anything off the route, **a checkpoint off it said as one**
+  ("could never be passed in order"). A mismatch between two pieces is said once, from the way out.
+- **The route**: the pieces from the start to the finish in the order they're driven, which must be
+  every piece. It's what M2d's timer, racing line and autodriver read. `LengthM` is its road.
+
+**The shakedown** (`content/base/tracks/shakedown.json`): 35 placements and 1.28 km of road, written by
+hand on the 32 × 32 grid. In order:
+1. The start gate and one straight, then **the short jump** over a tile onto its landing.
+2. A 50 m right, then **a climb** onto a raised section, a 30 m left **on earthworks** a level up, and
+   down again.
+3. The first **checkpoint**, the **chicane**, a 30 m right, three straights, and **the loop**.
+4. A **banked 50 m right**, the second checkpoint, and **the long jump** over two tiles, which lands a
+   level up.
+5. Down a slope, a 50 m left, a **banked 30 m left**, two straights and the finish.
+
+Every piece is in it: both corner sizes both ways, and both banked corners.
+
+**Only one straight between the start and the short jump, on purpose.** By the straight oracle's figures
+(0-100 in 5.17 s, 27.0 m/s at 5 s), the car reaches the lip at about 88 km/h at full throttle from a
+standing start. That's inside the jump's 85-95, so the first thing to do on the track is floor it. It's
+an estimate, not a measurement; M2d's `track` oracle will say.
+
+**Game:** `--track=base:shakedown` (or `--track=<path>.json`) builds a track. Each placement is swept
+into a body of its own, tagged with its surface; raised pieces sit on earthworks; the gates have arches.
+The car starts 4 m into the start gate, and R and the auto-respawn put it back there until M2d's
+checkpoints. The plain is sand. **Headless, it loads in 64 ms and builds its 35 bodies in 37 ms.** The
+pieces oracle's `Name` became `TrialName`, which had hidden `Node.Name` with a warning since M2b.
+
+**Checked:**
+- 202 tests, 40 of them new: the shakedown is sound; its route runs start to finish through every piece
+  once, each road meeting the next to a millimetre, and a jump's landing starts the gap's width on; it has
+  what M2c asks of it; the file round trip; and each refusal, on a small track written to break it.
+- The headless check, on the test ground and on the shakedown.
+- All thirteen oracles on the committed car (`964252ce`), unchanged from M2b.
+- Screenshots: from above, from the side, of the long jump and of the raised section, and from the car on
+  its way to the first jump.
+
+**Left for M2d:** the HUD's keys line still offers stations on a track, where there are none.
+
 ## 2026-11-23 — M2b: the starter set
 
 His go-ahead: *"Go on to M2b"*.

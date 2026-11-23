@@ -184,6 +184,11 @@ km/h**, not the 143 of fact 3, because its suspension rebounds over the crest. H
 
 ## M2c — the track file and the first track
 
+**Built 2026-11-23**, as below; 40 tests, worklog that date. The file says which way a piece faces
+(`"facing": "east"`) rather than its quarter turns, which is the same thing a person can check against
+the grid; anything off the route is refused, not only a checkpoint, so a valid track's route is every
+piece. The shakedown is 35 placements and 1.28 km, and loads and builds in about 0.1 s.
+
 - **Core:** `Track` with load, save and the validation above; the route, start to finish, as an ordered
   list of placements and their centrelines. Tests: a round trip changes nothing; each refusal on a
   small track written to break that rule; the route of a valid track runs start to finish through
