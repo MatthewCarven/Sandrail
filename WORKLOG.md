@@ -2,6 +2,55 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — M1d begins: the handbrake
+
+His go-ahead: *"Yes, handbrake first"*.
+
+**The law** (`WheelModel.LockedTyre`, 6 tests): **a locked tyre slides, so its force is against the
+contact patch's motion, whichever way that is, at `slideGripFraction` of its grip.** M1-PLAN wrote it
+as forward force at the circle's edge with sideways grip dropping to a fraction, and following the
+motion says both at once. Going straight, the motion is all forward, so it's all braking. In a corner
+the patch moves mostly forward and a little sideways, so only a little of the force holds the car in:
+at 20 m/s with a 2.9° slip it's a twentieth of the grip sideways, where a rolling tyre gives over a
+third. The rear axle lets go and the tail comes round, and once the car is sideways the force is
+sideways too and catches it. It asks for whatever stops the patch in one tick (taking the wheel's share
+of the car as load / g, like the rolling tyre's low-speed term), so within a few centimetres a second
+of a standstill the wheel holds still instead of shivering: it's a parking brake too.
+
+**The number is `handbrakeLock`, 0 to 1, default 1**: how far Space locks the rear wheels. Between,
+each rear tyre is that far from rolling to locked; both lie inside the friction circle, so any blend
+does too. 0 is off, as M1d asks of every extra. It acts at once, not eased like the pedals, because a
+flick of the key has to lock: eased at the pedal rate, a tenth of a second's tap would reach only half.
+The locked tyre's grip reuses `slideGripFraction` rather than a new number, since a locked tyre is a
+tyre sliding.
+
+**The input was already there**: Space and pad A since M1a, his pad's saved layout has it on button 2,
+and the recorder's `key_handbrake` column has been logging it all along. New: telemetry shows
+HANDBRAKE, the keys line says Space, the rear wheels stop turning while it's held, and `--drive=` takes
+a fourth value for it.
+
+**A ninth oracle, `handbrake`**, on the bare plain at road grip like the M1a four: three runs from
+rest, each up to 60 km/h first. A stop on the handbrake alone; two seconds at full lock with the
+throttle off; and the same with the handbrake for the first half second.
+
+```
+                    stop on it alone             full lock 2 s, steering alone    with 0.5 s of handbrake
+committed da9506cc  34.0 m, 4.02 s, 0.43 g, 0.3° 62°, out at 43 km/h, slip 5°     142°, out at 18 km/h, slip 157°
+his tune  28861ad7  34.7 m, 4.09 s, 0.42 g, 0.3° 70°, out at 38 km/h, slip 13°    134°, out at 22 km/h, slip 155°
+```
+
+The stop is what locked rears carrying about half the weight should give, and it stays straight. **The
+turn more than doubles, and a half-second pull with the lock held is a spin**: the car swings past
+sideways and loses two thirds of its speed. A hairpin wants a shorter pull and the lock taken off as the
+tail comes round. Whether full lock is too savage is his to say from the driving seat; lowering
+`handbrakeLock` (F2, Engine and brakes) gentles it.
+
+**The other eight oracles read exactly as before**; the fingerprint moved from `a2e24a2b` to
+`da9506cc` only because the file has a new field. The shipped file has to list every field
+(`TheShippedBuggyListsEveryField`), so `"handbrakeLock": 1` went into his working copy beside his
+values, and that one line is all of `buggy.json` that's committed. Not checked: driving it by hand,
+which is his.
+
 ## 2026-11-23 — a lap timer for the corner lap; no wheel-spin gauge for now
 
 His ask: *"a lap timer for the main track please Claude and a whellspin indicator i think?"*

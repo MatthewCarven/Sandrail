@@ -157,6 +157,14 @@ public sealed record CarSpec
     [Tune("Engine and brakes", 0.0f, 1.0f)]
     public float BrakeFrontShare { get; init; } = 0.6f;
 
+    /// <summary>
+    /// How far the handbrake locks the rear wheels, 0..1: 0 is off, and 1 locks them, so they slide
+    /// against their own motion at <see cref="SlideGripFraction"/> of the grip and the tail comes round.
+    /// Between, each rear tyre is that far from rolling to locked (M1d).
+    /// </summary>
+    [Tune("Engine and brakes", 0.0f, 1.0f)]
+    public float HandbrakeLock { get; init; } = 1.0f;
+
     /// <summary>Drag is this times speed squared. With 110 kW it sets top speed near 50 m/s.</summary>
     [Tune("Engine and brakes", 0.2f, 3.0f)]
     public float DragNPerMps2 { get; init; } = 0.86f;
@@ -371,6 +379,7 @@ public sealed record CarSpec
         Within(nameof(ReverseTopSpeedMps), ReverseTopSpeedMps, 0.0f, 100.0f);
         Within(nameof(BrakeForceN), BrakeForceN, 0.0f, 1_000_000.0f);
         Within(nameof(BrakeFrontShare), BrakeFrontShare, 0.0f, 1.0f);
+        Within(nameof(HandbrakeLock), HandbrakeLock, 0.0f, 1.0f);
         Within(nameof(DragNPerMps2), DragNPerMps2, 0.0f, 1_000.0f);
 
         Positive(nameof(MaxSteerDeg), MaxSteerDeg, 60.0f);

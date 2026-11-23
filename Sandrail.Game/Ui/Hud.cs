@@ -71,7 +71,7 @@ public partial class Hud : CanvasLayer
 
         var keys = new Label
         {
-            Text = "W/S: throttle, brake, reverse  ·  A/D: steer (Shift: wide lock)  ·  R: respawn  ·  1-6: stations  ·  C: camera\n"
+            Text = "W/S: throttle, brake, reverse  ·  A/D: steer (Shift: wide lock)  ·  Space: handbrake  ·  R: respawn  ·  1-6: stations  ·  C: camera\n"
                 + "P: autodriver (-/+: its aggression)  ·  L: racing line  ·  F2: tuning  ·  F3: telemetry  ·  F4: record",
             LabelSettings = Settings(16),
         };

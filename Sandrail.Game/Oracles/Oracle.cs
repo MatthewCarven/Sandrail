@@ -23,7 +23,8 @@ namespace Sandrail.Game.Oracles;
 /// </para>
 /// <para>
 /// Straight, drop, brake and circle run on the bare plain with road grip, as they did at M1a, so their
-/// figures stay comparable; jump, loop and bumps run on the test ground (<c>Oracle.Ground.cs</c>).
+/// figures stay comparable, and so does handbrake (M1d); jump, loop, bumps and lap run on the test
+/// ground (<c>Oracle.Ground.cs</c>).
 /// </para>
 /// </remarks>
 public partial class Oracle : Node
@@ -32,9 +33,15 @@ public partial class Oracle : Node
     public const string Drop = "drop";
     public const string Brake = "brake";
     public const string Circle = "circle";
+    public const string Handbrake = "handbrake";
 
     /// <summary>How far above rest height the drop oracle lets go.</summary>
     public const float DropHeight = 1.0f;
+
+    /// <summary>The handbrake oracle's speed going in: 60 km/h, a hairpin's.</summary>
+    private const float HandbrakeEntry = 60.0f / 3.6f;
+    private const float TurnSeconds = 2.0f;
+    private const float PullSeconds = 0.5f;
 
     private const float SettleSeconds = 1.0f;
     private const float HundredKmh = 100.0f / 3.6f;
@@ -69,15 +76,29 @@ public partial class Oracle : Node
     private float _steerAtBest;
     private float _steerDegAtBest;
 
+    // handbrake: three runs from the same spot, each from rest
+    private enum HandbrakeRun { Stop, SteeringAlone, WithTheHandbrake }
+
+    private HandbrakeRun _run;
+    private Transform3D _home;
+    private float _runFrom;
+    private float? _upToSpeedAt;
+    private float? _manoeuvreFrom;
+    private float _entry;
+    private float _turned;
+    private float _peakSlip;
+    private string _stopFigures = string.Empty;
+    private string _steerFigures = string.Empty;
+
     /// <summary>
     /// One of <see cref="Straight"/>, <see cref="Drop"/>, <see cref="Brake"/>, <see cref="Circle"/>,
-    /// <see cref="Jump"/>, <see cref="Loop"/>, <see cref="Bumps"/>.
+    /// <see cref="Handbrake"/>, <see cref="Jump"/>, <see cref="Loop"/>, <see cref="Bumps"/>, <see cref="Lap"/>.
     /// </summary>
     public required string Kind { get; init; }
 
     public required Buggy Car { get; init; }
 
-    public static bool IsKnown(string kind) => kind is Straight or Drop or Brake or Circle || NeedsTestGround(kind);
+    public static bool IsKnown(string kind) => kind is Straight or Drop or Brake or Circle or Handbrake || NeedsTestGround(kind);
 
     private float Time => _tick / (float)Engine.PhysicsTicksPerSecond;
 
@@ -106,6 +127,9 @@ public partial class Oracle : Node
                 break;
             case Circle:
                 RunCircle();
+                break;
+            case Handbrake:
+                RunHandbrake();
                 break;
             case Jump:
                 RunJump();
@@ -318,6 +342,113 @@ public partial class Oracle : Node
         {
             Finish($"{held} | held to full lock (body slip {bodySlip:F1}°, speed {v:F1} m/s)");
         }
+    }
+
+    /// <summary>
+    /// Three runs from rest, each up to 60 km/h first: a stop on the handbrake alone; two seconds at full
+    /// lock with the throttle off; and the same with the handbrake pulled for the first half second. The
+    /// last against the second is what the handbrake does to a turn.
+    /// </summary>
+    private void RunHandbrake()
+    {
+        if (_tick == 1)
+        {
+            _home = Car.GlobalTransform;
+        }
+
+        if (Time - _runFrom < SettleSeconds)
+        {
+            Car.Driver = default;
+            return;
+        }
+
+        float v = ForwardSpeed;
+        if (_manoeuvreFrom is null)
+        {
+            // Up to speed on full throttle, then held there a second so the pitch has settled.
+            if (_upToSpeedAt is null)
+            {
+                Car.Driver = new DriverInput { Throttle = 1.0f };
+                _upToSpeedAt = v >= HandbrakeEntry ? Time : null;
+                return;
+            }
+
+            Car.Driver = new DriverInput { Throttle = Math.Clamp((HandbrakeEntry - v) * 0.5f, 0.0f, 1.0f) };
+            if (Time - _upToSpeedAt.Value >= 1.0f)
+            {
+                _manoeuvreFrom = Time;
+                _entry = v;
+                _start = Car.GlobalPosition;
+                _brakeHeading = Forward;
+                _turned = 0.0f;
+                _peakSlip = 0.0f;
+            }
+
+            return;
+        }
+
+        float since = Time - _manoeuvreFrom.Value;
+        Vector3 up = Car.GlobalBasis.Y.Normalized();
+        Vector3 right = Car.GlobalBasis.X.Normalized();
+        Vector3 velocity = Car.LinearVelocity;
+
+        // Godot's yaw is anticlockwise from above, so a right turn is negative; counted positive here.
+        _turned -= Car.AngularVelocity.Dot(up) / Engine.PhysicsTicksPerSecond;
+        if (velocity.Length() > 2.0f)
+        {
+            _peakSlip = MathF.Max(_peakSlip, MathF.Abs(Mathf.RadToDeg(MathF.Atan2(velocity.Dot(right), v))));
+        }
+
+        switch (_run)
+        {
+            case HandbrakeRun.Stop:
+                Car.Driver = new DriverInput { Handbrake = true };
+                if (velocity.Length() <= 0.3f || since > 15.0f)
+                {
+                    Vector3 travelled = Car.GlobalPosition - _start;
+                    float distance = new Vector2(travelled.X, travelled.Z).Length();
+                    float mean = _entry * _entry / (2.0f * distance * WheelModel.Gravity);
+                    float moved = Mathf.RadToDeg(_brakeHeading.AngleTo(Forward));
+                    _stopFigures = $"stop from {_entry * 3.6f:F0} km/h on the handbrake alone: {distance:F1} m, "
+                        + $"{since:F2} s, mean {mean:F2} g, heading moved {moved:F1}°";
+                    NextHandbrakeRun();
+                }
+
+                break;
+
+            case HandbrakeRun.SteeringAlone:
+                Car.Driver = new DriverInput { Steer = 1.0f };
+                if (since >= TurnSeconds)
+                {
+                    _steerFigures = $"{Mathf.RadToDeg(_turned):F0}° on steering alone (out at {velocity.Length() * 3.6f:F0} km/h, "
+                        + $"body slip peaked {_peakSlip:F0}°)";
+                    NextHandbrakeRun();
+                }
+
+                break;
+
+            case HandbrakeRun.WithTheHandbrake:
+                Car.Driver = new DriverInput { Steer = 1.0f, Handbrake = since < PullSeconds };
+                if (since >= TurnSeconds)
+                {
+                    Finish(
+                        $"{_stopFigures} | full lock from {_entry * 3.6f:F0} km/h, throttle off, {TurnSeconds:F0} s: "
+                        + $"turned {_steerFigures}; {Mathf.RadToDeg(_turned):F0}° with the handbrake for the first {PullSeconds:F1} s "
+                        + $"(out at {velocity.Length() * 3.6f:F0} km/h, body slip peaked {_peakSlip:F0}°)");
+                }
+
+                break;
+        }
+    }
+
+    private void NextHandbrakeRun()
+    {
+        _run++;
+        _runFrom = Time;
+        _upToSpeedAt = null;
+        _manoeuvreFrom = null;
+        Car.Driver = default;
+        Car.Respawn(_home);
     }
 
     private static string Seconds(float? t) => t is float s ? $"{s:F2} s" : "never";

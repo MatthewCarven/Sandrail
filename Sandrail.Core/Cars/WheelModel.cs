@@ -186,7 +186,82 @@ public static class WheelModel
     /// <param name="driveForce">This wheel's share of the drive, signed.</param>
     /// <param name="brakeForce">This wheel's share of the brakes, newtons, not negative.</param>
     /// <param name="step">The physics step, for the low-speed term that cancels sideways speed in one tick.</param>
+    /// <param name="locked">
+    /// 0..1, how far the wheel is locked (the handbrake on a rear wheel): 0 rolls, 1 is
+    /// <see cref="LockedTyre"/>, and between is that far from one to the other. Both lie inside the
+    /// friction circle, so any blend does too.
+    /// </param>
     public static TyreForces Tyre(
+        CarSpec spec,
+        Surface surface,
+        float load,
+        float forwardSpeed,
+        float sideSpeed,
+        float driveForce,
+        float brakeForce,
+        float step,
+        float locked = 0.0f)
+    {
+        TyreForces rolling = RollingTyre(spec, surface, load, forwardSpeed, sideSpeed, driveForce, brakeForce, step);
+        if (!(locked > 0.0f))
+        {
+            return rolling;
+        }
+
+        float h = MathF.Min(locked, 1.0f);
+        TyreForces sliding = LockedTyre(spec, surface, load, forwardSpeed, sideSpeed, step);
+        return new TyreForces(
+            rolling.Forward + ((sliding.Forward - rolling.Forward) * h),
+            rolling.Side + ((sliding.Side - rolling.Side) * h),
+            rolling.SlipAngleDeg,
+            rolling.Saturated || sliding.Saturated);
+    }
+
+    /// <summary>
+    /// A locked tyre: it doesn't roll, so it slides, and its force is against the contact patch's motion,
+    /// whichever way that is, at the slide's share of the grip (<see cref="CarSpec.SlideGripFraction"/>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>This one law is the handbrake turn.</b> Going straight, the motion is all forward, so it's all
+    /// braking. In a corner the patch moves mostly forward and only a little sideways, so only a little of
+    /// the force holds the car into the turn: a locked rear axle lets go, and the tail comes round. Once
+    /// the car is sideways, the force is sideways too and catches the slide.
+    /// </para>
+    /// <para>
+    /// The force asked for is whatever stops the patch in one tick, taking the wheel's share of the car
+    /// as <c>load / g</c> the way the rolling tyre's low-speed term does. At any real speed that's far past
+    /// the grip and the grip is what you get; within a few centimetres a second of a standstill it isn't,
+    /// so the wheel holds still instead of shivering, and a parked car with the handbrake on stays put.
+    /// <see cref="TyreForces.Saturated"/> says it's sliding rather than holding.
+    /// </para>
+    /// </remarks>
+    public static TyreForces LockedTyre(
+        CarSpec spec, Surface surface, float load, float forwardSpeed, float sideSpeed, float step)
+    {
+        float limit = spec.Grip * surface.Grip * load * spec.SlideGripFraction;
+        float slipDeg = MathF.Atan2(sideSpeed, MathF.Max(MathF.Abs(forwardSpeed), spec.SlipSpeedFloorMps))
+            * (180.0f / MathF.PI);
+        if (!(limit > 0.0f))
+        {
+            return default;
+        }
+
+        float mass = load / Gravity;
+        float forward = -forwardSpeed * mass / step;
+        float side = -sideSpeed * mass / step;
+        float demand = MathF.Sqrt((forward * forward) + (side * side));
+        if (demand <= limit)
+        {
+            return new TyreForces(forward, side, slipDeg, false);
+        }
+
+        float scale = limit / demand;
+        return new TyreForces(forward * scale, side * scale, slipDeg, true);
+    }
+
+    /// <summary>A rolling tyre: the slip curve, the brakes and the drive, and the friction circle.</summary>
+    private static TyreForces RollingTyre(
         CarSpec spec,
         Surface surface,
         float load,

@@ -196,7 +196,10 @@ patch is 128 m (a 129 × 129 height field), not 100.
 Each is a number in `CarSpec`, where 0 means off, so the panel can switch it on mid-drive:
 
 - **Handbrake:** the rear wheels lock (forward force at the circle's edge against motion) and their
-  sideways grip drops to a fraction.
+  sideways grip drops to a fraction. **Built 2026-11-23** as one law that does both: a locked tyre's
+  force is against the contact patch's motion at the slide's share of the grip, so going straight it's
+  all braking and in a corner little of it is sideways. `handbrakeLock`, 0 off to 1 locked; the
+  `handbrake` oracle. Worklog, that date.
 - **Downforce**, proportional to speed squared, so a loop holds without a heroic entry speed.
 - **Air control:** a little pitch from throttle and brake, and roll and yaw from steering, with no wheels
   down. Landing a jump nose-first should be the player's doing, not the physics'.

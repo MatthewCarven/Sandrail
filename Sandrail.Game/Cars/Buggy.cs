@@ -17,6 +17,7 @@ public struct DriverInput
     /// <summary>-1 full left .. 1 full right.</summary>
     public float Steer;
 
+    /// <summary>Space: locks the rear wheels by <see cref="CarSpec.HandbrakeLock"/> while held, at once, as a lever does.</summary>
     public bool Handbrake;
 
     /// <summary>Shift: the steering lock times <see cref="CarSpec.WideLockFactor"/> while held.</summary>
@@ -103,6 +104,9 @@ public partial class Buggy : RigidBody3D
 
     /// <summary>Last tick's brake, 0..1.</summary>
     public float BrakeAmount { get; private set; }
+
+    /// <summary>How far the rear wheels were locked last tick, 0..1: the handbrake times its lock.</summary>
+    public float HandbrakeAmount { get; private set; }
 
     /// <summary>World acceleration over the last tick, from the change in velocity.</summary>
     public Vector3 Acceleration { get; private set; }
@@ -241,8 +245,12 @@ public partial class Buggy : RigidBody3D
 
             _wheelPivots[i].Rotation = new Vector3(0.0f, -Mathf.DegToRad(_wheelSteerDeg[i]), 0.0f);
 
-            // Visual only: a wheel pushed past its grip spins half as fast again.
+            // Visual only: a wheel pushed past its grip spins half as fast again, and a locked one stops.
             float spinSpeed = _wheelSpeed[i] * (_saturated[i] && _throttle > 0.0f ? 1.5f : 1.0f);
+            if (i is RearLeft or RearRight)
+            {
+                spinSpeed *= 1.0f - HandbrakeAmount;
+            }
             _spin[i] = Mathf.Wrap(_spin[i] - (spinSpeed / _spec.WheelRadiusM * step), -Mathf.Pi, Mathf.Pi);
             _wheelSpinners[i].Rotation = new Vector3(_spin[i], 0.0f, 0.0f);
         }
@@ -294,6 +302,8 @@ public partial class Buggy : RigidBody3D
         (float drive, float brakeAmount) = WheelModel.ResolvePedals(spec, _throttle, _brake, forwardSpeed);
         DriveForce = drive;
         BrakeAmount = brakeAmount;
+        float rearLock = input.Handbrake ? spec.HandbrakeLock : 0.0f;
+        HandbrakeAmount = rearLock;
 
         PhysicsDirectSpaceState3D space = state.GetSpaceState();
         float rayLength = spec.SuspensionTravelM + spec.WheelRadiusM;
@@ -344,7 +354,8 @@ public partial class Buggy : RigidBody3D
             float driveShare = front ? (1.0f - spec.RearDriveShare) / 2.0f : spec.RearDriveShare / 2.0f;
             float brakeShare = front ? spec.BrakeFrontShare / 2.0f : (1.0f - spec.BrakeFrontShare) / 2.0f;
             TyreForces tyre = WheelModel.Tyre(
-                spec, surface, load, vf, vs, drive * driveShare, brakeAmount * spec.BrakeForceN * brakeShare, dt);
+                spec, surface, load, vf, vs, drive * driveShare, brakeAmount * spec.BrakeForceN * brakeShare, dt,
+                front ? 0.0f : rearLock);
             _slipDeg[i] = tyre.SlipAngleDeg;
             _saturated[i] = tyre.Saturated;
 

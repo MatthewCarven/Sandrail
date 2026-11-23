@@ -154,6 +154,85 @@ public class WheelModelTests
     }
 
     [Fact]
+    public void ALockedTyreGoingStraightBrakesAtTheSlidesShareOfItsGrip()
+    {
+        float sliding = Spec.Grip * CornerLoad * Spec.SlideGripFraction;
+        TyreForces f = WheelModel.LockedTyre(Spec, Surfaces.Road, CornerLoad, 20.0f, 0.0f, Step);
+
+        Assert.Equal(-sliding, f.Forward, 1);
+        Assert.Equal(0.0f, f.Side, 3);
+        Assert.True(f.Saturated);
+    }
+
+    [Fact]
+    public void ALockedTyreHoldsLittleInACornerWhichIsTheHandbrakeTurn()
+    {
+        // 20 m/s with 1 m/s sideways, a 2.9° slip angle. Rolling, that's over a third of the tyre's grip
+        // holding the car in; locked, the force follows the motion, so only a twentieth of it is sideways.
+        TyreForces rolling = WheelModel.Tyre(Spec, Surfaces.Road, CornerLoad, 20.0f, 1.0f, 0.0f, 0.0f, Step);
+        TyreForces locked = WheelModel.LockedTyre(Spec, Surfaces.Road, CornerLoad, 20.0f, 1.0f, Step);
+
+        Assert.True(MathF.Abs(locked.Side) < MathF.Abs(rolling.Side) / 5.0f, $"locked {locked.Side} N, rolling {rolling.Side} N");
+        Assert.Equal(20.0f, locked.Forward / locked.Side, 2);
+        Assert.True(locked.Forward < 0.0f);
+    }
+
+    [Fact]
+    public void ALockedTyreSlidingSidewaysCatchesTheSlide()
+    {
+        float sliding = Spec.Grip * CornerLoad * Spec.SlideGripFraction;
+        TyreForces f = WheelModel.LockedTyre(Spec, Surfaces.Road, CornerLoad, 0.0f, -10.0f, Step);
+
+        Assert.Equal(0.0f, f.Forward, 3);
+        Assert.Equal(sliding, f.Side, 1);
+    }
+
+    [Fact]
+    public void ALockedTyreAtAStandstillHoldsStillLikeAParkingBrake()
+    {
+        // A few centimetres a second: stopping the patch in one tick takes less than the grip, so it's
+        // stopped exactly, with no slide to shiver back and forth.
+        float mass = CornerLoad / WheelModel.Gravity;
+        TyreForces f = WheelModel.LockedTyre(Spec, Surfaces.Road, CornerLoad, 0.03f, -0.02f, Step);
+
+        Assert.False(f.Saturated);
+        Assert.Equal(-0.03f * mass / Step, f.Forward, 2);
+        Assert.Equal(0.02f * mass / Step, f.Side, 2);
+    }
+
+    [Fact]
+    public void LockedNoneIsTheRollingTyreAndLockedFullyIsTheLockedOne()
+    {
+        TyreForces rolling = WheelModel.Tyre(Spec, Surfaces.Road, CornerLoad, 15.0f, 2.0f, 1_500.0f, 0.0f, Step);
+        TyreForces off = WheelModel.Tyre(Spec, Surfaces.Road, CornerLoad, 15.0f, 2.0f, 1_500.0f, 0.0f, Step, locked: 0.0f);
+        TyreForces full = WheelModel.Tyre(Spec, Surfaces.Road, CornerLoad, 15.0f, 2.0f, 1_500.0f, 0.0f, Step, locked: 1.0f);
+        TyreForces half = WheelModel.Tyre(Spec, Surfaces.Road, CornerLoad, 15.0f, 2.0f, 1_500.0f, 0.0f, Step, locked: 0.5f);
+        TyreForces locked = WheelModel.LockedTyre(Spec, Surfaces.Road, CornerLoad, 15.0f, 2.0f, Step);
+
+        Assert.Equal(rolling, off);
+        Assert.Equal(locked.Forward, full.Forward, 1);
+        Assert.Equal(locked.Side, full.Side, 1);
+        Assert.Equal((rolling.Forward + locked.Forward) / 2.0f, half.Forward, 1);
+        Assert.Equal((rolling.Side + locked.Side) / 2.0f, half.Side, 1);
+    }
+
+    [Fact]
+    public void NoLockedTyreGivesMoreThanItsGrip()
+    {
+        float limit = Spec.Grip * Surfaces.Sand.Grip * CornerLoad;
+        foreach (float locked in new[] { 0.25f, 0.5f, 1.0f })
+        {
+            foreach ((float vf, float vs) in new[] { (30.0f, 0.5f), (8.0f, 6.0f), (-5.0f, 2.0f), (0.0f, 12.0f) })
+            {
+                TyreForces f = WheelModel.Tyre(Spec, Surfaces.Sand, CornerLoad, vf, vs, 3_000.0f, 0.0f, Step, locked);
+                float total = MathF.Sqrt((f.Forward * f.Forward) + (f.Side * f.Side));
+
+                Assert.True(total <= limit * 1.0001f, $"locked {locked} at ({vf}, {vs}): {total} N against {limit} N");
+            }
+        }
+    }
+
+    [Fact]
     public void TheEngineIsForceLimitedOffTheLineAndPowerLimitedAbove()
     {
         float crossover = Spec.PowerW / Spec.DriveForceN;

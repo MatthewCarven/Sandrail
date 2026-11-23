@@ -55,7 +55,7 @@ public partial class TelemetryOverlay : Label
         var text = new StringBuilder();
         text.Append($"speed {r.SpeedKmh,6:F1} km/h  forward {r.ForwardMps,6:F1} m/s  sideways {r.LateralG,5:F2} g  fore-aft {r.LongitudinalG,5:F2} g").Append(Line);
         text.Append($"body slip {r.BodySlipDeg,6:F1}°  yaw {r.YawDps,7:F1}°/s  roll {r.RollDeg,5:F1}°  pitch {r.PitchDeg,5:F1}°").Append(Line);
-        text.Append($"throttle {Car.Throttle:F2} (key {keys.Throttle:F2})  brake {Car.Brake:F2} (key {keys.Brake:F2})  drive {Car.DriveForce,6:F0} N").Append(Line);
+        text.Append($"throttle {Car.Throttle:F2} (key {keys.Throttle:F2})  brake {Car.Brake:F2} (key {keys.Brake:F2})  drive {Car.DriveForce,6:F0} N{(Car.HandbrakeAmount > 0.0f ? $"  HANDBRAKE {Car.HandbrakeAmount:F2}" : string.Empty)}").Append(Line);
         text.Append($"steer {Car.SteerDeg,6:F1}° of {Car.SteerLimitDeg:F1}° (key {keys.Steer,5:+0.00;-0.00;0.00}{(keys.WideLock ? ", WIDE LOCK" : string.Empty)})").Append(Line);
         text.Append(Line);
         text.Append("     compression               load     slip  surface").Append(Line);

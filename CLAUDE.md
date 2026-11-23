@@ -76,8 +76,9 @@ pwsh tools/oracles.ps1
 ```
 
 `-Oracles drop` runs one; `-Spec variant.json` drives a variant file instead of the shipped buggy, which
-is how to try numbers without touching what plays. There are eight: `straight`, `drop`, `brake` and
+is how to try numbers without touching what plays. There are nine: `straight`, `drop`, `brake` and
 `circle` on the bare plain with road grip (their M1a figures are in the 2026-10-31 worklog entry),
+`handbrake` there too (a stop on it alone, and a full-lock turn with and without it; the M1d entry),
 `jump`, `loop` and `bumps` on the test ground (figures in the M1c entry), and `lap`, the autodriver
 lapping station 6 (figures in the 2026-11-23 autodriver entry). **`lap` is how a tune is compared**: run
 it on two specs and read the flying lap, the corner speeds and where it left the road.
@@ -125,7 +126,7 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 ## Where things stand
 
 **2026-11-23: M1a, M1b and M1c are built, plus wide lock, his pad's layout, a lap of corners and the
-autodriver; M1d is next.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
+autodriver; M1d has begun with the handbrake.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
 jump, a slope and plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels
 straight, a dirt bump patch, and a 526 m lap of six different corners (flat to 35° bank, 18 to 60 m
 radius, one left-hander), which is also the shortlist for M2's corner tiles. **The autodriver** (his
@@ -136,13 +137,16 @@ braking, not its speed. His tune is quickest at 85% (23.7 s); the shipped car sp
 **A lap timer** times the corner lap (a standing start from station 6 on the first throttle, then line
 to line), with his best and the autodriver's on the board side by side. **No wheel-spin gauge, at
 his word ("Not for now")**: the car has no wheel spin to measure, and he chose not to add it yet.
-Eight oracles (committed spec `a2e24a2b`): the loop
+**The handbrake** (Space, pad A, his pad's button 2) locks the rear wheels by `handbrakeLock` (1:
+fully), and a locked tyre slides against its own motion: at full lock from 60 km/h it turns the car
+142° in 2 s against 62° without, and a half-second pull with the lock held swings it past sideways.
+Nine oracles (committed spec `da9506cc`): the loop
 goes through 0.1 m off centre, but **the suspension bottoms out on the jump's landing and through the
 loop** (worklog, M1c). **Steering is his to open**: Shift doubles the lock (`wideLockFactor`), with
 Ackermann steering (`ackermannShare`) to make 60° work. **He drives with his mum's clone pad**, with a
 saved layout (throttle and brake on the right stick). **His own panel tuning sits uncommitted in
 `buggy.json`, at his word** (much more power and grip, plus a dozen accidental one-step nudges from the
 panel's mouse wheel, since fixed): oracles for checking Claude's changes run on the committed spec via
-`-Spec` (worklog, 2026-11-23). **M1d is the extras the pieces ask for** (handbrake, downforce, air
-control, auto-respawn), and the bottoming is a
+`-Spec` (worklog, 2026-11-23). **The rest of M1d is the other extras the pieces ask for** (downforce,
+air control, auto-respawn), and the bottoming is a
 lever to bring to his play rather than to change unasked.

@@ -32,6 +32,7 @@
   "reverseTopSpeedMps": 10,
   "brakeForceN": 9000,
   "brakeFrontShare": 0.6,
+  "handbrakeLock": 1,
   "dragNPerMps2": 0.86,
   "maxSteerDeg": 30,
   "minSteerDeg": 8,
