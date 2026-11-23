@@ -2,6 +2,20 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — He drives generated tracks
+
+After driving `--seed=` tracks: *"the raised road doesn't bother me much altho i wish its side bank was
+more approaching a 45 degree or similar incline/decline where the surrounding road is flat. The raised
+road is definitely more realistic but it would be nice if a player who has gone off the track can get back
+on again"*.
+
+So the raised road stays, and **its sheer sides become banks a car can drive back up**, which is M3d's
+embankment (M3-PLAN decision 3) and the same fix the autodriver's misses need (the M3b entry, finding 4).
+What angle is his to say. The `climb` oracle's figures set the trade-off: **at 45° nothing climbs from a
+standstill** (the stock car's best is 32.3° on road, 25.3° on dirt), so a 45° bank needs a run at it,
+about 25 km/h for a 2.5 m bank and 50 km/h for a 10 m one; **at about 25° in dirt** it climbs from rest
+anywhere, and looks gentler.
+
 ## 2026-11-23 — M3b: the route
 
 His go-ahead: *"Go on to M3b"*.
