@@ -49,10 +49,22 @@ public static class TrackRacing
     /// 5 km/h less, which lands it in the middle of the landing's down-ramp.
     /// </para>
     /// </remarks>
-    public static RacingLine RouteLine(this LaidTrack track, CarSpec spec, float marginM = 0.5f)
+    public static RacingLine RouteLine(this LaidTrack track, CarSpec spec, float marginM = 0.5f) =>
+        Line(track, spec, marginM, minimumCurvature: true, stepM: 1.0f);
+
+    /// <summary>
+    /// The route's middle with the stunts' hints and the crests' caps, but not the racing line through the
+    /// corners: what the generator's speed estimate reads (M3c), many times a track, where the minimum
+    /// curvature's 100 ms each would add up. Its corners are tighter than the racing line's, so it's the
+    /// cautious side of what the autodriver will plan.
+    /// </summary>
+    public static RacingLine CentreLine(this LaidTrack track, CarSpec spec, float stepM = 2.0f) =>
+        Line(track, spec, 0.5f, minimumCurvature: false, stepM);
+
+    private static RacingLine Line(LaidTrack track, CarSpec spec, float marginM, bool minimumCurvature, float stepM)
     {
         (IReadOnlyList<ICentreline> road, IReadOnlyList<int> owner) = track.RouteRoad();
-        var centre = new RacingLine(road, closed: false);
+        var centre = new RacingLine(road, closed: false, stepM);
         float carHalf = (spec.TrackM / 2.0f) + 0.15f;
 
         PlacedPiece PieceOf(int sample) => track.Route[owner[centre.PieceAt(sample)]];
@@ -89,15 +101,17 @@ public static class TrackRacing
             return CrestShare * MathF.Sqrt(9.81f * MathF.Cos(pitch) / over);
         }
 
-        return centre.MinimumCurvature(Room).WithStunts(Hint, sample => road[centre.PieceAt(sample)] is LoopCentreline, Cap);
+        RacingLine line = minimumCurvature ? centre.MinimumCurvature(Room) : centre;
+        return line.WithStunts(Hint, sample => road[centre.PieceAt(sample)] is LoopCentreline, Cap);
     }
+
+    /// <summary>Whether a piece is a stunt: one with a speed hint, a landing, a lip, or a loop.</summary>
+    public static bool IsStunt(PieceDef piece) =>
+        piece.SpeedKmh is not null || piece.In == ConnectorKind.Landing || piece.Out.Kind == ConnectorKind.Lip || piece.Path.Any(s => s.Loop is not null);
 
     /// <summary>The share of a crest's take-off speed the plan holds the car under: where the slope piece threw it in M2b.</summary>
     private const float CrestShare = 0.8f;
 
     /// <summary>The slab's rounded lip, which isn't road to drive on: the profile's own.</summary>
     private const float LipM = 0.15f;
-
-    private static bool IsStunt(PieceDef piece) =>
-        piece.SpeedKmh is not null || piece.In == ConnectorKind.Landing || piece.Out.Kind == ConnectorKind.Lip || piece.Path.Any(s => s.Loop is not null);
 }

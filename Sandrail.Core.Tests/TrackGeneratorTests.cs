@@ -31,6 +31,33 @@ public class TrackGeneratorTests
         Assert.Equal(a.Track.Save(), b.Track.Save());
     }
 
+    /// <summary>
+    /// Seeds 1 to 8 as M3b and M3d made them, pinned before M3c (2026-11-24): with stunts and checkpoints
+    /// off, every later stage must leave them be, piece for piece. Seed 5 is the one he's learning.
+    /// </summary>
+    [Fact]
+    public void TodaysRoutesStayPut()
+    {
+        string pinned = "1:e8e484038f421dc9 2:0eb05112beb14551 3:ab98f857e9efacf5 4:005be927f200bf5c 5:7145f3135182f092 6:03151ca73ad0feed 7:8ee39dc43cbd38fc 8:dca607145e5308fa";
+        string now = string.Join(" ", Enumerable.Range(1, 8).Select(s =>
+            $"{s}:{Fnv(TrackGenerator.Generate((ulong)s, Bare, Catalogue.Value).Track.Save()):x16}"));
+        Assert.True(pinned == now, now);
+
+        static ulong Fnv(string text)
+        {
+            ulong h = 14695981039346656037UL;
+            foreach (char c in text)
+            {
+                h = (h ^ c) * 1099511628211UL;
+            }
+
+            return h;
+        }
+    }
+
+    /// <summary>The generator with nothing after the route's own stages: no stunts, no checkpoints.</summary>
+    private static readonly GenSettings Bare = new() { Stunts = new StuntSettings { Density = 0.0f, CheckpointEveryM = 0.0f } };
+
     [Fact]
     public void AnotherSeedMakesAnotherTrack()
     {

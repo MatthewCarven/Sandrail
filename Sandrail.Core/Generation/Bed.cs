@@ -66,17 +66,35 @@ public static class Bed
             float halfWidth = piece.Def.WidthM / 2.0f;
             foreach (ICentreline c in piece.Road().Pieces)
             {
-                // A loop's road stands on nothing: it's driven upside down.
-                if (c is LoopCentreline)
-                {
-                    continue;
-                }
-
+                // A loop stands on a flat pad at its foot's height (M3c): its road, upside down and all, stamped
+                // straight down onto it. Generated ground under a loop would otherwise come up through it.
+                Vector3 baseAt = piece.Start.Position;
+                bool loop = c is LoopCentreline;
                 int steps = Math.Max(1, (int)MathF.Ceiling(c.Length / SampleM));
                 for (int k = 0; k <= steps; k++)
                 {
                     Frame f = c.FrameAt(c.Length * k / steps);
-                    Stamp(f, halfWidth, banks: k % 2 == 0 || k == steps);
+                    if (loop)
+                    {
+                        f = Frame.Of(new Vector3(f.Position.X, baseAt.Y, f.Position.Z), piece.Start.Forward, Vector3.UnitY);
+                    }
+
+                    Stamp(f, halfWidth, banks: k % 2 == 0 || k == steps, alongM: loop ? 1.0f : SampleM * 0.75f);
+                }
+            }
+
+            // A jump's gap is ground at the launch's foot (M3c), as the plain is under the shakedown's jumps: a
+            // hill there would stand in the car's way, and a hollow is a hole to fall in short of the landing.
+            if (piece.Out.Kind == ConnectorKind.Lip)
+            {
+                WorldConnector lip = piece.Out;
+                Frame gapStart = TrackGrid.Edge(lip.Tile, lip.Facing, piece.Placement.Level, lip.Facing);
+                float gapM = lip.Gap * TrackGrid.TileM;
+                int steps = Math.Max(1, (int)MathF.Ceiling(gapM / SampleM));
+                for (int k = 0; k <= steps; k++)
+                {
+                    Frame f = gapStart with { Position = gapStart.Position + (gapStart.Forward * (gapM * k / steps)) };
+                    Stamp(f, halfWidth, banks: k % 2 == 0 || k == steps, alongM: SampleM * 0.75f);
                 }
             }
         }
@@ -101,7 +119,7 @@ public static class Bed
         return new Terrain(terrain, heights, paint);
 
         // One step's cross-section stamped into the ground: the bed under it, and every 0.8 m the banks either side.
-        void Stamp(Frame f, float halfWidth, bool banks)
+        void Stamp(Frame f, float halfWidth, bool banks, float alongM)
         {
             var flatForward = new Vector2(f.Forward.X, f.Forward.Z);
             var flatRight = new Vector2(f.Right.X, f.Right.Z);
@@ -143,7 +161,7 @@ public static class Bed
                     float along = Vector2.Dot(offset, flatForward);
                     int s = (j * N) + i;
 
-                    if (MathF.Abs(lateral) <= halfWidth && MathF.Abs(along) <= SampleM * 0.75f)
+                    if (MathF.Abs(lateral) <= halfWidth && MathF.Abs(along) <= alongM)
                     {
                         // Under the road: its surface at this offset, tilt and all.
                         float surface = f.Position.Y + (f.Right.Y * lateral / rightLength);

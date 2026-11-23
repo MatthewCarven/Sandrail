@@ -50,6 +50,13 @@ public sealed class Autodriver
     /// <summary>Farther than this from the line, metres, the car has been moved, not driven: the lap timer's figure.</summary>
     private const float LostM = 15.0f;
 
+    /// <summary>How far from where it was a lost car is first looked for, samples behind and ahead (a metre each on a route line).</summary>
+    private const int SpunBackSamples = 100;
+    private const int SpunAheadSamples = 150;
+
+    /// <summary>As far off the line as a spin throws a car, metres; further than this from where it was, it's been moved.</summary>
+    private const float SpunM = 40.0f;
+
     /// <summary>How far before a loop it stops pulling the car onto the line and only lines it up: the loop piece's settling straight.</summary>
     private const float LoopApproachM = 15.0f;
 
@@ -115,12 +122,17 @@ public sealed class Autodriver
     /// </param>
     public DriveCommand Drive(Vector3 position, Vector3 forward, Vector3 up, Vector3 velocity, float yawRate = float.NaN, bool airborne = false)
     {
+        int was = _index;
         _index = _line.Nearest(position, _index);
         if (Vector3.Distance(position, _line.PositionAt(_index)) > LostM)
         {
-            // Looking only near the last answer misses a car that's been put somewhere else (a respawn at
-            // a checkpoint): look everywhere, and let the front axle follow.
-            _index = _line.Nearest(position);
+            // Off the line: first a good way either side of where it was, so a car that spun off beside a later
+            // stretch of road isn't taken on to it, skipping what's between (seed 1, 2026-11-24: a spin at
+            // (21, 0) put it on the road back past 300 m on, a shortcut its checkpoints caught). Only a car
+            // further from that than a spin throws it, one put somewhere else (a respawn at a checkpoint), is
+            // looked for everywhere. Either way the front axle follows.
+            int near = was < 0 ? -1 : _line.Nearest(position, was, SpunBackSamples, SpunAheadSamples);
+            _index = near >= 0 && Vector3.Distance(position, _line.PositionAt(near)) <= SpunM ? near : _line.Nearest(position);
             _frontIndex = -1;
         }
 

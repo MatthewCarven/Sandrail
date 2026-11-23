@@ -21,10 +21,14 @@ public class BedTests
             return (g, g.Track.Lay(Catalogue.Value), new Terrain(seed, new TerrainSettings()));
         }).ToArray());
 
-    /// <summary>Points along the route's road: its middle and both edges, every few metres, with which way is out from each edge.</summary>
+    /// <summary>
+    /// Points along the route's ordinary road: its middle and both edges, every few metres, with which way is
+    /// out from each edge. Stunts are left out (M3c): a jump's ramps end in a step down to the gap, and a
+    /// loop's road is in the air; <see cref="AJumpsGapAndALoopsPadAreAtTheirFoot"/> checks the ground there.
+    /// </summary>
     private static IEnumerable<(Vector3 Middle, Vector3 Left, Vector3 Right, Vector3 Out)> Along(LaidTrack track, float step)
     {
-        foreach (PlacedPiece piece in track.Route)
+        foreach (PlacedPiece piece in track.Route.Where(p => !TrackRacing.IsStunt(p.Def)))
         {
             float half = piece.Def.WidthM / 2.0f;
             foreach (ICentreline c in piece.Road().Pieces)
@@ -146,6 +150,61 @@ public class BedTests
             Assert.True(checkedPoints > 100);
         }
     }
+
+    /// <summary>
+    /// M3c: a jump's gap is ground at the launch's foot, as the plain is under the shakedown's, so no hill
+    /// stands in the way; a loop stands on a flat pad at its foot's height, so none comes up through it.
+    /// </summary>
+    [Fact]
+    public void AJumpsGapAndALoopsPadAreAtTheirFoot()
+    {
+        int gaps = 0;
+        int loops = 0;
+        foreach ((Generated made, LaidTrack laid, _) in Tracks.Value.Concat(Stunted.Value))
+        {
+            foreach (PlacedPiece p in laid.Route)
+            {
+                float foot = p.Start.Position.Y - Bed.UnderRoadM;
+                if (p.Out.Kind == ConnectorKind.Lip)
+                {
+                    Frame edge = TrackGrid.Edge(p.Out.Tile, p.Out.Facing, p.Placement.Level, p.Out.Facing);
+                    for (float s = 2.0f; s <= (p.Out.Gap * TrackGrid.TileM) - 2.0f; s += 2.0f)
+                    {
+                        Vector3 at = edge.Position + (edge.Forward * s);
+                        Assert.InRange(made.Terrain.HeightAt(at.X, at.Z), foot - 0.05f, foot + 0.05f);
+                    }
+
+                    gaps++;
+                }
+
+                if (p.Def.Id == "base:loop")
+                {
+                    // Straight down from its road, all the way round.
+                    foreach (ICentreline c in p.Road().Pieces)
+                    {
+                        for (float s = 1.0f; s < c.Length - 1.0f; s += 5.0f)
+                        {
+                            Vector3 at = c.FrameAt(s).Position;
+                            Assert.InRange(made.Terrain.HeightAt(at.X, at.Z), foot - 0.05f, foot + 0.05f);
+                        }
+                    }
+
+                    loops++;
+                }
+            }
+        }
+
+        Assert.True(gaps > 0 && loops > 0, $"{gaps} gaps and {loops} loops to look at");
+    }
+
+    /// <summary>Tracks with plenty of stunts on, for the gap and pad checks.</summary>
+    private static readonly Lazy<(Generated Made, LaidTrack Laid, Terrain Original)[]> Stunted = new(() =>
+        new ulong[] { 3, 4, 6, 7, 8 }.Select(seed =>
+        {
+            var settings = new GenSettings { Stunts = new StuntSettings { Density = 1.0f } };
+            Generated g = TrackGenerator.Generate(seed, settings, Catalogue.Value);
+            return (g, g.Track.Lay(Catalogue.Value), new Terrain(seed, new TerrainSettings()));
+        }).ToArray());
 
     [Fact]
     public void TheSameTrackGetsTheSameBed()

@@ -119,6 +119,16 @@ public partial class Oracle
         foreach (PlacedPiece piece in track.Route)
         {
             float half = piece.Def.WidthM / 2.0f;
+
+            // Beside ordinary road only (M3c): a loop's road is in the air and a jump's ramps stand on their own
+            // mound, so neither is a bank to drive back up. The first run with stunts called seed 1's loop a
+            // 23 m bank.
+            if (TrackRacing.IsStunt(piece.Def))
+            {
+                along += piece.Road().Pieces.Sum(c => c.Length);
+                continue;
+            }
+
             foreach (ICentreline c in piece.Road().Pieces)
             {
                 for (float s = 0.0f; s < c.Length; s += 2.0f)

@@ -326,14 +326,17 @@ public sealed class RacingLine
     /// The sample nearest a point. Given the last answer as a hint it looks only nearby, which is both
     /// faster and right where the road passes close to itself.
     /// </summary>
-    public int Nearest(Vector3 point, int hint = -1)
+    public int Nearest(Vector3 point, int hint = -1) => Nearest(point, hint, 40, 60);
+
+    /// <summary>The sample nearest a point among those from <paramref name="back"/> samples behind a hint to <paramref name="ahead"/> in front of it; everywhere without one.</summary>
+    public int Nearest(Vector3 point, int hint, int back, int ahead)
     {
         int from = 0;
         int to = Count - 1;
         if (hint >= 0)
         {
-            from = hint - 40;
-            to = hint + 60;
+            from = hint - back;
+            to = hint + ahead;
         }
 
         int best = -1;

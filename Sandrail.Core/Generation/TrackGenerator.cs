@@ -38,16 +38,19 @@ public sealed record GenSettings
     public TerrainSettings Terrain { get; init; } = new();
 
     public RouteSettings Route { get; init; } = new();
+
+    public StuntSettings Stunts { get; init; } = new();
 }
 
-/// <summary>What making a track took, for the bench: tries, how often it backed out, how long it came out, and how the road met the ground.</summary>
-public sealed record GenStats(int Attempts, int Backtracks, int Placements, float LengthM, int Slopes, int Banked, float WorstFillM, float WorstCutM);
+/// <summary>What making a track took, for the bench: tries, how often it backed out, how long it came out, how the road met the ground, and its stunts.</summary>
+public sealed record GenStats(int Attempts, int Backtracks, int Placements, float LengthM, int Slopes, int Banked, float WorstFillM, float WorstCutM, StuntStats Stunts);
 
 /// <summary>A generated track, the ground under it, and what making it took.</summary>
 public sealed record Generated(Track Track, Terrain Terrain, GenStats Stats);
 
 /// <summary>
-/// Makes a track from a seed (M3-PLAN, M3b so far: terrain and the route, no stunts or checkpoints yet).
+/// Makes a track from a seed (M3-PLAN): terrain, the route, its levels and banks, stunts and checkpoints
+/// (<see cref="StuntPlanner"/>, M3c), and the road's bed.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -75,10 +78,10 @@ public static class TrackGenerator
 {
     public static Generated Generate(ulong seed, GenSettings settings, PieceCatalogue catalogue, Terrain? terrain = null)
     {
-        IReadOnlyList<string> problems = settings.Route.Problems();
+        IReadOnlyList<string> problems = [.. settings.Route.Problems(), .. settings.Stunts.Problems()];
         if (problems.Count > 0)
         {
-            throw new ArgumentException("Route settings refused: " + string.Join("; ", problems), nameof(settings));
+            throw new ArgumentException("Generator settings refused: " + string.Join("; ", problems), nameof(settings));
         }
 
         terrain ??= new Terrain(seed, settings.Terrain);
@@ -87,20 +90,29 @@ public static class TrackGenerator
         (List<Placement> levelled, int slopes, float fill, float cut) = Levels.Choose(plan, terrain, catalogue);
         (List<Placement> banked, int banks) = Banks.Choose(levelled, catalogue);
 
-        var track = new Track
+        // Stunts and checkpoints (M3c), swapped in where the route already has their footprint, from their own seed.
+        var ground = new TrackGround { Seed = seed, Terrain = settings.Terrain };
+        Track Build(List<Placement> pieces) => new()
         {
             Id = $"gen:{seed}",
             Name = $"Seed {seed}",
-            Ground = new TrackGround { Seed = seed, Terrain = settings.Terrain },
-            Pieces = banked.Select(TrackPiece.Of).ToArray(),
+            Ground = ground,
+            Pieces = pieces.Select(TrackPiece.Of).ToArray(),
         };
+
+        (List<Placement> stunted, StuntStats stunts) = StuntPlanner.Choose(
+            GenStage.Seed(seed, GenStage.Stunts), settings.Stunts, banked, catalogue, pieces => Build(pieces).Lay(catalogue));
+        (List<Placement> gated, int checkpoints) = StuntPlanner.Checkpoints(stunted, settings.Stunts.CheckpointEveryM, catalogue);
+        Track track = Build(gated);
 
         // The road's bed (M3d): the ground set under it, with 25° banks and cuttings either side.
         LaidTrack laid = track.Lay(catalogue);
         Terrain bedded = laid.Problems.Count == 0 ? Bed.Lay(terrain, laid) : terrain;
 
+        // The route's length as walked: a jump's gap is distance driven too, through the air.
         float length = banked.Sum(p => RoadLength(catalogue, p));
-        return new Generated(track, bedded, new GenStats(attempts, backtracks, placements, length, slopes, banks, fill, cut));
+        return new Generated(track, bedded,
+            new GenStats(attempts, backtracks, placements, length, slopes, banks, fill, cut, stunts with { Checkpoints = checkpoints }));
     }
 
     internal static float RoadLength(PieceCatalogue catalogue, Placement p) =>

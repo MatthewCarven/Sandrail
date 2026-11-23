@@ -165,6 +165,11 @@ public static class Program
         var settings = new GenSettings
         {
             Route = new RouteSettings { Turniness = ParseFloat(args, "--turniness=", 1.0f) },
+            Stunts = new StuntSettings
+            {
+                Density = ParseFloat(args, "--stunts=", new StuntSettings().Density),
+                CheckpointEveryM = ParseFloat(args, "--checkpoints=", new StuntSettings().CheckpointEveryM),
+            },
         };
 
         int refused = 0;
@@ -179,6 +184,7 @@ public static class Program
         var cuts = new List<float>();
         var kinds = new Dictionary<string, int>();
         var times = new List<double>();
+        var stunts = new List<StuntStats>();
         string? firstRefusal = null;
 
         for (ulong seed = first; seed < first + (ulong)seeds; seed++)
@@ -212,6 +218,7 @@ public static class Program
             banks.Add(g.Stats.Banked);
             fills.Add(g.Stats.WorstFillM);
             cuts.Add(g.Stats.WorstCutM);
+            stunts.Add(g.Stats.Stunts);
             foreach (var p in g.Track.Pieces)
             {
                 string kind = p.Piece[5..] + (p.Mirrored ? " left" : string.Empty);
@@ -220,8 +227,10 @@ public static class Program
 
             if (seeds <= 5)
             {
+                StuntStats s = g.Stats.Stunts;
                 Console.WriteLine($"  seed {seed}: {g.Stats.LengthM:F0} m, {g.Track.Pieces.Length} pieces, {g.Stats.Slopes} slopes, {g.Stats.Banked} banked, "
-                    + $"attempt {g.Stats.Attempts}, {g.Stats.Backtracks} backtracks, worst fill {g.Stats.WorstFillM:F1} m, worst cut {g.Stats.WorstCutM:F1} m");
+                    + $"attempt {g.Stats.Attempts}, {g.Stats.Backtracks} backtracks, worst fill {g.Stats.WorstFillM:F1} m, worst cut {g.Stats.WorstCutM:F1} m; "
+                    + $"stunts {s.ShortJumps} short, {s.LongJumps} long, {s.Loops} loops ({s.TooSlow} too slow, {s.MustBrake} must brake), {s.Checkpoints} checkpoints");
             }
         }
 
@@ -231,7 +240,7 @@ public static class Program
             return v.Length == 0 ? "-" : $"min {v[0]:F1}  p10 {Percentile(v, 0.1):F1}  p50 {Percentile(v, 0.5):F1}  p90 {Percentile(v, 0.9):F1}  max {v[^1]:F1}";
         }
 
-        Console.WriteLine($"generate  seeds {first} to {first + (ulong)seeds - 1}  turniness {settings.Route.Turniness}");
+        Console.WriteLine($"generate  seeds {first} to {first + (ulong)seeds - 1}  turniness {settings.Route.Turniness}  stunt density {settings.Stunts.Density}  checkpoints every {settings.Stunts.CheckpointEveryM} m");
         Console.WriteLine($"  refused by Lay: {refused} (must be 0)   no route found: {failed}{(firstRefusal is null ? string.Empty : $"   first: {firstRefusal}")}");
         Console.WriteLine($"  time a track, ms:   {Spread(times.Select(t => (float)t))}");
         Console.WriteLine($"  length, m:          {Spread(lengths)}");
@@ -242,6 +251,10 @@ public static class Program
         Console.WriteLine($"  banked corners:     {Spread(banks.Select(c => (float)c))}");
         Console.WriteLine($"  worst fill, m:      {Spread(fills)}");
         Console.WriteLine($"  worst cut, m:       {Spread(cuts)}");
+        Console.WriteLine($"  stunts a track:     {Spread(stunts.Select(s => (float)s.Placed))}   none on {stunts.Count(s => s.Placed == 0)} tracks");
+        Console.WriteLine($"  by kind, all told:  short jumps {stunts.Sum(s => s.ShortJumps)}, long jumps {stunts.Sum(s => s.LongJumps)}, loops {stunts.Sum(s => s.Loops)}");
+        Console.WriteLine($"  turned down:        too slow to reach their hint {stunts.Sum(s => s.TooSlow)}, braking through them {stunts.Sum(s => s.MustBrake)}");
+        Console.WriteLine($"  checkpoints:        {Spread(stunts.Select(s => (float)s.Checkpoints))}");
         Console.WriteLine($"  pieces by kind:     {string.Join(", ", kinds.OrderByDescending(k => k.Value).Select(k => $"{k.Key} {k.Value}"))}");
         return refused == 0 && failed == 0 ? 0 : 2;
     }

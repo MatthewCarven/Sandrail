@@ -209,6 +209,18 @@ eight at 70%, the rest running wide off raised road with sheer sides, M3d's to f
 
 ## M3c — stunts and checkpoints
 
+**Built 2026-11-24**, as below; 10 tests, worklog that date. Departures: **a jump goes in any run of road
+in a line**, straights and slopes, five tiles that come out at the level they went in (seven a level up for
+the long jump), **as late in the run as it fits**, so the rest of the run is its run-up; on five flat
+straights alone, nearly every jump was too slow, the levels having made slopes of most runs. **The bed
+grew two stamps**: a jump's gap is ground at the launch's foot, and a loop stands on a flat pad. **The
+estimate's car is pinned in code** (the stock car's numbers), so a tune can't change a seed's track.
+**`--stunts=` and `--checkpoints=`** set the dials in the game and the bench; both at 0 give the route as
+M3d left it, pinned for seeds 1-8 by a test. At density 0.8, over a thousand seeds: none refused, a median
+of 1 stunt a track (up to 6; a fifth have none), 2 checkpoints. The autodriver finishes all ten test seeds
+at 70%, every jump on its down-ramp and every loop through; it now looks for its line near where it lost
+it, after a spin on seed 1 took it 300 m on, a shortcut the new checkpoints caught.
+
 - **Core:** the speed estimate (the acceleration pass beside `SpeedProfile`'s), `StuntPlanner` (stage
   3) with its density dial and weights, checkpoints by distance.
 - **The bench** reports stunts per track by kind, and how many the estimate turned down and why.
@@ -244,7 +256,8 @@ that older references to M3d, M3e and M3f still mean what they did; the order is
    seed of its own, and of the two halves the one chosen keeps **seed 5, which he's learning, a sprint**
    (with the obvious rule it came out a circuit): a seed is a circuit when its draw is at least 1 −
    `CircuitShare`. Seeds 1, 3, 5 and 7 stay sprints; 2, 4, 6 and 8 become circuits. **Sprints are walked
-   exactly as today**, so every seed that stays a sprint is the same track, piece for piece.
+   exactly as today**, so every seed that stays a sprint keeps its road, piece for piece (M3c added stunts
+   and checkpoints to it, which `--stunts=0 --checkpoints=0` take off again).
 
 **The model:**
 
@@ -274,8 +287,8 @@ that older references to M3d, M3e and M3f still mean what they did; the order is
 
 **Checks:**
 
-- **Before any of it, seed 5 pinned**: a test that its track is today's, piece for piece; and after,
-  that seeds 1, 3, 5 and 7 are unchanged.
+- **Seeds 1-8 are pinned already** (M3c's `TodaysRoutesStayPut`, stunts and checkpoints off); after M3g,
+  1, 3, 5 and 7 must still match.
 - **Bench `--generate`** reports sprints and circuits apart: how many of each over a thousand seeds
   (about half), lap lengths, attempts and backtracks, and how many circuits never closed or `Lay` refused,
   which must be none, as for sprints.

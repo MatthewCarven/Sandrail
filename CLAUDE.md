@@ -75,8 +75,10 @@ dotnet run --project Sandrail.Bench -c Release -- --generate --seeds=1000
 ```
 
 `--generate` makes a track from each seed and lays it: **any track `Lay` refuses is a generator bug, and
-must be none**. It reports time, length, pieces, attempts, backtracks, slopes, banks and how the road met
-the ground; `--first=` starts elsewhere, `--turniness=` tries the dial, and five seeds or fewer print each.
+must be none**. It reports time, length, pieces, attempts, backtracks, slopes, banks, how the road met
+the ground, and stunts by kind with the ones the speed estimate turned down and why, and checkpoints;
+`--first=` starts elsewhere, `--turniness=`, `--stunts=` (density, 0 to 1) and `--checkpoints=` (metres
+apart, 0 for none) try the dials, and five seeds or fewer print each.
 
 Headless check, which catches scene and script errors (`--quit-after` counts **frames**):
 
@@ -115,7 +117,9 @@ it on two specs and read the flying lap, the corner speeds and where it left the
 whether a car (or a track) can be finished at all.
 
 Game flags, after `--` (or passed to `start.cmd`): `--seed=<n>` (a generated track on its own ground,
-M3b: the timer, P and `--oracle=track` all work on it; the autodriver finishes most at `--caution=0.7`),
+M3b, with stunts and checkpoints since M3c: the timer, P and `--oracle=track` all work on it; the
+autodriver finishes all ten test seeds at `--caution=0.7`; `--stunts=` and `--checkpoints=` set the stunt
+stage's dials, and `--stunts=0 --checkpoints=0` is the route as it was before M3c),
 `--terrain=<seed>` (the generated ground alone, M3a), `--ground=test|showroom|bare` (the showroom is every
 M2 piece on its own with a run-up, a station each; [ and ] step through them), `--track=base:shakedown`
 (a track from `content/base/tracks/` by its ID, or `--track=<path>.json`; the car starts at its start
@@ -150,7 +154,9 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   `Bed` (the road's bed: the ground set under it, 25° dirt banks and cuttings either side, so a car that
   leaves the road can climb back),
   and `TrackGenerator` (`GenSettings`; the route walked in pieces with backtracking, levels chosen all at
-  once to keep the road out of the ground, banks by a speed estimate; a `Track` with its `Ground`).
+  once to keep the road out of the ground, banks by a speed estimate; a `Track` with its `Ground`), and
+  `StuntPlanner` (`Stunts.cs`, M3c: jumps and loops swapped in where the route already has their footprint,
+  each approved by `Driving/SpeedEstimate` for a stock car pinned in code; checkpoints every 400 m).
   `Cars/` holds `CarSpec`, `Surfaces`, the `Wings` (parts, by ID) and `WheelModel`, the car's laws as
   plain functions. `Pieces/` is
   the road: `Frame`, the centrelines (line, pitch, banked turn, loop), `Chain`, `Profile`, the `Sweep`
@@ -191,9 +197,11 @@ generator, is planned (`docs/M3-PLAN.md`, its six decisions taken as recommended
 terrain from a seed (`--terrain=<seed>`, the `climb` oracle, the bench's `--terrain` arm), is built;
 M3b, the route (`--seed=<n>`, the S-bend piece, the bench's `--generate`), is built too, and M3d's bed
 came next at his word (25° dirt banks and cuttings; the `bank` oracle); M3c, stunts and checkpoints, is
-next, then **M3g, circuits** (planned 2026-11-24 at his ask: half the seeds, 3 laps of 0.8–1.5 km; seed
-5, which he's learning, stays a sprint, and every seed that stays a sprint stays the same track), then
-the rest of M3d (rocks). Every generated track so far is a sprint, edge to edge. **The stock car has his
+built too (2026-11-24: jumps and loops where the route has their footprint and the speed estimate says
+the stock car can make them, a median of 1 a track; checkpoints every 400 m; seed 5 keeps its road and
+gains two short jumps). **M3g, circuits**, is next (planned 2026-11-24 at his ask: half the seeds, 3 laps
+of 0.8–1.5 km; seed 5, which he's learning, stays a sprint, and every seed that stays a sprint keeps its
+road), then the rest of M3d (rocks). Every generated track so far is a sprint, edge to edge. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles

@@ -2,6 +2,59 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M3c: stunts and checkpoints
+
+*"Go on to M3c"*, then *"please and thanks Claude"*. Built as M3-PLAN's M3c, with the departures written
+there. **Before any of it, seeds 1-8 were pinned** (`TodaysRoutesStayPut`, a hash of each track file):
+with the stunt dial and checkpoints at 0 they must come out as M3d made them, and they do.
+
+**`StuntPlanner`** (`Generation/Stunts.cs`, stage 3, its own seed): walking the route, each place a stunt
+fits is offered one at the density (0.8), the kind drawn by weight. The short jump is a launch ramp, a tile
+of gap and a landing a level up: five tiles in a line that come out where they went in. The long jump is
+seven that come out a level up. The loop takes an S-bend's place. **Two findings shaped where a jump goes.**
+On the first five straights of a run, nearly every jump came straight off a corner too slowly to fly: so
+it goes as late in its run as it fits, the rest being its run-up. And runs of five flat straights were
+rare, the levels having made slopes of most of them, so a jump may go over slopes too, as long as its five
+or seven tiles come out at the right level; that doubled the places one fits. Each stunt keeps 60 m of
+ordinary road from the last.
+
+**`SpeedEstimate`** (`Driving/`) approves each one: the route's middle (`CentreLine`, the route line
+without the minimum curvature, which costs 100 ms a time) with the stunts' hints and the crests' caps,
+its speed plan at 80% for the stock car, met by full throttle from the start (the engine's force held to
+the grip on half the car's weight, less drag, rolling and slope; it makes 0-100 km/h in 5.2 s, as the
+`straight` oracle does). A stunt the car can't arrive at the bottom of its hint for is *too slow*; one the
+plan must brake through, *must brake*. The first refused comes out and the rest are judged again. **The
+estimate's car is pinned in code**, so his tunes can't change a seed. **Checkpoints**: the first plain
+straight once 400 m of road has gone by since the last gate, none in the last 200 m.
+
+**The bed grew two stamps.** A jump's gap is ground at the launch's foot, as the plain is under the
+shakedown's jumps (a hill there would be in the way). A loop stands on a flat pad at its foot's height, its
+road stamped straight down; the first pad had holes where the loop climbs straight up and its stamps
+bunched together, so those stamps reach a metre along.
+
+**The bench, a thousand seeds at 0.8**: none refused; a median of **1 stunt a track**, p90 3, max 6, and
+224 tracks with none; 795 short jumps, 235 long, 263 loops; turned down 937 too slow and 268 braking
+through; checkpoints p50 2 (0 to 4); 68 ms a track at p50 (62 before). At density 1 the median is 2.
+
+**The autodriver, seeds 1-10 on the stock car.** At 70% **all ten finish**, every checkpoint in order:
+1:29.13, 1:03.11, 1:00.61, 1:15.43, 1:25.19, 1:06.24, 58.44, 49.25, 1:00.66, 1:28.59. All 14 stunts it met
+came off: nine short jumps from the lip at 85 km/h and one long at 108, every one landing on its
+down-ramp, and four loops through at 96 km/h. Seeds 1 and 9 each spin once on a banked 30 m corner. At 80%
+seven finish: seed 4 sticks at the raised banked left at (28, 12) as it did before M3c, seed 8 spins past
+checkpoint 1 outside its arch, and seed 9 spins off at (27, 3).
+
+**The checkpoints caught a shortcut.** Seed 1 at 70% first came back *stuck at the finish, checkpoint 1
+missed*. With the stunts and checkpoints off it "finished" in 55.44 s, as it did in M3d's eight-seed run.
+It spins at (21, 0), and a lost autodriver looked for its line over the whole route: the nearest was the
+road back past, 20 m away and 300 m on. So M3d's "all eight finish at 70%" was seven and a shortcut.
+**Now a lost car is looked for first within 100 m back and 150 m on of where it was, and everywhere only
+if it's more than 40 m from that** (a respawn). Seed 1 then finishes properly in 1:29.13.
+
+**Seed 5 keeps its road and gains two short jumps**, at (0, 20) and (9, 31), and three checkpoints; at 70%
+it's 1:25.19, both jumps on the down-ramp. `--seed=5 --stunts=0 --checkpoints=0` is seed 5 as he first
+drove it. The sixteen oracles on the committed car (`4f918acd`) read as before. The `bank` oracle called
+seed 1's loop a 23 m bank, its road being in the air, so it now skips stunts. Tests 268.
+
 ## 2026-11-24 — Circuits planned: M3g
 
 *"Ok do any of the tracks make a complete circuit i want about 50% of them too if it isn't too difficult to

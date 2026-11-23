@@ -314,10 +314,19 @@ public partial class Main : Node3D
             try
             {
                 catalogue = TrackView.LoadCatalogue();
-                made = TrackGenerator.Generate(genSeed, new GenSettings(), catalogue);
+
+                // --stunts= and --checkpoints= turn the stunt stage's dials (M3c); --stunts=0 --checkpoints=0 is the
+                // route as M3b and M3d left it, which is how seed 5 was before it had jumps.
+                var stunts = new StuntSettings();
+                stunts = stunts with
+                {
+                    Density = FloatFlag(args, "--stunts=") ?? stunts.Density,
+                    CheckpointEveryM = FloatFlag(args, "--checkpoints=") ?? stunts.CheckpointEveryM,
+                };
+                made = TrackGenerator.Generate(genSeed, new GenSettings { Stunts = stunts }, catalogue);
                 _track = made.Track.Lay(catalogue);
             }
-            catch (Exception e) when (e is System.IO.InvalidDataException or InvalidOperationException)
+            catch (Exception e) when (e is System.IO.InvalidDataException or InvalidOperationException or ArgumentException)
             {
                 Refuse($"Seed {genSeed}: {e.Message}");
                 return;
@@ -337,8 +346,10 @@ public partial class Main : Node3D
             AddChild(TerrainView.Build(_terrain, genSeed));
             TrackView.Build(this, _track.Placed, _terrain);
             GenStats s = made.Stats;
+            StuntStats st = s.Stunts;
             GD.Print($"Seed {genSeed}: {_track.Placed.Count} pieces, {s.LengthM / 1000.0f:F2} km, {s.Slopes} slopes, {s.Banked} banked corners, "
-                + $"worst fill {s.WorstFillM:F1} m and cut {s.WorstCutM:F1} m; generated in {generated:F0} ms, built in {clock.Elapsed.TotalMilliseconds - generated:F0} ms");
+                + $"worst fill {s.WorstFillM:F1} m and cut {s.WorstCutM:F1} m; {st.ShortJumps} short jumps, {st.LongJumps} long, {st.Loops} loops "
+                + $"({st.TooSlow + st.MustBrake} turned down), {st.Checkpoints} checkpoints; generated in {generated:F0} ms, built in {clock.Elapsed.TotalMilliseconds - generated:F0} ms");
         }
         else if (trackName is not null)
         {
@@ -954,4 +965,9 @@ public partial class Main : Node3D
 
     private static string? Flag(string[] args, string prefix) =>
         args.LastOrDefault(a => a.StartsWith(prefix, StringComparison.Ordinal))?[prefix.Length..];
+
+    /// <summary>A flag's number, or null if it's missing or isn't one.</summary>
+    private static float? FloatFlag(string[] args, string prefix) =>
+        float.TryParse(Flag(args, prefix), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v)
+            ? v : null;
 }
