@@ -169,7 +169,7 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
   hand-written point-to-point track, start gate, checkpoints, finish, timer. **Planned 2026-11-23**:
   [M2-PLAN.md](M2-PLAN.md), its decisions his.
 - **M3, the generator.** Stages 1–5, with the seed on the command line and in a menu, the bench, and
-  terrain you can drive on.
+  terrain you can drive on. **Planned 2026-11-23**: [M3-PLAN.md](M3-PLAN.md), its decisions his.
 - **M4, ghosts, replays and track codes.**
 - **M5, the editor.** Grid cursor, piece palette, rotate, raise and lower, place and erase; generate
   from a code and then edit; test-drive from the cursor; validate; save and load.

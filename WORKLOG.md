@@ -2,6 +2,31 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — M3 planned: the generator
+
+His go-ahead: *"lets continue please Claude i cant wait to see the autodriver navigate the full map you
+made"*. M2 is built but for its play, which is his and can come whenever, so the next thing is M3's plan,
+before any code: [docs/M3-PLAN.md](docs/M3-PLAN.md), in M2's layout.
+
+**Before it, the autodriver in his saved buggy** (`879d0d97`, the one the game loads), so what he
+watches isn't a spin: at 80% it runs 0.5 s wide on the raised 30 m left, falls off its edge and tips
+over; **at 70% it finishes in 56.11 s**, quicker than the stock car's 56.70 at 80%, clean, both jumps on
+their down-ramps, the loop never more than 1.9 m off its line (his car is 30 cm wider). So he watches
+it with `--caution=0.7`, or presses - twice.
+
+**The facts that shape M3**, measured or worked out: the noise reaches ±0.55 (the 2026-10-31 bench
+figure), so dials are set against that; the road climbs at most a level every two tiles (3.6°), so the
+terrain under a route has to be gentle; the car climbs about 17° off-road on sand by the friction circle,
+to be measured; the route has to be walked in pieces, not tiles, because corners are 2 × 2 and 3 × 3;
+**a stunt can only replace something with its own footprint and way out**, or the stunt dial reroutes
+the track, and **nothing in the starter set has the loop's** (a tile across in 2 × 5), so decision 2
+proposes an S-bend piece with that footprint for the loop to swap in for; the terrain is a height field;
+painted ground needs the buggy to look its grip up by position; and a generated track saved as a file
+needs its terrain's seed and dials with it, format 2.
+
+**Six decisions, his**: terrain mostly gentle with hilly patches; the S-bend piece; embankments, not
+pillars; 1 to 2 km; `--seed=` and a small Esc menu; ground that goes on past the grid.
+
 ## 2026-11-23 — His steering goes into the stock car
 
 His words, first *"yeah commit the steering change only like make them start with the car you provided
