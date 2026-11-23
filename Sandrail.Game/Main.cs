@@ -463,7 +463,7 @@ public partial class Main : Node3D
         {
             float km = _track.LengthM / 1000.0f;
             _hud.Flash($"{_track.Track.Name}: {km:F1} km and {_race!.Checkpoints} checkpoints. The clock starts on the throttle; "
-                + "R puts you back at the last checkpoint, Backspace starts again.", 10.0);
+                + "R puts you back at the last checkpoint; hold R, or press Backspace, to start again.", 10.0);
         }
         else if (_stations is not null && oracle is null && _screenshot is null)
         {
@@ -678,6 +678,11 @@ public partial class Main : Node3D
                 _autoRespawn?.Reset();
                 PutDown(_spawnStation);
             }
+        }
+
+        if (_track is not null)
+        {
+            WatchRespawnHeld();
         }
 
         if (Input.IsActionJustPressed(Controls.Restart))

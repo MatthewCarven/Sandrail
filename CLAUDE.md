@@ -119,7 +119,8 @@ M3b: the timer, P and `--oracle=track` all work on it; the autodriver finishes m
 `--terrain=<seed>` (the generated ground alone, M3a), `--ground=test|showroom|bare` (the showroom is every
 M2 piece on its own with a run-up, a station each; [ and ] step through them), `--track=base:shakedown`
 (a track from `content/base/tracks/` by its ID, or `--track=<path>.json`; the car starts at its start
-gate, the clock starts on the throttle, R goes back to the last checkpoint and Backspace starts again;
+gate, the clock starts on the throttle, R goes back to the last checkpoint, and holding R for a second or
+pressing Backspace starts again, clock and all;
 `--checkpoint=N` starts where R would put the car after checkpoint N, for a screenshot), `--station=N`,
 `--surface=road|dirt|grass|sand` (sand by default on the test ground), `--spec=<path>`,
 `--oracle=<name>`, `--panels=tuning,telemetry` (opens either at start),

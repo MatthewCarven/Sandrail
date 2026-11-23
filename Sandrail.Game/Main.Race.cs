@@ -18,7 +18,8 @@ namespace Sandrail.Game;
 /// <b>R and the auto-respawn put the car back at the last gate passed</b>, stopped and facing along the
 /// road, with the clock running (decision 3): the retry is instant and the cost is the time. Before the
 /// run starts, or once it's finished, that's the start, and the clock waits for the throttle again.
-/// <b>Backspace starts the run again</b> from the start gate, clock and all.
+/// <b>Backspace starts the run again</b> from the start gate, clock and all, and so does <b>R held for a
+/// second</b>, for a pad with no button to spare.
 /// </para>
 /// <para>
 /// <b>Bests are kept per track for the session</b>, his and the autodriver's apart, as the lap's are; a run
@@ -102,14 +103,49 @@ public partial class Main
         return "the start";
     }
 
-    /// <summary>R on a track.</summary>
+    /// <summary>R on a track: back to the last checkpoint at once, and if it's held, the run starts again.</summary>
     private void RespawnOnTrack()
     {
+        bool running = _race?.Running == true;
         _car!.Respawn(TrackHome());
         _autoRespawn?.Reset();
         string where = AfterTrackRespawn();
-        _hud?.Flash($"Back to {where}.", 2.0);
+        // With no run on, R has already put the car at the start with the clock waiting: nothing to hold for.
+        _respawnHeldTicks = running ? 0 : -1;
+        _hud?.Flash($"Back to {where}.{(running ? " Hold to start again." : string.Empty)}", 2.0);
     }
+
+    /// <summary>
+    /// Once a tick on a track: R held this long since it was pressed starts the run again, as Backspace does,
+    /// so a pad without a spare button can start again too (his ask, 2026-11-24, to learn seed 5 in whole
+    /// runs). The tap's trip back to the checkpoint has already happened, so a tap costs nothing.
+    /// </summary>
+    private void WatchRespawnHeld()
+    {
+        if (!Input.IsActionPressed(Controls.Respawn))
+        {
+            _respawnHeldTicks = -1;
+            return;
+        }
+
+        // Counting only from a press seen on a track, and only once a hold: a held R doesn't restart twice.
+        if (_respawnHeldTicks < 0)
+        {
+            return;
+        }
+
+        if (++_respawnHeldTicks >= HoldToRestartSeconds * Engine.PhysicsTicksPerSecond)
+        {
+            _respawnHeldTicks = -1;
+            RestartRun();
+        }
+    }
+
+    /// <summary>How long R is held to start the run again.</summary>
+    private const float HoldToRestartSeconds = 1.0f;
+
+    /// <summary>Ticks R has been held since it was pressed on a track; -1 when not counting.</summary>
+    private int _respawnHeldTicks = -1;
 
     /// <summary>Backspace: the run starts again from the start gate.</summary>
     private void RestartRun()
@@ -134,8 +170,16 @@ public partial class Main
         }
 
         double now = _ticks / (double)Engine.PhysicsTicksPerSecond;
-        if (_raceArmIn > 0 && --_raceArmIn == 0)
+        if (_raceArmIn > 0)
         {
+            // Until the run is armed afresh, the old run reads no gates: the trip back to the start from
+            // wherever the car was mustn't count as passing one, or finish the old run on the way.
+            if (--_raceArmIn > 0)
+            {
+                _race.Moved();
+                return;
+            }
+
             _race.Arm();
         }
 

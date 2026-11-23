@@ -2,6 +2,23 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — Hold R to start again
+
+To learn seed 5 in whole runs: *"fully reset the timer when you press the lap reset button"*. His pad has
+no restart button (it's Backspace only since the fix below), and its respawn button puts the car back at
+the last checkpoint with the clock running. Offered three ways, he chose **hold to restart**: a tap of R
+still goes back to the last checkpoint at once, clock running, and **held for a second it starts the run
+again**, as Backspace does: at the start gate, the clock at zero, waiting for the throttle. Holding on
+doesn't restart it twice, and with no run on there's nothing to hold for (R already does that).
+
+While there, the two ticks a restart waits before arming the new run now read no gates, so the jump back
+to the start can't count as passing one or finish the old run on the way.
+
+Tried headless on seed 5 with the autodriver and R pressed in code: a tap at 5 s put it back at the start
+with the clock running on (5.00 s); a hold from 8 s restarted it at 1.00 s held, the clock back to 0.00,
+and nothing more while it stayed held. **Seed 5 has no checkpoints yet** (they're M3c), so on it a tap of R
+is always the start with the clock running.
+
 ## 2026-11-23 — Seed 5, and his wide lock restarting the run
 
 Driving the banks: *"Claude this is a really fun level seed=5 i need to redo my gamepad calibration uh when
