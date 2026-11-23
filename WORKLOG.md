@@ -35,7 +35,10 @@ whole flight costs 36°, and a tap of brake is worth 11°, which is a correction
 
 **The other oracles**: `jump` lands at -7° rather than -8° (39.6 m, not 39.7), because the throttle the
 approach used is still easing off for a few ticks after the lip; `bumps` moves by a hair (all four off
-11%, not 10%; deepest 0.290 m); the rest read exactly as before. Committed spec `964252ce`, 132 tests.
+11%, not 10%; deepest 0.290 m); `lap` reads 24.53 s, not 24.52 (corner 6 at 80 km/h, not 81, widest
+1.42 m, not 1.43), because all four wheels leave the road for a moment somewhere on the lap and the
+autodriver's steering then turns the car a little; the rest read exactly as before. Committed spec
+`964252ce`, 132 tests.
 Not checked: driving it, and whether the pad's right stick, which is his throttle and brake, makes a
 better pitch control than the keys do.
 
