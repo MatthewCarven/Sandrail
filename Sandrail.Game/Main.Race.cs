@@ -17,7 +17,8 @@ namespace Sandrail.Game;
 /// <para>
 /// <b>R and the auto-respawn put the car back at the last gate passed</b>, stopped and facing along the
 /// road, with the clock running (decision 3): the retry is instant and the cost is the time. Before the
-/// run starts, or once it's finished, that's the start, and the clock waits for the throttle again.
+/// first checkpoint, or once it's finished, that's the start, and the run starts again: the clock at zero,
+/// waiting for the throttle.
 /// <b>Backspace starts the run again</b> from the start gate, clock and all, and so does <b>R held for a
 /// second</b>, for a pad with no button to spare.
 /// </para>
@@ -77,42 +78,39 @@ public partial class Main
 
     /// <summary>
     /// The car has been put back on a track. During a run past its first checkpoint, the clock runs on;
-    /// otherwise it's back at the start, and the run starts again.
+    /// otherwise it's back at the start, and the run starts again with the clock at zero.
     /// </summary>
+    /// <remarks>
+    /// Before the first checkpoint the start used to count as one, the clock running on (M2d). On generated
+    /// tracks, which have no checkpoints until M3c, that made every R a restart with the time so far added,
+    /// so at his word the start is a fresh run (2026-11-24).
+    /// </remarks>
     private string AfterTrackRespawn()
     {
-        if (_race is null)
-        {
-            return "the start";
-        }
-
-        if (_race.Running && _race.Passed > 0)
+        if (_race is { Running: true, Passed: > 0 })
         {
             _race.Moved();
             return $"checkpoint {_race.Passed}";
         }
 
-        if (_race.Running)
+        if (_race is not null)
         {
-            // Back to the start mid-run: the clock runs on, as it would from a checkpoint.
-            _race.Moved();
-            return "the start, clock running";
+            ArmRace();
         }
 
-        ArmRace();
-        return "the start";
+        return "the start: the clock starts on the throttle";
     }
 
     /// <summary>R on a track: back to the last checkpoint at once, and if it's held, the run starts again.</summary>
     private void RespawnOnTrack()
     {
-        bool running = _race?.Running == true;
+        // Only a trip to a checkpoint has anything to hold for: a trip to the start has already started again.
+        bool toCheckpoint = _race is { Running: true, Passed: > 0 };
         _car!.Respawn(TrackHome());
         _autoRespawn?.Reset();
         string where = AfterTrackRespawn();
-        // With no run on, R has already put the car at the start with the clock waiting: nothing to hold for.
-        _respawnHeldTicks = running ? 0 : -1;
-        _hud?.Flash($"Back to {where}.{(running ? " Hold to start again." : string.Empty)}", 2.0);
+        _respawnHeldTicks = toCheckpoint ? 0 : -1;
+        _hud?.Flash($"Back to {where}.{(toCheckpoint ? " Hold to start again." : string.Empty)}", 2.0);
     }
 
     /// <summary>

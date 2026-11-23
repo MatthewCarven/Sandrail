@@ -206,7 +206,8 @@ piece. The shakedown is 35 placements and 1.28 km, and loads and builds in about
 
 **Built 2026-11-23**, as below; 16 tests, worklog that date. Additions: **Backspace starts the run
 again** (R keeps the clock running, so a fresh try needed its own key); R before the first checkpoint
-goes back to the start with the clock running; bests last the session, his and the autodriver's apart,
+goes back to the start with the clock running (since 2026-11-24, at his word, a fresh run with the clock
+at zero; and R held a second starts again from anywhere); bests last the session, his and the autodriver's apart,
 and saving them waits for M4's ghosts. The autodriver holds a stunt's hint as the speed up to it, takes
 stunts down the middle, keeps its hands off in the air and **lines the car up for the loop rather than
 pulling it onto its line** in the last 15 m. The shipped car finishes the shakedown in 56.70 s at 80%.

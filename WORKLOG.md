@@ -17,7 +17,15 @@ to the start can't count as passing one or finish the old run on the way.
 Tried headless on seed 5 with the autodriver and R pressed in code: a tap at 5 s put it back at the start
 with the clock running on (5.00 s); a hold from 8 s restarted it at 1.00 s held, the clock back to 0.00,
 and nothing more while it stayed held. **Seed 5 has no checkpoints yet** (they're M3c), so on it a tap of R
-is always the start with the clock running.
+was always the start with the clock running on: a restart with the time so far added.
+
+**So, his answer: a tap that lands on the start zeroes the clock too.** Before the first checkpoint, R
+and the auto-respawn now start the run again, the clock at zero and waiting for the throttle, rather than
+counting the start as a checkpoint (M2d). Past one, a tap still goes back to it with the clock running,
+and only then is there anything to hold for. Tried the same way: on seed 5 a tap at 5 s zeroed the clock;
+on the shakedown (the stock car, since his tune's autodriver leaves the road there at about 20 s), past
+checkpoint 1 at 22.17, a tap at 30 s put it back at checkpoint 1 with the clock running on, and a hold
+from 35 s restarted it with the clock at zero.
 
 ## 2026-11-23 — Seed 5, and his wide lock restarting the run
 
