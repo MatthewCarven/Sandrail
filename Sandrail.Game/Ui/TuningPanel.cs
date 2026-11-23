@@ -370,7 +370,7 @@ public partial class TuningPanel : PanelContainer
     {
         (string Suffix, string Unit)[] units =
         [
-            ("NPerMps2", "N per (m/s)²"), ("NsPerM", "N·s/m"), ("NPerM", "N/m"), ("DegPerS", "°/s"),
+            ("NPerMps2", "N per (m/s)²"), ("NsPerM", "N·s/m"), ("NPerM", "N/m"), ("DegPerS2", "°/s²"), ("DegPerS", "°/s"),
             ("PerS", "/s"), ("Mps", "m/s"), ("Deg", "°"), ("Kg", "kg"), ("W", "W"), ("N", "N"), ("M", "m"),
         ];
 

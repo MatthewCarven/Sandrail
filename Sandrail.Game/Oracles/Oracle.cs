@@ -23,7 +23,7 @@ namespace Sandrail.Game.Oracles;
 /// </para>
 /// <para>
 /// Straight, drop, brake and circle run on the bare plain with road grip, as they did at M1a, so their
-/// figures stay comparable, and so do handbrake and sweeper (M1d); jump, loop, bumps and lap run on the test
+/// figures stay comparable, and so do handbrake and sweeper (M1d); jump, air, loop, bumps and lap run on the test
 /// ground (<c>Oracle.Ground.cs</c>).
 /// </para>
 /// </remarks>
@@ -110,7 +110,7 @@ public partial class Oracle : Node
 
     /// <summary>
     /// One of <see cref="Straight"/>, <see cref="Drop"/>, <see cref="Brake"/>, <see cref="Circle"/>,
-    /// <see cref="Handbrake"/>, <see cref="Sweeper"/>, <see cref="Jump"/>, <see cref="Loop"/>, <see cref="Bumps"/>, <see cref="Lap"/>.
+    /// <see cref="Handbrake"/>, <see cref="Sweeper"/>, <see cref="Jump"/>, <see cref="Air"/>, <see cref="Loop"/>, <see cref="Bumps"/>, <see cref="Lap"/>.
     /// </summary>
     public required string Kind { get; init; }
 
@@ -163,6 +163,9 @@ public partial class Oracle : Node
                 break;
             case Lap:
                 RunLap();
+                break;
+            case Air:
+                RunAir();
                 break;
         }
     }

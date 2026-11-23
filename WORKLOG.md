@@ -2,6 +2,43 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — M1d: air control
+
+His go-ahead: *"Go on to air control"*. M1-PLAN's line: a little pitch from throttle and brake, roll and
+yaw from steering, with no wheels down; landing a jump nose-first should be the player's doing.
+
+**The law** (`WheelModel.AirControlStep`, 7 tests): with no wheel on the ground, **throttle lifts the
+nose and brake drops it** (as a rider does with the rear wheel), and **steering turns the nose and rolls
+the car the way it's steered**. Each is a spin full input adds a second, in F2's new Air group, 0 for
+off: `airPitchDegPerS2` 25, `airYawDegPerS2` 30, `airRollDegPerS2` 20. **No input does nothing**, so a
+jump's own rotation stays the physics'. **It won't spin the car past `airSpinCapDegPerS` (90), but it
+always slows a spin**, at full strength, however fast, so a car flung off a lip can be caught. It
+changes the spin directly rather than through a torque, so mass and shape don't change how it answers,
+and it reads the eased pedals and the steering angle, so a keyboard tap is gentle in the air too. F3
+shows IN THE AIR with the two inputs; the HUD's keys line says what W/S and A/D do up there.
+
+**The `air` oracle**: station 1's jump five times, each with one input from the lip to the first touch
+(at the first touch, not two wheels down: a car landing rolled has rocked back level by its second).
+
+```
+off the lip at 82 km/h, 1.84 s up        first numbers (40/40/25)    shipped (25/30/20)
+coasting                                 pitch -5°                   -5°
+throttle held                            +47°                        +31°
+brake held                               -56°                        -38°
+brake tapped for 0.3 s                   -                           -16°
+full right steer held                    turned 47°, rolled 31°      turned 37°, rolled 27°, pitch -15°
+```
+
+**The first numbers were more than "a little"**, and they made a habit a trap: hold W over a jump, as
+anyone will, and the car landed 47° tail down. At the shipped numbers holding throttle through the
+whole flight costs 36°, and a tap of brake is worth 11°, which is a correction a player can aim.
+
+**The other oracles**: `jump` lands at -7° rather than -8° (39.6 m, not 39.7), because the throttle the
+approach used is still easing off for a few ticks after the lip; `bumps` moves by a hair (all four off
+11%, not 10%; deepest 0.290 m); the rest read exactly as before. Committed spec `964252ce`, 132 tests.
+Not checked: driving it, and whether the pad's right stick, which is his throttle and brake, makes a
+better pitch control than the keys do.
+
 ## 2026-11-23 — M1d: downforce, from a wing you choose
 
 His go-ahead: *"please go on the downforce but if possible make the wing a little customizable like we

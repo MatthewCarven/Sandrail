@@ -29,6 +29,7 @@ public partial class Oracle
     public const string Loop = "loop";
     public const string Bumps = "bumps";
     public const string Lap = "lap";
+    public const string Air = "air";
 
     private const float JumpSpeed = 24.0f;
     private const float LoopSpeed = 27.0f;
@@ -68,7 +69,7 @@ public partial class Oracle
 
     private string? _firstSpin;
 
-    public static bool NeedsTestGround(string kind) => kind is Jump or Loop or Bumps or Lap;
+    public static bool NeedsTestGround(string kind) => kind is Jump or Loop or Bumps or Lap or Air;
 
     /// <summary>The station a ground oracle starts from.</summary>
     public static int StationFor(string kind) => kind switch
@@ -308,6 +309,108 @@ public partial class Oracle
         {
             Finish("left the lip and never landed on two wheels");
         }
+    }
+
+    // air: the jump five times from station 1, each with one input from the lip to the landing
+    private enum AirRun { Coasting, Throttle, Brake, BrakeTap, Steer }
+
+    private AirRun _airTry;
+    private Transform3D _airHome;
+    private float _airRunFrom;
+    private float? _airLipAt;
+    private float? _airUpAt;
+    private Vector3 _airLipHeading;
+    private float _airLipSpeed;
+    private readonly List<string> _airFigures = new();
+
+    /// <summary>
+    /// Air control's oracle (M1d): station 1's jump at its hinted speed, five times: holding nothing; full
+    /// throttle, full brake, and full right steering from the lip until a wheel touches; and a 0.3 s tap
+    /// of brake off the lip, which is what a player would do. It reports the car's attitude at that first
+    /// touch. The first is the jump's own landing; the rest are what a player can do to it. (At the first touch, not two wheels down as the jump oracle waits for: a car landing
+    /// rolled has rocked back level by the time its second wheel is down.)
+    /// </summary>
+    private void RunAir()
+    {
+        TestGroundLayout layout = Layout!;
+        if (_tick == 1)
+        {
+            _airHome = Car.GlobalTransform;
+        }
+
+        if (Time - _airRunFrom < SettleSeconds)
+        {
+            Car.Driver = default;
+            return;
+        }
+
+        if (_airLipAt is null)
+        {
+            Car.Driver = Hold(JumpSpeed);
+            if (Past(layout.Lip.Position, layout.Lip.Forward) >= 0.0f)
+            {
+                _airLipAt = Time;
+                _airLipHeading = FlatForward();
+                _airLipSpeed = Car.LinearVelocity.Length();
+            }
+            else if (Time - _airRunFrom > 40.0f)
+            {
+                Finish($"{_airTry}: never reached the lip");
+            }
+
+            return;
+        }
+
+        Car.Driver = _airTry switch
+        {
+            AirRun.Throttle => new DriverInput { Throttle = 1.0f },
+            AirRun.Brake => new DriverInput { Brake = 1.0f },
+            AirRun.BrakeTap => new DriverInput { Brake = Time - _airLipAt.Value < 0.3f ? 1.0f : 0.0f },
+            AirRun.Steer => new DriverInput { Steer = 1.0f },
+            _ => default,
+        };
+
+        if (_airUpAt is null && Car.GroundedCount == 0)
+        {
+            _airUpAt = Time;
+        }
+
+        if (_airUpAt is float up && Car.GroundedCount >= 1)
+        {
+            CarReadout r = CarReadout.Of(Car);
+            Vector3 now = FlatForward();
+            float turned = -Mathf.RadToDeg(MathF.Atan2(_airLipHeading.Cross(now).Y, _airLipHeading.Dot(now)));
+            _airFigures.Add(_airTry switch
+            {
+                AirRun.Coasting => $"coasting, {Time - up:F2} s up, touched down at pitch {r.PitchDeg:F0}°",
+                AirRun.Throttle => $"throttle held: pitch {r.PitchDeg:F0}°",
+                AirRun.Brake => $"brake held: pitch {r.PitchDeg:F0}°",
+                AirRun.BrakeTap => $"brake tapped for 0.3 s: pitch {r.PitchDeg:F0}°",
+                _ => $"full right steer held: turned {turned:F0}°, rolled {r.RollDeg:F0}° right side down, pitch {r.PitchDeg:F0}°",
+            });
+
+            if (_airTry == AirRun.Steer)
+            {
+                Finish($"off the lip at {_airLipSpeed * 3.6f:F0} km/h: {string.Join("; ", _airFigures)}");
+                return;
+            }
+
+            _airTry++;
+            _airLipAt = null;
+            _airUpAt = null;
+            _airRunFrom = Time;
+            Car.Respawn(_airHome);
+        }
+        else if (Time - _airLipAt.Value > 10.0f)
+        {
+            Finish($"{_airTry}: left the lip and never touched down");
+        }
+    }
+
+    private Vector3 FlatForward()
+    {
+        Vector3 f = -Car.GlobalBasis.Z;
+        return new Vector3(f.X, 0.0f, f.Z).Normalized();
     }
 
     private void RunLoop()

@@ -317,6 +317,49 @@ public static class WheelModel
             true);
     }
 
+    /// <summary>
+    /// Air control (M1d): how much one tick of input changes the car's spin about one axis, radians a
+    /// second, with no wheel on the ground.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Input turns the car; no input leaves it alone.</b> Full input adds
+    /// <paramref name="accelDegPerS2"/> of spin a second, so a jump's own rotation is the physics' and
+    /// any change to it is the player's (M1-PLAN: landing nose-first should be the player's doing).
+    /// </para>
+    /// <para>
+    /// <b>It won't spin the car past <paramref name="capDegPerS"/>, but it will always slow a spin</b>:
+    /// held against the way the car is already turning, it pushes at full strength whatever the rate,
+    /// so a car flung off a lip can always be caught.
+    /// </para>
+    /// </remarks>
+    /// <param name="input">-1..1, the way to turn about the axis.</param>
+    /// <param name="accelDegPerS2">The spin full input adds each second.</param>
+    /// <param name="rateRadPerS">The car's spin about the axis now, radians a second, positive the way positive input turns it.</param>
+    /// <param name="capDegPerS">The spin past which input adds no more.</param>
+    /// <param name="step">The tick, seconds.</param>
+    public static float AirControlStep(float input, float accelDegPerS2, float rateRadPerS, float capDegPerS, float step)
+    {
+        // Written as a test of what is allowed, so a NaN input or rate fails it and does nothing.
+        float amount = Math.Clamp(input, -1.0f, 1.0f);
+        if (!(MathF.Abs(amount) > 0.0f) || !(accelDegPerS2 > 0.0f) || !float.IsFinite(rateRadPerS))
+        {
+            return 0.0f;
+        }
+
+        const float Radians = MathF.PI / 180.0f;
+        float way = MathF.Sign(amount);
+        float push = MathF.Abs(amount) * accelDegPerS2 * Radians * step;
+        float along = rateRadPerS * way;
+        if (along < 0.0f)
+        {
+            return way * push;
+        }
+
+        float room = (capDegPerS * Radians) - along;
+        return room > 0.0f ? way * MathF.Min(push, room) : 0.0f;
+    }
+
     /// <summary>Sea-level air, kg/m³: what a wing's forces are made of.</summary>
     public const float AirDensity = 1.225f;
 

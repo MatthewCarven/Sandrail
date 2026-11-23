@@ -206,7 +206,10 @@ Each is a number in `CarSpec`, where 0 means off, so the panel can switch it on 
   moving at, so in flight it lines the car up with its arc. It turned out not to be needed for this
   loop; it buys corner speed for top speed. The `sweeper` oracle. Worklog, that date.
 - **Air control:** a little pitch from throttle and brake, and roll and yaw from steering, with no wheels
-  down. Landing a jump nose-first should be the player's doing, not the physics'.
+  down. Landing a jump nose-first should be the player's doing, not the physics'. **Built 2026-11-23**:
+  throttle nose up, brake nose down, and steering turns and rolls the car. Each is a spin added per second
+  (`airPitchDegPerS2`, `airYawDegPerS2`, `airRollDegPerS2`, 0 off). It's capped against spinning faster,
+  never against slowing, and does nothing with no input. The `air` oracle. Worklog, that date.
 - **The auto-respawn** (decision 4), and continuous collision detection if fact 3 bites.
 
 ## M1e — the play

@@ -198,6 +198,27 @@ public sealed record CarSpec
     [Tune("Wing", 0.0f, 1.5f)]
     public float WingHeightM { get; init; } = 0.9f;
 
+    // Air control (M1d): with no wheel down, the pedals and the steering turn the car, a little.
+
+    /// <summary>
+    /// The spin a full pedal adds each second in the air: throttle lifts the nose and brake drops it,
+    /// as a rider does with the rear wheel. 0 is off.
+    /// </summary>
+    [Tune("Air", 0.0f, 300.0f)]
+    public float AirPitchDegPerS2 { get; init; } = 25.0f;
+
+    /// <summary>The spin full steering adds each second in the air, turning the nose the way it's steered. 0 is off.</summary>
+    [Tune("Air", 0.0f, 300.0f)]
+    public float AirYawDegPerS2 { get; init; } = 30.0f;
+
+    /// <summary>The roll full steering adds each second in the air, the side it's steered to going down. 0 is off.</summary>
+    [Tune("Air", 0.0f, 300.0f)]
+    public float AirRollDegPerS2 { get; init; } = 20.0f;
+
+    /// <summary>The spin past which air control adds no more, about any axis. It can always take spin away.</summary>
+    [Tune("Air", 10.0f, 720.0f)]
+    public float AirSpinCapDegPerS { get; init; } = 90.0f;
+
     // Steering and pedals.
 
     [Tune("Steering and pedals", 10.0f, 45.0f)]
@@ -423,6 +444,10 @@ public sealed record CarSpec
         Within(nameof(WingAngleDeg), WingAngleDeg, 0.0f, 90.0f);
         Within(nameof(WingBackM), WingBackM, -10.0f, 10.0f);
         Within(nameof(WingHeightM), WingHeightM, -5.0f, 10.0f);
+        Within(nameof(AirPitchDegPerS2), AirPitchDegPerS2, 0.0f, 10_000.0f);
+        Within(nameof(AirYawDegPerS2), AirYawDegPerS2, 0.0f, 10_000.0f);
+        Within(nameof(AirRollDegPerS2), AirRollDegPerS2, 0.0f, 10_000.0f);
+        Positive(nameof(AirSpinCapDegPerS), AirSpinCapDegPerS, 10_000.0f);
 
         Positive(nameof(MaxSteerDeg), MaxSteerDeg, 60.0f);
         Within(nameof(MinSteerDeg), MinSteerDeg, 0.0f, 60.0f);

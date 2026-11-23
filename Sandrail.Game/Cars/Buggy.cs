@@ -110,6 +110,12 @@ public partial class Buggy : RigidBody3D
     /// <summary>How far the rear wheels were locked last tick, 0..1: the handbrake times its lock.</summary>
     public float HandbrakeAmount { get; private set; }
 
+    /// <summary>Last tick's air-control pitch, -1 (nose down) to 1 (nose up); 0 with a wheel down.</summary>
+    public float AirPitch { get; private set; }
+
+    /// <summary>Last tick's air-control steer, -1 (left) to 1 (right); 0 with a wheel down.</summary>
+    public float AirSteer { get; private set; }
+
     /// <summary>Last tick's downforce from the wing, newtons.</summary>
     public float WingDownforce { get; private set; }
 
@@ -374,6 +380,7 @@ public partial class Buggy : RigidBody3D
         }
 
         GroundedCount = grounded;
+        ApplyAirControl(state, xf, up, forward, grounded == 0);
 
         ApplyAntiRoll(state, xf, up, FrontLeft, FrontRight, spec.AntiRollFrontNPerM);
         ApplyAntiRoll(state, xf, up, RearLeft, RearRight, spec.AntiRollRearNPerM);
@@ -397,6 +404,37 @@ public partial class Buggy : RigidBody3D
             Vector3 floorward = (-up + (flow * up.Dot(flow))).Normalized();
             state.ApplyForce((floorward * downforce) - (flow * wingDrag), wingAt);
         }
+    }
+
+    /// <summary>
+    /// Air control (M1d), with no wheel on the ground: the pedals pitch the car (throttle nose up, brake
+    /// nose down) and the steering turns and rolls it, by <see cref="WheelModel.AirControlStep"/>. It
+    /// changes the spin directly rather than through a torque, so the car's mass and shape don't change
+    /// how it answers. Uses the eased pedals and the steering angle, so a keyboard tap is gentle here too.
+    /// </summary>
+    private void ApplyAirControl(PhysicsDirectBodyState3D state, Transform3D xf, Vector3 up, Vector3 forward, bool inTheAir)
+    {
+        float pitch = inTheAir ? _throttle - _brake : 0.0f;
+        float steer = inTheAir && SteerLimitDeg > 0.0f ? Math.Clamp(_steerDeg / SteerLimitDeg, -1.0f, 1.0f) : 0.0f;
+        AirPitch = pitch;
+        AirSteer = steer;
+        if (pitch == 0.0f && steer == 0.0f)
+        {
+            return;
+        }
+
+        CarSpec spec = _spec;
+        float step = state.Step;
+        Vector3 spin = state.AngularVelocity;
+
+        // Nose up is a positive turn about the car's right; a right turn is about its down; rolling the
+        // right side down is about its forward.
+        Vector3 right = xf.Basis.X.Normalized();
+        Vector3 down = -up;
+        spin += right * WheelModel.AirControlStep(pitch, spec.AirPitchDegPerS2, spin.Dot(right), spec.AirSpinCapDegPerS, step);
+        spin += down * WheelModel.AirControlStep(steer, spec.AirYawDegPerS2, spin.Dot(down), spec.AirSpinCapDegPerS, step);
+        spin += forward * WheelModel.AirControlStep(steer, spec.AirRollDegPerS2, spin.Dot(forward), spec.AirSpinCapDegPerS, step);
+        state.AngularVelocity = spin;
     }
 
     private void ApplyAntiRoll(PhysicsDirectBodyState3D state, Transform3D xf, Vector3 up, int left, int right, float stiffness)
