@@ -2,6 +2,13 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — He drives the terrain
+
+After driving `--terrain=` in his saved buggy (`879d0d97`: 844 kg, the twin-plane wing): *"feels good to
+me now Claude"*. So M3a's dials stand as the bench set them (hills 50 m, a 200 m feature, 500 m regions,
+rarity 0.3, painted by height). It's a verdict on the ground as ground; how it reads under a route is
+M3f's question.
+
 ## 2026-11-23 — M3a: terrain
 
 His answer to M3-PLAN's six decisions: *"Yes, as recommended"*.
