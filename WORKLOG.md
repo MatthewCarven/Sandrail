@@ -2,6 +2,34 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — His steering on the corner lap: the autodriver at 90%
+
+He ran the autodriver round station 6 in the game on his 19:39 panel steering (`maxSteerDeg` 15.25,
+`minSteerDeg` 2.05; spec `fce5b6e5`, still uncommitted) and pasted the last four laps. The rest are from
+his game log, in the order he drove them:
+
+```
+80%    24.59, 24.47, 24.48, 24.48, 24.33       (after a first few not counted while it settled in)
+100%   23.71
+90%    one lap not counted (52.52), then 23.52, 23.04  <- its best
+85%    25.53, 23.33, 23.33
+90%    23.13, 23.07, 23.09, 23.05               <- the four he pasted, all within 0.09 s of the best
+       then 37.03
+```
+
+**At 90% it laps within a tenth, at about 23.05, which the shipped car can't.** The shipped car does
+24.53 at 80% (the `lap` oracle), and every car spins on the straight into corner 1 once pushed, the
+shipped car from 90% (the autodriver entry). With his smaller lock it holds 90%, about a second and a half a
+lap quicker than the shipped car at 80%.
+
+**It still goes wrong about one lap in six at 90%**: the 52.52 that didn't count (it left the lap) and
+the 37.03, both most likely a spin or a trip onto the sand.
+
+The corner lap is kinder to his steering than the shakedown is. On the shakedown, the `track` oracle
+spins his steering out of the 30 m right after the chicane at 80% and only finishes clean at 70% (58.46;
+the M2d entry). These are the game's own laps, timed by the lap timer, not an oracle run; nothing was
+changed for them.
+
 ## 2026-11-23 — M2d: racing the shakedown
 
 His go-ahead, after saying he'd drive M2c first: *"Ok keep going please Claude"*. No verdicts on the
