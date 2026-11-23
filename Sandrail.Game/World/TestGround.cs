@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Sandrail.Core.Cars;
@@ -54,18 +55,29 @@ public static class TestGround
 
     private const int BumpSamples = 129;
 
+    private static Shader? _roadShader;
+
     public static void Build(Node3D parent, TestGroundLayout layout, Shader groundShader)
     {
-        var shader = new Shader { Code = RoadShader };
         foreach (RoadRun run in layout.Runs)
         {
-            MeshData mesh = Sweep.Build(run.Pieces, run.Profile);
-            var material = new ShaderMaterial { Shader = shader };
-            material.SetShaderParameter("road_width", run.Profile.SurfaceWidth);
-            parent.AddChild(Body(run.Name, ToMesh(mesh), Collider(mesh), material, Surfaces.Road));
+            parent.AddChild(Road(run.Name, run.Pieces, run.Profile, Surfaces.Road));
         }
 
         parent.AddChild(BumpPatch(layout, groundShader));
+    }
+
+    /// <summary>
+    /// Road swept along centrelines: one static body with the mesh, the collider made of the same
+    /// triangles, and its surface tagged. The test ground's runs and M2's pieces are both built with it.
+    /// </summary>
+    public static StaticBody3D Road(string name, IEnumerable<ICentreline> pieces, Profile profile, Surface surface)
+    {
+        _roadShader ??= new Shader { Code = RoadShader };
+        MeshData mesh = Sweep.Build(pieces, profile);
+        var material = new ShaderMaterial { Shader = _roadShader };
+        material.SetShaderParameter("road_width", profile.SurfaceWidth);
+        return Body(name, ToMesh(mesh), Collider(mesh), material, surface);
     }
 
     /// <summary>A Core vector as Godot's.</summary>

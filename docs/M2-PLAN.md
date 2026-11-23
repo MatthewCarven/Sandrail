@@ -121,7 +121,8 @@ for the game's own, `user://tracks/` for ones made later. Unknown fields refused
 
 ## Decisions
 
-Numbered so they can be answered by number; the recommendation is first.
+Numbered so they can be answered by number; the recommendation is first. **All six taken as
+recommended, 2026-11-23**: *"Yes, as recommended"*.
 
 1. **Corners: 30 m on 2 × 2 and 50 m on 3 × 3, each flat and banked 20°, and no one-tile hairpin in the
    starter set** (fact 1). The alternative is to add the 10 m hairpin for a slow, tight section; at 37
@@ -146,6 +147,9 @@ Numbered so they can be answered by number; the recommendation is first.
 ---
 
 ## M2a — the grid and the catalogue
+
+**Built 2026-11-23**, as below, with the showroom begun (`--ground=showroom`, one piece in it) so the
+plumbing reaches the screen. 16 tests; worklog, that date.
 
 - **Core:** `TrackGrid`, `PieceDef` (footprint, connectors, path, profile, surface, gate, speed hint),
   `Placement` and its world frames (rotation, mirror), and the catalogue loaded from

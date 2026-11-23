@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Godot;
@@ -6,6 +7,7 @@ using Sandrail.Core.Cars;
 using Sandrail.Core.Driving;
 using Sandrail.Core.Generation;
 using Sandrail.Core.Pieces;
+using Sandrail.Core.Tracks;
 using Sandrail.Game.Cars;
 using Sandrail.Game.Oracles;
 using Sandrail.Game.Ui;
@@ -20,7 +22,7 @@ namespace Sandrail.Game;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Game flags, after the bare <c>--</c>: <c>--ground=test|bare</c> (the test ground, or the empty plain the
+/// Game flags, after the bare <c>--</c>: <c>--ground=test|showroom|bare</c> (the test ground, every M2 piece on its own, or the empty plain the
 /// bare-plain oracles drive), <c>--station=1..6</c> to start at one of the test ground's stations,
 /// <c>--surface=road|dirt|grass|sand</c> for the plain (sand with the test ground, road on the bare
 /// plain, so the M1a oracles' targets still hold), <c>--oracle=</c> any of the twelve, and
@@ -87,6 +89,9 @@ public partial class Main : Node3D
     private int _ticks;
     private Shader? _groundShader;
     private TestGroundLayout? _layout;
+
+    /// <summary>Where the number keys put the car: the test ground's stations, or the showroom's.</summary>
+    private IReadOnlyList<Station>? _stations;
     private RacingLine? _lapLine;
     private Autodriver? _autodriver;
     private float _caution = Autodriver.DefaultCaution;
@@ -145,8 +150,16 @@ public partial class Main : Node3D
         // The M1a oracles, handbrake, sweeper and respawn drive the bare plain on road grip, as at M1a, so their figures
         // stay comparable; everything else gets the test ground on sand.
         bool bareOracle = oracle is not null && !Oracle.NeedsTestGround(oracle);
-        bool testGround = (Flag(args, "--ground=") ?? (bareOracle ? "bare" : "test")) == "test";
-        string surfaceName = Flag(args, "--surface=") ?? (testGround ? "sand" : "road");
+        string ground = Flag(args, "--ground=") ?? (bareOracle ? "bare" : "test");
+        bool testGround = ground == "test";
+        bool showroom = ground == "showroom";
+        if (!testGround && !showroom && ground != "bare")
+        {
+            Refuse($"Unknown ground '{ground}'. Known: test, showroom, bare.");
+            return;
+        }
+
+        string surfaceName = Flag(args, "--surface=") ?? (testGround || showroom ? "sand" : "road");
 
         Surface? surface = Surfaces.Find(surfaceName);
         if (surface is null)
@@ -158,11 +171,6 @@ public partial class Main : Node3D
         int station = oracle is not null && Oracle.NeedsTestGround(oracle)
             ? Oracle.StationFor(oracle)
             : int.TryParse(Flag(args, "--station="), out int n) ? n : 1;
-        if (testGround && station is < 1 or > 6)
-        {
-            Refuse($"Unknown station {station}. They're 1 to 6.");
-            return;
-        }
 
         if (Flag(args, "--drive=") is string drive)
         {
@@ -202,12 +210,41 @@ public partial class Main : Node3D
         {
             _layout = new TestGroundLayout();
             TestGround.Build(this, _layout, _groundShader);
+            _stations = _layout.Stations;
 
             // The corner lap's racing line, for the autodriver (P), drawn on the road by planned speed (L).
             _lapLine = TestGround.CornerLapLine(_layout, spec);
             DrawLine(spec);
             _lapTimer = new LapTimer(new RacingLine(_layout.Runs.Single(r => r.Name == "corners").Pieces, closed: true));
-            _spawn = SpawnAt(_layout.Stations[station - 1].Start, spec);
+        }
+        else if (showroom)
+        {
+            // M2's pieces, each on its own with a run-up, and a station at the start of each (M2-PLAN, M2a).
+            PieceCatalogue catalogue;
+            try
+            {
+                catalogue = TrackView.LoadCatalogue();
+            }
+            catch (System.IO.InvalidDataException e)
+            {
+                Refuse(e.Message);
+                return;
+            }
+
+            (IReadOnlyList<PlacedPiece> pieces, IReadOnlyList<Station> stations) = Showroom.Lay(catalogue);
+            TrackView.Build(this, pieces);
+            _stations = stations;
+        }
+
+        if (_stations is not null)
+        {
+            if (station < 1 || station > _stations.Count)
+            {
+                Refuse($"Unknown station {station}. They're 1 to {_stations.Count}.");
+                return;
+            }
+
+            _spawn = SpawnAt(_stations[station - 1].Start, spec);
             PutDown(station);
         }
         else
@@ -270,10 +307,10 @@ public partial class Main : Node3D
             overview.Current = true;
         }
 
-        GD.Print($"Driving {spec.Id} {spec.Fingerprint()} on {surface.Id}{(testGround ? $", from station {station}" : string.Empty)}");
-        if (testGround && oracle is null && _screenshot is null)
+        GD.Print($"Driving {spec.Id} {spec.Fingerprint()} on {surface.Id}{(_stations is not null ? $", {ground}, from station {station}" : string.Empty)}");
+        if (_stations is not null && oracle is null && _screenshot is null)
         {
-            Station first = _layout!.Stations[station - 1];
+            Station first = _stations[station - 1];
             _hud.Flash($"{first.Number}. {first.Name}: {first.Hint}", 8.0);
         }
     }
@@ -289,12 +326,12 @@ public partial class Main : Node3D
 
     private void GoToStation(int number)
     {
-        if (_layout is null || _car is null)
+        if (_stations is null || _car is null || number > _stations.Count)
         {
             return;
         }
 
-        Station station = _layout.Stations[number - 1];
+        Station station = _stations[number - 1];
         _spawn = SpawnAt(station.Start, _car.Spec);
         _car.Respawn(_spawn);
         PutDown(number);
@@ -305,7 +342,7 @@ public partial class Main : Node3D
     private void AutoRespawned(StuckReason reason)
     {
         PutDown(_spawnStation);
-        string where = _layout is not null ? $"station {_spawnStation}" : "the start";
+        string where = _stations is not null ? $"station {_spawnStation}" : "the start";
         _hud?.Flash(reason == StuckReason.Lost
             ? $"Off the edge of the world: back to {where}."
             : $"Tipped over for {StuckWatch.Seconds:F0} s: back to {where}.", 4.0);

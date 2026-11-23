@@ -1,0 +1,10 @@
+{
+  "id": "base:straight",
+  "name": "Straight",
+  "tiles": [[0, 0]],
+  "in": "road",
+  "out": { "tile": [0, 0], "side": "front", "rise": 0, "kind": "road" },
+  "path": [{ "line": 20 }],
+  "widthM": 10,
+  "surface": "base:road"
+}

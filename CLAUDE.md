@@ -89,7 +89,8 @@ the plain's end, which is 1000 m out, Jolt's world boundary), `jump`, `loop` and
 lapping station 6 (figures in the 2026-11-23 autodriver entry). **`lap` is how a tune is compared**: run
 it on two specs and read the flying lap, the corner speeds and where it left the road.
 
-Game flags, after `--` (or passed to `start.cmd`): `--ground=test|bare`, `--station=1..6`,
+Game flags, after `--` (or passed to `start.cmd`): `--ground=test|showroom|bare` (the showroom is every
+M2 piece on its own with a run-up, a station each), `--station=1..6`,
 `--surface=road|dirt|grass|sand` (sand by default on the test ground), `--spec=<path>`,
 `--oracle=<name>`, `--panels=tuning,telemetry` (opens either at start),
 `--record` (starts a run at start), `--autodrive` (the autodriver from the start; with `--station=6`),
@@ -119,7 +120,11 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   mesher and the `TestGroundLayout`. `Driving/` is the autodriver: `RacingLine` (samples, curvature,
   bank, speed plan, and `MinimumCurvature`, the racing line inside the wheels' room) and `Autodriver`
   (a front-axle Stanley tracker with yaw damping and slip guards); `LapTimer`, which times laps
-  line to line for the game and the lap oracle alike; and `StuckWatch`, the auto-respawn's rule. `Pads/` is `PadProfile`. The track
+  line to line for the game and the lap oracle alike; and `StuckWatch`, the auto-respawn's rule.
+  `Tracks/` is M2's grid: `TrackGrid` (32 × 32 tiles of 20 m, levels of 2.5 m, on the plain),
+  `PieceDef` (a piece as data: tiles, way in, way out, road steps; refused if its road misses its way
+  out by a millimetre), `Placement` and `PlacedPiece` (turned and mirrored onto the grid),
+  `PieceCatalogue` (one piece a file from `content/base/pieces/`) and the `Showroom`. `Pads/` is `PadProfile`. The track
   grid, generator and formats land beside them.
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
@@ -134,8 +139,9 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 
 **2026-11-23: M1 is built (M1a-M1d), plus wide lock, his pad's layout, a lap of corners and the
 autodriver. The play that passes it waits, at his word, until after the track editor (M5): "i'll do
-better tuning after the track editor is complete". M2's plan is written (`docs/M2-PLAN.md`), with six
-decisions waiting on him before M2a starts.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
+better tuning after the track editor is complete". M2 is under way (`docs/M2-PLAN.md`, its six
+decisions taken as recommended): M2a, the grid and the piece catalogue, is built, with one piece (the
+straight) in a showroom; M2b, the starter set, is next.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
 jump, a slope and plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels
 straight, a dirt bump patch, and a 526 m lap of six different corners (flat to 35° bank, 18 to 60 m
 radius, one left-hander), which is also the shortlist for M2's corner tiles. **The autodriver** (his

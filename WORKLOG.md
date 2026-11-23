@@ -2,6 +2,43 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-23 — M2a: the grid and the catalogue
+
+His answer to M2-PLAN's six decisions: *"Yes, as recommended"*. And while M2a was being built, on the
+test ground's pieces (M1c's jump, slope, banked hairpin, loop and the corner lap): *"I must compliment
+you on your track pieces Claude they have been very very good like"*. That's the pieces M2 now turns
+into grid pieces, so it's a good sign for their shapes.
+
+**Built, in Core (`Tracks/`):**
+- **`TrackGrid`**: 32 × 32 tiles of 20 m, levels of 2.5 m, sitting exactly on the 640 m plain
+  (tile (16, 16)'s middle is 10 m south-east of the plain's), north -Z as Core's frames already have it.
+  `Compass` and `Tile` with steps and quarter turns.
+- **`PieceDef`**: tiles as [across, along], the way in (always the back of [0, 0]: road, landing or
+  closed), the way out (tile, side, rise in levels, kind), the road as data steps (`line`, `pitch`,
+  `turn` with bank and ease, `loop`), width, surface, a speed hint and a gate. **`Problems` builds the
+  road and refuses a piece whose road doesn't end at its declared way out to a millimetre** (a heading or
+  tilt off by a hundredth of a degree counts as a millimetre; angles by atan2 of cross and dot, since a
+  near-1 dot's acos can't resolve that in floats). Jumps leave by lips and come down at landings.
+- **`Placement`** and **`PlacedPiece`**: a piece turned in quarter turns and mirrored (a left corner is a
+  right one mirrored: its turns and loop offset change sides), its tiles and connectors on the grid, and
+  its road from its way in as centrelines through `Chain`.
+- **`PieceCatalogue`**: one piece a file from `content/base/pieces/`, unknown fields and numbered enums
+  refused, duplicate IDs refused, every file's problems reported together by name.
+- **`Showroom`**: every piece behind four straights of run-up (80 m) with two of run-out along its way
+  out, packed across the grid in bands, a station at each.
+- **One piece, `base:straight`.**
+
+**Game:** `--ground=showroom` builds the showroom (`TrackView`, with raised pieces on earthworks to the
+plain, M2-PLAN fact 8) and its number keys go to its stations. `TestGround.Road` now sweeps both the test
+ground's runs and the pieces.
+
+**Checked:** 157 tests, 16 new. The straight, and a 2 × 2 corner of 30 m and a two-tile slope written in
+the tests, end at their ways out to a millimetre turned all four ways and mirrored; the mirrored corner
+leaves west from the right tile; the slope rises its level and ends level; two straights in a row meet;
+the showroom lays every piece once, on the grid, without overlap. The headless check on the showroom,
+screenshots of it from above and from the car, and jump, lap and respawn on the test ground read exactly
+as before.
+
 ## 2026-11-23 — M2 planned
 
 His go-ahead: *"Write M2's plan"*. [docs/M2-PLAN.md](docs/M2-PLAN.md), before any code, the way every
