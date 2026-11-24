@@ -69,6 +69,8 @@ public sealed record GenSettings
     public RouteSettings Route { get; init; } = new();
 
     public StuntSettings Stunts { get; init; } = new();
+
+    public RockSettings Rocks { get; init; } = new();
 }
 
 /// <summary>
@@ -78,7 +80,11 @@ public sealed record GenSettings
 public sealed record GenStats(int Attempts, int Backtracks, int Placements, float LengthM, int Slopes, int Banked, float WorstFillM, float WorstCutM, StuntStats Stunts, bool Circuit = false);
 
 /// <summary>A generated track, the ground under it, and what making it took.</summary>
-public sealed record Generated(Track Track, Terrain Terrain, GenStats Stats);
+public sealed record Generated(Track Track, Terrain Terrain, GenStats Stats)
+{
+    /// <summary>The rocks off its road (M3d): not in the track file, since the seed and the track make them again.</summary>
+    public IReadOnlyList<Rock> Rocks { get; init; } = [];
+}
 
 /// <summary>
 /// Makes a track from a seed (M3-PLAN): terrain, the route, its levels and banks, stunts and checkpoints
@@ -110,7 +116,7 @@ public static class TrackGenerator
 {
     public static Generated Generate(ulong seed, GenSettings settings, PieceCatalogue catalogue, Terrain? terrain = null)
     {
-        IReadOnlyList<string> problems = [.. settings.Route.Problems(), .. settings.Stunts.Problems()];
+        IReadOnlyList<string> problems = [.. settings.Route.Problems(), .. settings.Stunts.Problems(), .. settings.Rocks.Problems()];
         if (problems.Count > 0)
         {
             throw new ArgumentException("Generator settings refused: " + string.Join("; ", problems), nameof(settings));
@@ -158,7 +164,11 @@ public static class TrackGenerator
         Terrain bedded = laid.Problems.Count == 0 ? Bed.Lay(terrain, laid) : terrain;
 
         return new Generated(track, bedded,
-            new GenStats(attempts, backtracks, placements, length, slopes, banks, fill, cut, stunts with { Checkpoints = checkpoints }, circuit));
+            new GenStats(attempts, backtracks, placements, length, slopes, banks, fill, cut, stunts with { Checkpoints = checkpoints }, circuit))
+        {
+            // Rocks off the road (the rest of M3d), from the ground's own seed, on the bedded ground.
+            Rocks = laid.Problems.Count == 0 ? Generation.Rocks.Scatter(seed, settings.Rocks, laid, bedded) : [],
+        };
     }
 
     /// <summary>

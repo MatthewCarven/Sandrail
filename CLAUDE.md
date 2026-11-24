@@ -154,7 +154,7 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   M3's generator as it's built: `GenStage` (a seed per stage), `Terrain` with its `TerrainSettings`
   (heights a metre apart over 1024 m, relief regions, painted by height; seed 1 pinned to the last bit)
   `Bed` (the road's bed: the ground set under it, 25° dirt banks and cuttings either side, so a car that
-  leaves the road can climb back),
+  leaves the road can climb back), `Rocks` (scattered off the road from the ground's seed, never on the bed),
   and `TrackGenerator` (`GenSettings`; the route walked in pieces with backtracking, levels chosen all at
   once to keep the road out of the ground, banks by a speed estimate; a `Track` with its `Ground`), and
   `StuntPlanner` (`Stunts.cs`, M3c: jumps and loops swapped in where the route already has their footprint,
@@ -207,7 +207,8 @@ the stock car can make them, a median of 1 a track; checkpoints every 400 m; see
 gains two short jumps). **M3g, circuits**, is built too (2026-11-24 at his ask: about half the seeds,
 the even ones among 1-10, are circuits of 3 laps of 0.8–1.5 km, walked out from a start-finish line and
 home again; format 3 carries `laps`; the board counts laps and keeps a best lap; seeds 1, 3, 5 and 7,
-seed 5 his favourite, are byte for byte the sprints they were). Next: the rest of M3d (rocks), M3e (the
+seed 5 his favourite, are byte for byte the sprints they were), and rocks off the road (M3d's last piece,
+`Rocks`: grey boxes 12-70 m out from the road's edge, never on the bed). Next: M3e (the
 Esc menu and saving), M3f (his play). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by

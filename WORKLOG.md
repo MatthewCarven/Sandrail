@@ -2,6 +2,21 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — Rocks: M3d finished
+
+*"Keep going"*. The last of M3d: **rocks off the road** (`Generation/Rocks.cs`), grey boxes with colliders
+in the game (`World/RockView.cs`, driven as road). About 120 per kilometre of road are offered, 12 to 70 m
+out from its edge, thinning with distance; each is 0.8 to 3 m across and sunk 30% into the ground. **None
+within 12 m of any road's edge**, so the racing line and a car that only runs wide never meet one. **None on
+the bed or within 4 m of it** (the road's banks and cuttings, a jump's gap, a loop's pad), so a car that
+leaves the road can always drive back up, his ask of 2026-11-23. They come from the ground's stage seed and
+the laid track, like the bed, so they aren't in the track file and the pinned seeds stay byte for byte.
+Every draw is made whether a rock comes of it or not, so one turned away moves no other.
+
+A median of **116 rocks a track** (58 to 221 over 200 seeds), at no cost the bench can see. The autodriver's
+ten seeds at 70% come out to the hundredth as they did before: its spins on seeds 1 and 9 stay clear of
+them. Tests 286.
+
 ## 2026-11-24 — He drives the circuits
 
 After M3g: *"Please and thanks Claude the up and down to the tracks is excellent you can really get a feel

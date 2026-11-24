@@ -345,6 +345,7 @@ public partial class Main : Node3D
             plain.GetNode<CollisionShape3D>("Shape").Disabled = true;
             AddChild(TerrainView.Build(_terrain, genSeed));
             TrackView.Build(this, _track.Placed, _terrain);
+            AddChild(RockView.Build(made.Rocks));
             GenStats s = made.Stats;
             StuntStats st = s.Stunts;
             GD.Print($"Seed {genSeed}: {(s.Circuit ? $"a circuit, {made.Track.Laps} laps of " : "a sprint, ")}{s.LengthM / 1000.0f:F2} km, {_track.Placed.Count} pieces, {s.Slopes} slopes, {s.Banked} banked corners, "

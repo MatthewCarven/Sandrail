@@ -174,6 +174,7 @@ public static class Program
                 Density = ParseFloat(args, "--stunts=", new StuntSettings().Density),
                 CheckpointEveryM = ParseFloat(args, "--checkpoints=", new StuntSettings().CheckpointEveryM),
             },
+            Rocks = new RockSettings { PerKm = ParseFloat(args, "--rocks=", new RockSettings().PerKm) },
         };
 
         int refused = 0;
@@ -190,6 +191,7 @@ public static class Program
         var times = new List<double>();
         var stunts = new List<StuntStats>();
         var laps = new List<float>();
+        var rocks = new List<float>();
         string? firstRefusal = null;
 
         for (ulong seed = first; seed < first + (ulong)seeds; seed++)
@@ -224,6 +226,7 @@ public static class Program
             fills.Add(g.Stats.WorstFillM);
             cuts.Add(g.Stats.WorstCutM);
             stunts.Add(g.Stats.Stunts);
+            rocks.Add(g.Rocks.Count);
             foreach (var p in g.Track.Pieces)
             {
                 string kind = p.Piece[5..] + (p.Mirrored ? " left" : string.Empty);
@@ -262,6 +265,7 @@ public static class Program
         Console.WriteLine($"  by kind, all told:  short jumps {stunts.Sum(s => s.ShortJumps)}, long jumps {stunts.Sum(s => s.LongJumps)}, loops {stunts.Sum(s => s.Loops)}");
         Console.WriteLine($"  turned down:        too slow to reach their hint {stunts.Sum(s => s.TooSlow)}, braking through them {stunts.Sum(s => s.MustBrake)}");
         Console.WriteLine($"  checkpoints:        {Spread(stunts.Select(s => (float)s.Checkpoints))}");
+        Console.WriteLine($"  rocks:              {Spread(rocks)}");
         Console.WriteLine($"  pieces by kind:     {string.Join(", ", kinds.OrderByDescending(k => k.Value).Select(k => $"{k.Key} {k.Value}"))}");
         return refused == 0 && failed == 0 ? 0 : 2;
     }

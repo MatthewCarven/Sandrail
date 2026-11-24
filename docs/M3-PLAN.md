@@ -312,7 +312,10 @@ sides to be banks a car can drive back up, and chose 25° (climbable from rest) 
 the bed** (`Bed`): the ground set 0.2 m under the road, 25° banks beside raised road and 25° cuttings
 beside sunk road, painted dirt; with cuttings, the level chooser lets the road into hills again (a metre
 of cut 1.5 of fill), and the tallest embankments halved. The `bank` oracle climbs a track's three
-tallest banks from rest. **Still to do here:** rocks off the racing line.
+tallest banks from rest. **Rocks followed on 2026-11-24** (`Rocks`, from the ground's stage seed, not in the
+track file): grey boxes 0.8 to 3 m, about 120 a km of road, 12 to 70 m out from its edge, never on or within
+4 m of the bed, so a car that runs wide never meets one and one that leaves the road can still drive back
+up. Median 116 a track; the autodriver's ten seeds come out to the hundredth as before. M3d is built.
 
 - **Core:** stage 4: the terrain carved and filled to the road under each piece, with a blend either
   side; the ground painted; rocks scattered off the racing line.
