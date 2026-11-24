@@ -213,13 +213,20 @@ public partial class Main
         _hud.Flash($"Ghost: {GhostWords()}.", 3.0);
     }
 
-    /// <summary>The ghost chosen, in words, for the flash and the board.</summary>
-    private string GhostWords() => _ghostChoice switch
+    /// <summary>
+    /// The ghost chosen, in words, for the flash and the board; a best saved since this run began races from
+    /// the next, and says so (his first ghost looked missing when the board named it, 2026-11-24).
+    /// </summary>
+    private string GhostWords()
     {
-        GhostChoice.Yours => _ghostYou is Ghost y ? $"your best, {LapTime(y.Header.Seconds)}" : "your best, none yet on this track",
-        GhostChoice.Autodriver => _ghostAuto is Ghost a ? $"the autodriver's best, {LapTime(a.Header.Seconds)}" : "the autodriver's best, none yet on this track",
-        _ => "none",
-    };
+        string words = _ghostChoice switch
+        {
+            GhostChoice.Yours => _ghostYou is Ghost y ? $"your best, {LapTime(y.Header.Seconds)}" : "your best, none yet on this track",
+            GhostChoice.Autodriver => _ghostAuto is Ghost a ? $"the autodriver's best, {LapTime(a.Header.Seconds)}" : "the autodriver's best, none yet on this track",
+            _ => "none",
+        };
+        return ChosenGhost is Ghost chosen && !ReferenceEquals(chosen, _ghostCar?.Run) ? $"{words}, from the next run (Backspace)" : words;
+    }
 
     /// <summary>The race clock's time for the ghost: 0 until the clock starts, then on, past the finish too, so a slower ghost drives on to its own.</summary>
     private double GhostClock(double extraTicks) =>
