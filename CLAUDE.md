@@ -22,7 +22,7 @@ free of Godot. Its generator's `Hash64` and `GradientNoise` are ported here unch
 | [docs/M3-PLAN.md](docs/M3-PLAN.md) | **M3, the generator**: eight facts (the noise's reach, how fast the road can climb, how steep the car can, why the route is walked in pieces, why a stunt can only replace its own footprint, the height field, painted ground, terrain in the track file), the model (settings, a seed per stage, terrain, route, stunts, the bed), ten decisions (his, all taken: six on 2026-11-23, four on circuits on 2026-11-24), slices M3a–M3f and M3g, circuits (walked out and walked home, 3 laps of 0.8–1.5 km, half the seeds; built after M3c). **Passed 2026-11-24.** |
 | [docs/M4-PLAN.md](docs/M4-PLAN.md) | **M4, ghosts, replays and track codes**: nine facts (record what happened, not inputs; 30 snapshots a second misses a curve by millimetres; a ghost belongs to one track, named by a fingerprint of what's driven; a seed is a track for one generator version), the model (the generator version, codes like `5v1`, the track fingerprint, the snapshot, the ghost file, `CarLooks`, replay cameras from the laid track), seven decisions (his, all taken as recommended 2026-11-24), slices M4a–M4e. |
 | [docs/M5-PLAN.md](docs/M5-PLAN.md) | **M5, the editor**: seven facts (validating is free; a track being built is unsound, and `Track.Load` refuses that; a piece builds in 1.5 ms, the ground in about 400 ms; big pieces want laying onto the road's open end; an edited generated track needs a name of its own; one key in, one key back), the model (`TrackEditor` in Core: place, erase, open ends, next, undo; the editor's camera, cursor, palette and problems), seven decisions (his, all taken as recommended 2026-11-24; M6 folded in), slices M5a–M5e, then his tuning. |
-| [docs/PROFILE-PLAN.md](docs/PROFILE-PLAN.md) | **The car profile, for his tuning (M1e)**: a car driven over a track by the autodriver, a sweep of cautions, one row a run in a CSV per track (time and slowest speed on each piece), his own runs beside them, and a garage of cars. Eight facts (a run is the same every time and at any speed; about ×10 headless; the autodriver plans from grip, top speed and downforce only, so the clean limit tells cars apart; his working `buggy.json` was a car kept nowhere else, now in his garage), seven decisions (his, all taken 2026-11-24, the sweep from 50% at his word), slices P1–P5. No breeding, at his word. |
+| [docs/PROFILE-PLAN.md](docs/PROFILE-PLAN.md) | **The car profile, for his tuning (M1e)**: a car driven over a track by the autodriver, a sweep of cautions, one row a run in a CSV per track (time and slowest speed on each piece), his own runs beside them, a garage of cars, and each car's best clean run as a ghost (P4). Eight facts (a run is the same every time and at any speed; about ×10 headless; the autodriver plans from grip, top speed and downforce only, so the clean limit tells cars apart; his working `buggy.json` was a car kept nowhere else, now in his garage), seven decisions (his, all taken 2026-11-24, the sweep from 50% at his word), slices P1–P5. No breeding, at his word. |
 | [WORKLOG.md](WORKLOG.md) | What happened and why, newest first. Findings worth keeping live here. |
 
 ## Non-negotiables
@@ -151,9 +151,10 @@ again), and holding R for a second or pressing Backspace starts again, clock and
 `--record` (starts a run at start), `--autodrive` (the autodriver from the start; with `--station=6`),
 `--caution=` (the autodriver's aggression, the share of grip it plans for, 0.5 to 1, 0.8 by default:
 for the game and the `lap` oracle alike; in the game - and + change it),
-`--ghost=you|auto|none` (whose ghost shows on a track, M4c; G changes it in the game) and
+`--ghost=you|auto|none|<car>` (whose ghost shows on a track, M4c; since P4 a car profiled on the track, by its name or
+fingerprint, `--ghost=stock`; G changes it in the game) and
 `--ghosts=<folder>` (where ghosts and bests are kept, `user://ghosts` unless told: **point checks at a
-scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--tunes=<folder>` (the garage's cars, `user://tunes` unless told: **a scratch copy for checks** too; the Esc menu's Change car picks one, and the lock beside a car there unlocks Set inactive, which moves its file into `inactive/` inside the folder, still listed and drivable but left out of Profile every car; F2's Save as a new car adds one, and Save on the stock car asks for a name, since the game never writes it), `--profile=this|all` with `--track=` or `--seed=` (P3: the autodriver sweeps the car, or every car in the garage, from 50% aggression by 5% until a run isn't clean, writes a row a run and quits; the Esc menu's Profile this car and Profile every car do the same in play, Esc stops it) and `--profiles=<folder>` (where the sheets go, `user://profiles` unless told: **a scratch folder for checks**, since every finished run of his writes a row there too), `--replay=you|auto` with `--replay-at=<seconds>` and
+scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--tunes=<folder>` (the garage's cars, `user://tunes` unless told: **a scratch copy for checks** too; the Esc menu's Change car picks one, and the lock beside a car there unlocks Set inactive, which moves its file into `inactive/` inside the folder, still listed and drivable but left out of Profile every car; F2's Save as a new car adds one, and Save on the stock car asks for a name, since the game never writes it), `--profile=this|all` with `--track=` or `--seed=` (P3: the autodriver sweeps the car, or every car in the garage, from 50% aggression by 5% until a run isn't clean, writes a row a run and quits; the Esc menu's Profile this car and Profile every car do the same in play, Esc stops it) and `--profiles=<folder>` (where the sheets go, `user://profiles` unless told: **a scratch folder for checks**, since every finished run of his writes a row there too), `--replay=you|auto|<car>` (a profiled car's best by name or fingerprint, P4) with `--replay-at=<seconds>` and
 `--replay-camera=trackside|chase|free` (a saved best's replay from the start, M4d, for a look or a
 screenshot; in the game Enter watches the last run and the Esc menu offers the bests),
 `--time=<scale>` (how fast time goes, `0.25` for a quarter speed; in the game `,` and `.`, or the D-pad's left and
@@ -205,7 +206,7 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   middle at their speed hints), `TrackEditor` (M5a: a track being edited, place, erase, open ends, next, undo, laid after every change), and `TrackFingerprint` (M4a: eight hex digits over what's driven, the
   placements, the pieces' shapes, the bedded heights and the rocks; ghosts are filed under it). `Ghosts/` is M4's stream: `Snapshot` (a pose, quantised as the file keeps
   it), `Ghost` (a header line of JSON with the car's spec, then the snapshots deflated; `At(t)` plays it back,
-  holding at cuts), `GhostRecorder` (every 4th tick from the clock's zero to just past the finish) and
+  holding at cuts; since P4 the header can carry the car's name and a profile run's caution), `GhostRecorder` (every 4th tick from the clock's zero to just past the finish) and
   `ReplayCameras` (M4d: cameras beside a laid track, at the start, each stunt, corners and long straights,
   each raised until it sees its stretch of road over the ground). `Pads/` is `PadProfile`. `Profiles/` is the
   car profile's (PROFILE-PLAN, P1): `RunMeter` (a run tick by tick: time and slowest speed on each route piece, lap
@@ -221,7 +222,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   meter), the `Garage` (the stock car, `user://tunes/` and the inactive cars in `tunes/inactive/`; `Main.Garage.cs` is the Esc menu's Change car) and the
   replay's `FreeCamera`; `Main.Profile.cs` is the profiler (sweeps through the race's own code, rows to the sheet,
   rows held while a spreadsheet has it open); `Main.Ghosts.cs` loads and saves each
-  track's bests as ghosts, and `Main.Replay.cs` plays a run back (trackside, chase or free cameras);
+  track's bests as ghosts, and since P4 each profiled car's best clean run (`profile-<car fingerprint>.ghost`, G steps
+  through them), and `Main.Replay.cs` plays a run back (trackside, chase or free cameras);
   `Editor/` the `EditorView` (M5: camera, cursor, track laid onto the road's end, the palette, the mouse, problems; `Main.Editor.cs` opens it); `Ui/` the `Hud`, `TelemetryOverlay`, `TuningPanel`, the Esc menu (`SeedMenu`) and its drawn padlock (`LockButton`); `World/` builds the test ground's meshes and
   colliders; `Oracles/` the headless drives; `content/base/cars/buggy.json` the shipped spec.
 - `tools/godot-sln/` — the solution Godot's editor builds from (`project/solution_directory`).
@@ -282,7 +284,11 @@ easily" without folding `cars.csv` into every row: `tools/profile-viewer/`, `San
 inactive** (2026-11-25, his ask for a delete behind a lock, made "inactive or do not use for further testing" at his
 word: in Change car a padlock beside each of his cars opens Set inactive or Set active for five seconds; an inactive
 car's file is moved, unchanged, into `tunes/inactive/`, it stays in the list, dimmed, and can be driven, and Profile
-every car leaves it out; nothing is ever deleted).
+every car leaves it out; nothing is ever deleted), and **P4, profile ghosts, is built** (2026-11-25, decision 7: each
+car's fastest clean profile run on a track is kept as its ghost, `ghosts/<track>/profile-<car fingerprint>.ghost`, so G
+can put car A's best beside car B; G steps through his best, the autodriver's, each profiled car's and none; the Esc
+menu's Watch a car's profile best; a fresh profile of the same car at the same caution keeps within 17 mm of its ghost).
+**P5, his play with the profile, is next**, then his tuning.
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by

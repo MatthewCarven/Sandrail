@@ -54,6 +54,18 @@ public sealed record GhostHeader
 
     /// <summary>The car's fingerprint; the whole spec follows the header's other fields.</summary>
     public string Car { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The car's name as the garage had it, for the board (PROFILE-PLAN, P4): <c>stock</c>, <c>matthew-2026-11-24</c>,
+    /// or with <c>(changed)</c> for numbers changed in F2 and not saved. Left out of the file when there's none, so a
+    /// ghost written before P4 reads and writes back the same.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CarName { get; init; }
+
+    /// <summary>The autodriver's caution for a profile run (P4), 0.5 to 1; left out for any other run.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public float? Caution { get; init; }
 }
 
 /// <summary>

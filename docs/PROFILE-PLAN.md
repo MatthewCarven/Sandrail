@@ -230,6 +230,16 @@ and on screen, none kept aside; his real sheets read and left untouched.
 
 ### P4 — profile ghosts
 
+**Built 2026-11-25.** Each car's ghost is `ghosts/<track fingerprint>/profile-<car fingerprint>.ghost`, filed by the
+car's fingerprint, not its name, because the fingerprint is the car (as in `cars.csv`): a tune changed in F2 is another
+car, with a ghost of its own to race the old one's. The header carries the name and the caution for the board (`GHOST
+matthew-2026-11-23's profile best, 1:18.70 at 70%  (G)`). The Esc menu's Watch a car's profile best lists them;
+`--ghost=` and `--replay=` take a car's name. A fix on the way: a profile run ended on the tick it finished, before its
+ghost had its last snapshot (up to three ticks later), so only runs that happened to finish on a snapshot tick ever made
+one. Now a finished run waits for it, and every profile row is the same as before. The check: a fresh profile of the
+same car at the same caution came within 17 mm of its ghost on the shakedown and 14 mm on seed 5, a landing each time,
+as the `ghost` oracle has it. The worklog has the rest.
+
 Each car's fastest clean profile run saved as a ghost under the track and car; G steps through his best, the
 autodriver's, and each profiled car's; the replay list offers them. Check: a profile ghost plays against a
 fresh profile run of the same car at the same caution with the `ghost` oracle's worst misses.

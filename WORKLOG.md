@@ -2,6 +2,102 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — P4: profile ghosts
+
+Decision 7, taken as recommended with the rest on 2026-11-24 (*"everything else as you put it please and thanks
+Claude"*): **each car's best clean profile run is kept as a ghost to race.**
+
+**What's built.**
+- **A profiled car's ghost.** When a profile run is clean and is that car's fastest clean run on the track, its ghost is
+  saved as `ghosts/<track fingerprint>/profile-<car fingerprint>.ghost`, beside `you.ghost` and `auto.ghost`. A faster
+  clean run replaces it; a tie or an unclean run never does. A profile's runs still set no bests: the autodriver's best
+  is still the autodriver driving in play.
+- **Why filed by the car's fingerprint, not its name**: the fingerprint is the car, as `cars.csv` already has it.
+  Numbers changed in F2 make another car, with a ghost of its own, so a new tune can race the old one's best. A car set
+  inactive keeps its ghost, and so would a renamed file. The header now carries the car's name for the board, and the
+  caution it was driven at. If two cars profiled on a track share a name (the same file before and after a Save), the
+  board adds the fingerprint: `matthew-x (d0142095)`.
+- **G** steps through his best, the autodriver's, each profiled car's on this track (fastest first), and none. The
+  board says whose and what: `GHOST matthew-2026-11-23's profile best, 1:18.70 at 70%  (G)`, with "(this car)" when
+  it's the car being driven. The choice is kept across tracks; on a track where that car has no ghost it says "none on
+  this track", and G moves on. G works while a profile runs, too.
+- **The Esc menu**: **Watch a car's profile best** opens a list of them under it, the way Change car does, since there
+  are as many as there are cars. `--ghost=<car>` and `--replay=<car>` take a profiled car's name or fingerprint.
+- **The ghost header's two new fields are left out when empty**, so every ghost saved before P4, and the `ghost`
+  oracle's, is the same file byte for byte. An older build skips them when it reads a newer file. Format 1 still. His
+  bests and the autodriver's carry the car's name too from now on, though nothing shows it yet.
+
+**A timing problem, found and fixed.** A ghost takes its last snapshot at the first snapshot tick at or
+past the line, up to three ticks after the finish. The profiler moved to the next run as soon as the race said
+finished, and the next run's start stops the recorder. So **before P4 only the runs whose finish fell on a snapshot
+tick made a ghost at all**: on the shakedown the stock car's 65% to 80%, and not 50% to 60%; on seed 5 its 65% only.
+Now a finished run ends once its ghost has that snapshot. The meter stops at the line, so the row doesn't change. If an
+auto-respawn comes in those three ticks, the run ends as finished.
+
+**Checks**, on scratch copies (`--ghosts=`, `--profiles=`, `--tunes=` and `--saved=`, his garage copied):
+- **Every profile row is unchanged.** Profile every car taken before the change and after:
+  - the shakedown, 4 cars: 11 rows;
+  - seed 5, 6 cars (his `matthew-2026-11-23` and `-24` set active in the scratch copy, the only two of his clean
+    anywhere): 18 rows.
+
+  The rows are identical apart from the time of day, and so are the `Profile:` lines and `cars.csv`.
+- **The ghosts left behind**:
+  - the shakedown: the stock car's, 56.73 at 80% (his three active cars aren't clean even at 50% there);
+  - seed 5: `matthew-2026-11-23` 1:18.70 at 70%, `matthew-2026-11-24` 1:25.07 at 60%, stock 1:26.66 at 65%.
+
+  Each sweep kept a new ghost at every step up, 1-2 s faster each time. The last word:
+  *"Profile done: 18 runs written to … Seed 5 0070ecd8.csv; a new best ghost for 3 cars, G to race it."*
+- **A profile ghost against a fresh profile of the same car, at the same caution**, racing it (`--profile=this
+  --ghost=<car>`):
+  - the stock car's 80% on the shakedown came within **0.017 m** of its ghost, worst 44.58 s in, the long jump's
+    landing (the `ghost` oracle: straights 17.5 mm, worst of all 44.62 s in, on that landing);
+  - `matthew-2026-11-23`'s 70% on seed 5 came within **0.014 m**, worst 57.29 s in (the oracle, seed 5: straights
+    14.2 mm, worst on a landing).
+
+  The runs tied their ghosts, so both files were left as they were.
+- **G pressed six times on seed 5** (a temporary probe, removed): your best (none yet), the autodriver's (none yet),
+  `matthew-2026-11-23` 1:18.70 at 70%, `matthew-2026-11-24` 1:25.07 at 60%, stock 1:26.66 at 65% (this car), none, your
+  best. The ghost car played each one.
+- **Frames from the game**:
+  - the stock car on seed 5 with `--ghost=matthew-2026-11-23`, the board's GHOST line as above;
+  - `--replay=matthew-2026-11-23` at 20 s, its banner *"REPLAY matthew-2026-11-23's profile best, 1:18.70"*;
+  - the menu with the list open (a temporary probe, removed).
+- Tests (349: one new, the header's two fields), the headless check, and the seventeen oracles, identical to `c972d6c`
+  (the commit before), run side by side, all on the committed car (4f918acd):
+
+  ```
+  oracle straight: 0-100 km/h 5.17 s | at 5 s 27.0 m/s | 10 s 41.5 | 20 s 48.4 | top 49.10 m/s (177 km/h; the model's estimate 49.65) | drift 0.00 m | off the plain's end at 26.0 s
+  oracle drop: from 1.0 m: deepest compression 0.305 of 0.35 m | overshoots 1 | settled 0.70 s after contact | rest height 0.630 m (expected 0.630)
+  oracle brake: from 100 km/h: stopped in 38.4 m and 2.81 s (the grip's limit is 35.8 m) | mean 1.03 g | heading moved 0.7°
+  oracle circle: max sideways 1.06 g at steer 0.37 (5.2°) | held to full lock (body slip -4.2°, speed 18.9 m/s)
+  oracle handbrake: stop from 61 km/h on the handbrake alone: 34.0 m, 4.02 s, mean 0.43 g, heading moved 0.3° | full lock from 61 km/h, throttle off, 2 s: turned 65° on steering alone (out at 46 km/h, body slip peaked 5°); 154° with the handbrake for the first 0.5 s (out at 20 km/h, body slip peaked 166°)
+  oracle sweeper: on a 120 m circle: max sideways 0.97 g at 122 km/h, wing pressing 0 N | spun at 117 km/h (body slip -20°)
+  oracle respawn: on its roof: back at the start on its wheels 3.00 s after it came to rest (3.51 s after the drop); dropped past the plain's end: back 2.71 s after the drop, from -30 m
+  oracle climb: from rest at the foot, the steepest 40 m slope it makes the top of: road 32.3°, dirt 25.3°, grass 22.5°, sand 19.7° (each within 0.7°)
+  oracle jump: off the lip at 82 km/h: 1.84 s in the air, landed 39.6 m past the lip, on the down-ramp (the down-ramp is 20-46 m), pitch -7° | deepest compression 0.350 of 0.35 m (on the bump stop) | upright
+  oracle air: off the lip at 82 km/h: coasting, 1.84 s up, touched down at pitch -5°; throttle held: pitch 31°; brake held: pitch -38°; brake tapped for 0.3 s: pitch -16°; full right steer held: turned 38°, rolled 28° right side down, pitch -16°
+  oracle loop: in at 96 km/h: THROUGH, +0.1 m off the exit road's centre | slowest over the top 79 km/h | deepest compression 0.350 of 0.35 m, 2.89 s on the bump stop | all four wheels off the road 0.00 s
+  oracle bumps: through the patch at 70 km/h on average: a wheel off the ground 46% of the time, all four 11% (longest 0.18 s) | deepest compression 0.290 of 0.35 m, on the bump stop 0% | worst roll 9°, pitch 13°
+  oracle lap: caution 0.80: standing lap 26.91 s, flying lap 24.51 s | slowest in each corner, km/h driven/planned: 1: 58/59, 2: 82/96, 3: 52/52, 4: 64/65, 5: 68/67, 6: 81/84 | wheels off the road 0.00 s, widest off the line 1.39 m (into corner 1), worst slide 15°, spins 0
+  oracle pieces: loop: in at 89 km/h, THROUGH, +0.1 m off its exit road, slowest over the top 75 km/h; loop: in at 96 km/h, THROUGH, +0.2 m off its exit road, slowest over the top 79 km/h; loop: in at 103 km/h, THROUGH, +0.2 m off its exit road, slowest over the top 84 km/h; short jump at 80 km/h: lands 34.8 m past the lip, on its down-ramp, pitch -3°; short jump at 85 km/h: lands 40.1 m past the lip, on its down-ramp, pitch -3°; short jump at 89 km/h: lands 45.0 m past the lip, on its down-ramp, pitch -1°; long jump at 104 km/h: lands 54.8 m past the lip, on its down-ramp, pitch -13°; long jump at 109 km/h: lands 61.9 m past the lip, on its down-ramp, pitch -12°; long jump at 114 km/h: lands 68.7 m past the lip, on its foot, pitch -12°; slope at 99 km/h: wheels down; slope at 108 km/h: wheels down; slope at 118 km/h: 0.15 s in the air; slope at 127 km/h: 0.36 s in the air; slope at 155 km/h: 0.70 s in the air
+  oracle track: base:shakedown at caution 0.80: FINISHED in 56.76 | splits 21.54, 40.64 of 2 | top 114 km/h | launch ramp, short: lip 82 km/h, landed 36.2 m past it, on its down-ramp, pitch -0° | loop: in at 96 km/h, through, at most 0.6 m off its line, slowest over the top 80 km/h | launch ramp, long: lip 108 km/h, landed 60.7 m past it, on its down-ramp, pitch -10° | wheels off the road 0.00 s, worst slide 22°
+  oracle bank: gen:1v1: from rest at the foot of its tallest banks (25°, dirt), full throttle at the road: 4.2 m bank beside corner-30-banked at (19, 30): ON THE ROAD in 4.4 s; 4.0 m bank beside corner-30-banked at (16, 6): ON THE ROAD in 3.8 s; 3.5 m bank beside corner-30-banked at (24, 1): ON THE ROAD in 4.2 s
+  oracle ghost: base:shakedown at caution 0.80: FINISHED in 56.76 | ghost: 1704 snapshots over 56.77 s, 22.8 KB (0.40 KB a second), saved and loaded the same | played back against the car at 120 a second, worst miss: straights 17.5 mm (28.0 s), corners 4.1 mm (18.9 s), the loop 10.6 mm (6.0 s), in the air 1.8 mm (3.9 s); the worst of all 44.62 in, on landing at (24, 20); rotation 0.41°
+  ```
+
+**Seen in passing, not changed:**
+- **The Esc menu is taller than the default window** (1152 × 648; noted 2026-11-25 with SANDRAIL cut off at the top). The
+  new button, which shows only on a track with a profiled car's ghost, adds a row, so half of Quit goes off the bottom
+  too, and with the list open Resume and Quit are off it. Esc still closes the menu. A menu that scrolls when it's
+  taller than the window would fix all of it; not done unasked.
+- **The first run of a sweep can differ by a hundredth with how the scene began.** `matthew-2026-11-23` at 50% on seed 5
+  is 1:25.16 launched with `--spec=` and `--profile=this`, and 1:25.17 when Profile every car started the scene again
+  with it (splits 18.71, 52.59, 1:08.88 against 18.72, 52.61, 1:08.89); from 55% on they agree. It isn't P4's doing: the
+  same with no ghost, and P4 changes nothing before a run's finish. The stock car, first either way, agrees. Not pinned
+  down.
+- **`matthew-2026-11-23` is clean to 70% on seed 5 now (1:18.70), not 80% (1:17.56) as in P3's table**: its file was
+  saved again at 01:26 on the 25th, after those runs.
+
 ## 2026-11-25 — The Esc menu opens with its lists closed
 
 A list left open when the menu closed (Change car's, or Load a track's) was still open the next time. That moved

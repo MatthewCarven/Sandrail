@@ -107,6 +107,28 @@ public partial class Main
         return offer;
     }
 
+    /// <summary>
+    /// Each profiled car's best on this track (P4), the fastest first, for the Esc menu's own list of them: there are as many
+    /// as there are cars, which would run the menu off the window as buttons of their own.
+    /// </summary>
+    private IReadOnlyList<(string Label, Action Watch)> ProfileReplaysOnOffer()
+    {
+        var offer = new List<(string, Action)>();
+        if (_track is null)
+        {
+            return offer;
+        }
+
+        foreach (Ghost car in _profileGhosts)
+        {
+            string at = car.Header.Caution is float c ? $" at {c * 100.0f:F0}%" : string.Empty;
+            string driving = car.Header.Car == CarPrint ? ", this car" : string.Empty;
+            offer.Add(($"{ProfileName(car)}: {LapTime(car.Header.Seconds)}{at}{driving}", () => StartReplay(car, $"{ProfileName(car)}'s profile best")));
+        }
+
+        return offer;
+    }
+
     private T Added<T>(T node)
         where T : Node
     {

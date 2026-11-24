@@ -21,12 +21,12 @@ namespace Sandrail.Game;
 /// <para>
 /// <b>It's the race, driven by the autodriver</b> (fact 6): the run starts again as Backspace starts it, the
 /// autodriver takes the car as P gives it, and the clock, the gates and the meter are the race's own. A profile's
-/// runs set no bests and save no ghosts.
+/// runs set no bests; each car's fastest clean run on the track is kept as its ghost (P4, decision 7).
 /// </para>
 /// <para>
-/// <b>A run ends</b> at the finish; or stuck, a metre no further along in 8 s; or tipped over or off the world, when
-/// the auto-respawn would put it back (a respawn ends a profile run rather than starting it again, so the row says
-/// where it went wrong); or past 10 minutes.
+/// <b>A run ends</b> at the finish, once its ghost has its last snapshot (up to three ticks past the line); or stuck, a
+/// metre no further along in 8 s; or tipped over or off the world, when the auto-respawn would put it back (a respawn
+/// ends a profile run rather than starting it again, so the row says where it went wrong); or past 10 minutes.
 /// </para>
 /// <para>
 /// <b>Profile every car</b> changes car between sweeps, which starts the scene again (P2), so what's left of the
@@ -79,6 +79,9 @@ public partial class Main
 
     /// <summary>Whether a profile is driving the car, so the race files nothing and the keys are the profiler's.</summary>
     private bool Profiling => _sweeping;
+
+    /// <summary>The car's name as its rows and ghosts carry it: its file's, with "(changed)" for numbers changed in F2 and not saved.</summary>
+    private string CarName => Garage.NameOf(_tuning!.SpecPath) + (_tuning.Unsaved ? " (changed)" : string.Empty);
 
     /// <summary>Whether Esc is the profiler's this frame (it stops the profile), not the menu's.</summary>
     private bool ProfileTakesEsc => _sweeping || _profileEndedFrame == Engine.GetProcessFrames();
@@ -143,6 +146,7 @@ public partial class Main
         _profileCarsTotal = ProfileCars.Count;
         _profileCarNumber = 0;
         _profileRows = 0;
+        ProfileGhostsKept.Clear();
         _profileReturnCar = driving;
         _profileOldCaution = _caution;
         _profileOldTicksPerFrame = Engine.MaxPhysicsStepsPerFrame;
@@ -204,6 +208,7 @@ public partial class Main
         RestartRun();
         _routeLine = _track!.RouteLine(_car!.Spec);
         _autodriver = null;
+        _profileRunGhost = null;
         DrawLine(_car.Spec);
         _profileFurthest = 0.0f;
         _profileFurthestTick = _ticks;
@@ -231,6 +236,14 @@ public partial class Main
 
         if (_race.Finished)
         {
+            // The run's ghost takes its last snapshot, the first at or past the line, up to three ticks after the finish
+            // (M4b). The run ends once it's in, since the next run's start stops the recorder, and a ghost cut off there
+            // would never be kept (P4). The meter stopped at the line, so the row is the same either way.
+            if (_ghostRecorder is { Recording: true })
+            {
+                return;
+            }
+
             EndProfileRun(null);
             return;
         }
@@ -260,7 +273,8 @@ public partial class Main
         string said = $"{Garage.NameOf(_tuning!.SpecPath)} at {_profileCaution * 100.0f:F0}%: {time}, {(run.Clean ? "clean" : "not clean")}";
         GD.Print($"Profile: {said} | splits {string.Join(", ", run.Splits.Select(LapTime))} | top {run.TopMps * 3.6f:F0} km/h, "
             + $"off the road {run.OffRoadSeconds:F2} s, worst slide {run.WorstSlideDeg:F0}°, spins {run.Spins}, respawns {run.Respawns}");
-        _hud?.Flash(said, 3.0);
+        string? kept = KeepProfileGhost(run.Clean);
+        _hud?.Flash(kept is null ? said : $"{said}: {kept}", 3.0);
 
         if (run.Clean && _profileCaution < ProfileLast - 0.001f)
         {
@@ -298,9 +312,11 @@ public partial class Main
         }
 
         FlushPendingRows();
+        int ghosts = ProfileGhostsKept.Count;
         string said = $"Profile {how}: {_profileRows} run{(_profileRows == 1 ? string.Empty : "s")} written"
             + (_sheetLastFile is string file ? $" to {file}" : string.Empty)
-            + (PendingRows.Count > 0 ? $"; {PendingRows.Count} waiting for the sheet to be closed" : string.Empty) + ".";
+            + (PendingRows.Count > 0 ? $"; {PendingRows.Count} waiting for the sheet to be closed" : string.Empty)
+            + (ghosts > 0 ? $"; a new best ghost for {ghosts} car{(ghosts == 1 ? string.Empty : "s")}, G to race it" : string.Empty) + ".";
         GD.Print(said);
         if (_profileFromFlag)
         {
@@ -329,7 +345,7 @@ public partial class Main
         }
 
         SheetShape shape = SheetShape.Of(_track);
-        string name = Garage.NameOf(_tuning.SpecPath) + (_tuning.Unsaved ? " (changed)" : string.Empty);
+        string name = CarName;
         _stockSpec ??= Garage.Read(Garage.StockPath).Spec ?? new CarSpec();
         var row = new SheetRow(DateTime.Now, GameVersion, driver, name, CarPrint, caution, CarSheet.Differences(_car.Spec, _stockSpec), run);
         PendingRows.Add((_profilesFolder, CarSheet.FileName(_track.Track.Name, _trackPrint), CarSheet.Line(CarSheet.Header(shape)),
@@ -435,13 +451,18 @@ public partial class Main
         FlushPendingRows();
     }
 
-    /// <summary>While sweeping, the keys are the profiler's: Esc stops it; C and L still work.</summary>
+    /// <summary>While sweeping, the keys are the profiler's: Esc stops it; C, L and G still work.</summary>
     private void WatchProfileKeys()
     {
         if (Input.IsActionJustPressed(Controls.Menu))
         {
             StopProfile();
             return;
+        }
+
+        if (Input.IsActionJustPressed(Controls.ChooseGhost))
+        {
+            ChooseGhost();
         }
 
         if (Input.IsActionJustPressed(Controls.Camera))

@@ -92,6 +92,29 @@ public class GhostTests
         Assert.Contains("\"spec\":{", header, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// P4: a profile's ghost carries its car's name and the caution it was driven at; a ghost without them writes neither,
+    /// so every ghost saved before P4 loads and saves back to the same bytes.
+    /// </summary>
+    [Fact]
+    public void AProfileGhostCarriesItsCarsNameAndCaution()
+    {
+        Ghost plain = Make();
+        byte[] file = plain.Save();
+        string header = Encoding.UTF8.GetString(file, 0, Array.IndexOf(file, (byte)'\n'));
+        Assert.DoesNotContain("carName", header, StringComparison.Ordinal);
+        Assert.DoesNotContain("caution", header, StringComparison.Ordinal);
+        Assert.Null(Ghost.Load(file).Header.CarName);
+        Assert.Null(Ghost.Load(file).Header.Caution);
+
+        var profiled = new Ghost(plain.Header with { CarName = "matthew-2026-11-24 (changed)", Caution = 0.8f }, new CarSpec(), Circle());
+        byte[] saved = profiled.Save();
+        Ghost back = Ghost.Load(saved);
+        Assert.Equal("matthew-2026-11-24 (changed)", back.Header.CarName);
+        Assert.Equal(0.8f, back.Header.Caution);
+        Assert.Equal(saved, back.Save());
+    }
+
     [Fact]
     public void PlaybackLandsOnEverySnapshotExactly()
     {

@@ -38,6 +38,12 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>What can be watched now (M4d): the last run, the saved bests. Asked each time the menu opens.</summary>
     public Func<IReadOnlyList<(string Label, Action Watch)>>? Replays { get; init; }
 
+    /// <summary>
+    /// Each profiled car's best on this track (PROFILE-PLAN, P4), in a list of its own under Watch a car's profile best,
+    /// since there are as many as there are cars. Asked each time the menu opens and the list opens.
+    /// </summary>
+    public Func<IReadOnlyList<(string Label, Action Watch)>>? ProfileReplays { get; init; }
+
     /// <summary>Whether Esc belongs to something else just now: a replay, which it leaves.</summary>
     public Func<bool>? EscTaken { get; init; }
 
@@ -81,8 +87,10 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>Done before Quit quits: rows still waiting for the sheet are kept in a file beside it.</summary>
     public Action? Quitting { get; init; }
 
-    /// <summary>Which list is open under its button: the tracks or the cars; null for none.</summary>
+    /// <summary>Which list is open under its button: the tracks, the cars or the profiled cars' bests; null for none.</summary>
     private string? _listing;
+
+    private const string ProfilesList = "profiles";
 
     /// <summary>The car lock that's open, the button it shows, and when it opened; one at a time.</summary>
     private LockButton? _unlocked;
@@ -90,6 +98,9 @@ public partial class SeedMenu : CanvasLayer
     private ulong _unlockedAtMs;
 
     private VBoxContainer _replays = null!;
+    private Button _profileButton = null!;
+    private ScrollContainer _profileList = null!;
+    private VBoxContainer _profileRows = null!;
     private ScrollContainer _trackList = null!;
     private VBoxContainer _trackRows = null!;
     private PanelContainer _panel = null!;
@@ -265,6 +276,18 @@ public partial class SeedMenu : CanvasLayer
         _replays.AddThemeConstantOverride("separation", 10);
         rows.AddChild(_replays);
 
+        // The profiled cars' bests (P4): a list under its own button, as the cars are under theirs, so a garage of
+        // cars never runs the menu off the window.
+        _profileButton = Button("Watch a car's profile best", ToggleProfileReplays);
+        _profileButton.Visible = false;
+        rows.AddChild(_profileButton);
+        _profileRows = new VBoxContainer();
+        _profileRows.AddThemeConstantOverride("separation", 6);
+        _profileRows.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _profileList = new ScrollContainer { Visible = false, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        _profileList.AddChild(_profileRows);
+        rows.AddChild(_profileList);
+
         rows.AddChild(Button("Resume", Close));
         rows.AddChild(Button("Quit", () =>
         {
@@ -311,6 +334,35 @@ public partial class SeedMenu : CanvasLayer
         IReadOnlyList<(string Label, Action Load)> tracks = Tracks?.Invoke() ?? [];
         FillList("tracks", tracks.Select(t => (Control)RowButton(t.Label, t.Load)).ToList(),
             tracks.Count == 0 ? "No tracks to load." : $"{tracks.Count} tracks: the game's own, then the ones you've saved, newest first.");
+    }
+
+    /// <summary>Opens the list of the profiled cars' bests on this track, read afresh, or closes it (P4).</summary>
+    private void ToggleProfileReplays()
+    {
+        if (CloseList(ProfilesList))
+        {
+            return;
+        }
+
+        IReadOnlyList<(string Label, Action Watch)> bests = ProfileReplays?.Invoke() ?? [];
+        var rows = new List<Control>();
+        foreach ((string label, Action watch) in bests)
+        {
+            Button row = Button(label, () =>
+            {
+                Close();
+                watch();
+            });
+            row.AddThemeFontSizeOverride("font_size", 16);
+            row.ClipText = true;
+            row.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+            row.TooltipText = label;
+            row.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            rows.Add(row);
+        }
+
+        FillList(ProfilesList, rows, bests.Count == 0 ? "No car has been profiled clean on this track yet."
+            : $"{bests.Count} profiled car{(bests.Count == 1 ? string.Empty : "s")}: each one's fastest clean run here, the fastest first. G races them too.");
     }
 
     /// <summary>Opens the garage, read afresh, or closes it (P2).</summary>
@@ -434,23 +486,39 @@ public partial class SeedMenu : CanvasLayer
 
         Relock();
         _listing = null;
-        _trackList.Visible = false;
+        HideLists();
         return true;
     }
 
-    /// <summary>The list under the buttons, filled with one kind of thing: a row a thing.</summary>
+    /// <summary>Both lists out of sight: the one under Load a track and Change car, and the profiled cars' bests (P4).</summary>
+    private void HideLists()
+    {
+        if (_trackList is not null)
+        {
+            _trackList.Visible = false;
+        }
+
+        _profileList.Visible = false;
+    }
+
+    /// <summary>
+    /// A list under its buttons, filled with one kind of thing: a row a thing. The tracks and the cars share the list under
+    /// Load a track and Change car; the profiled cars' bests have their own under their button (P4). One is open at a time.
+    /// </summary>
     private void FillList(string kind, IReadOnlyList<Control> rows, string note)
     {
         Relock();
-        foreach (Node old in _trackRows.GetChildren())
+        (ScrollContainer list, VBoxContainer holder) = kind == ProfilesList ? (_profileList, _profileRows) : (_trackList, _trackRows);
+        HideLists();
+        foreach (Node old in holder.GetChildren())
         {
-            _trackRows.RemoveChild(old);
+            holder.RemoveChild(old);
             old.QueueFree();
         }
 
         foreach (Control row in rows)
         {
-            _trackRows.AddChild(row);
+            holder.AddChild(row);
         }
 
         _note.Text = note;
@@ -458,8 +526,8 @@ public partial class SeedMenu : CanvasLayer
 
         // As tall as the window leaves room for, so the menu never runs off the screen; it scrolls for the rest.
         float room = GetViewport().GetVisibleRect().Size.Y - 520.0f;
-        _trackList.CustomMinimumSize = new Vector2(0.0f, Math.Clamp(room, 90.0f, 300.0f));
-        _trackList.Visible = rows.Count > 0;
+        list.CustomMinimumSize = new Vector2(0.0f, Math.Clamp(room, 90.0f, 300.0f));
+        list.Visible = rows.Count > 0;
     }
 
     /// <summary>A row of a list: picking it unpauses the game first, as Generate does, since the scene starts again; greyed out with nothing to do.</summary>
@@ -498,6 +566,7 @@ public partial class SeedMenu : CanvasLayer
         }
 
         _replays.Visible = _replays.GetChildCount() > 0;
+        _profileButton.Visible = (ProfileReplays?.Invoke().Count ?? 0) > 0;
     }
 
     /// <summary>
@@ -510,7 +579,7 @@ public partial class SeedMenu : CanvasLayer
         if (_listing is not null)
         {
             _listing = null;
-            _trackList.Visible = false;
+            HideLists();
             _note.Text = "Esc closes this.";
         }
 

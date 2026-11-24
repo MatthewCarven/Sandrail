@@ -243,6 +243,7 @@ public partial class Main
             _teleportsSeen = _car.Teleports;
             _raceGoTick = _ticks;
             _ghostGap = 0.0f;
+            _ghostGapAt = 0.0;
         }
 
         RaceEvent e = _race.Update(_car.GlobalPosition.ToCore(), now);
@@ -342,6 +343,8 @@ public partial class Main
             Splits = splits.ToArray(),
             Laps = _track.Track.Laps,
             When = System.DateTimeOffset.Now,
+            CarName = _tuning is not null ? CarName : null,
+            Caution = Profiling ? _profileCaution : null,
         }, _car.Spec);
         GD.Print($"The run as a ghost: {_lastGhost.Snapshots.Count} snapshots over {_lastGhost.Duration:F2} s, {_lastGhost.Save().Length / 1024.0:F1} KB as a file");
         GhostFiled(_lastGhost);
@@ -408,7 +411,8 @@ public partial class Main
     /// <param name="lastLap">On a circuit, the last lap in words, to go before the run's time.</param>
     private void FileRun(double seconds, string lastLap = "")
     {
-        // A profile's runs are the profiler's to file (P3): they set no bests and save no ghosts.
+        // A profile's runs are the profiler's to file (P3): they set no bests, and the profiler keeps each car's
+        // fastest clean one as that car's ghost (P4).
         if (Profiling)
         {
             return;

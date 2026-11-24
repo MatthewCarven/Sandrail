@@ -539,6 +539,7 @@ public partial class Main : Node3D
                 Generate = c => GoToCode(args, c),
                 Save = _generated is not null ? SaveGenerated : null,
                 Replays = ReplaysOnOffer,
+                ProfileReplays = ProfileReplaysOnOffer,
                 EscTaken = () => EscTakenByReplay() || _tuning?.Typing == true || ProfileTakesEsc,
                 Tracks = () => TracksToLoad(args, _menuCatalogue ??= TrackView.LoadCatalogue()),
                 Cars = () => CarsToDrive(args),
@@ -621,23 +622,23 @@ public partial class Main : Node3D
             _hud.Flash($"{first.Number}. {first.Name}: {first.Hint}", 8.0);
         }
 
-        // A replay from the start (M4d), for a look at it or a screenshot of it: --replay=you|auto, from
-        // --replay-at= seconds, on --replay-camera=trackside|chase|free.
+        // A replay from the start (M4d), for a look at it or a screenshot of it: --replay=you|auto, or a car profiled on
+        // the track by its name or fingerprint (P4), from --replay-at= seconds, on --replay-camera=trackside|chase|free.
         if (Flag(args, "--replay=") is string which && oracle is null)
         {
-            Sandrail.Core.Ghosts.Ghost? run = which switch
+            (Sandrail.Core.Ghosts.Ghost? run, string title) = which switch
             {
-                "you" => _ghostYou,
-                "auto" => _ghostAuto,
-                _ => null,
+                "you" => (_ghostYou, "your best"),
+                "auto" => (_ghostAuto, "the autodriver's best"),
+                _ => ProfileGhostNamed(which) is Sandrail.Core.Ghosts.Ghost car ? (car, $"{ProfileName(car)}'s profile best") : (null, string.Empty),
             };
             if (run is null)
             {
-                Refuse($"--replay={which}: it's you or auto, on a track with that ghost saved.");
+                Refuse($"--replay={which}: it's you, auto, or a car profiled on this track, with that ghost saved.");
                 return;
             }
 
-            StartReplay(run, which == "you" ? "your best" : "the autodriver's best", FloatFlag(args, "--replay-at=") ?? 0.0f);
+            StartReplay(run, title, FloatFlag(args, "--replay-at=") ?? 0.0f);
             if (Flag(args, "--replay-camera=") is string replayView && _replay is not null)
             {
                 _replay.View = replayView switch
@@ -782,9 +783,16 @@ public partial class Main : Node3D
     /// <summary>The auto-respawn has put the car back where R would; this is what R does after.</summary>
     private void AutoRespawned(StuckReason reason)
     {
-        // In a profile (P3) a respawn ends the run, so its row says where it went wrong.
+        // In a profile (P3) a respawn ends the run, so its row says where it went wrong. Over the line already, its ghost
+        // waiting for its last snapshot (P4), the run is finished, and its row is as it was at the line.
         if (_sweeping)
         {
+            if (_race is { Finished: true })
+            {
+                EndProfileRun(null);
+                return;
+            }
+
             _runMeter?.Respawned();
             EndProfileRun(reason == StuckReason.Lost ? $"off the world, {_meterAlong:F0} m along" : $"tipped over, {_meterAlong:F0} m along");
             return;
