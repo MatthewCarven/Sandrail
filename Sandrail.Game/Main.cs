@@ -133,6 +133,9 @@ public partial class Main : Node3D
         string[] args = NextArgs ?? OS.GetCmdlineUserArgs();
         _args = args;
 
+        // Where tracks are saved and read back from (M3e, M5d): user://tracks unless told; checks point it elsewhere.
+        TrackView.SavedPath = Flag(args, "--saved=") ?? "user://tracks";
+
         // A sensor run on a gamepad instead of a drive (Diagnostics/PadCheck.cs), or a binding run that
         // saves the pad's own layout (Diagnostics/PadBinder.cs).
         if (args.Contains("--padcheck"))
@@ -404,8 +407,11 @@ public partial class Main : Node3D
             {
                 // A generated track saved with its ground (M3e): the terrain made again from its seed and dials,
                 // and the bed and the rocks laid again from the track, as the generator laid them.
-                _terrain = Bed.Lay(new Terrain(saved.Seed, saved.Terrain), _track);
-                IReadOnlyList<Rock> rocks = Rocks.Scatter(saved.Seed, new RockSettings(), _track, _terrain);
+                // A test drive of an unfinished track (M5c, M5d) has no route yet: its bed is laid under every piece,
+                // and it has no rocks, which keep clear of a route.
+                bool whole = _track.Problems.Count == 0;
+                _terrain = Bed.Lay(new Terrain(saved.Seed, saved.Terrain), whole ? _track.Route : _track.Placed);
+                IReadOnlyList<Rock> rocks = whole ? Rocks.Scatter(saved.Seed, new RockSettings(), _track, _terrain) : [];
                 BuildGround(_terrain, saved.Seed, rocks);
                 _trackPrint = TrackFingerprint.Of(_track.Track, catalogue, _terrain, rocks);
             }
@@ -525,11 +531,10 @@ public partial class Main : Node3D
                 Save = _generated is not null ? SaveGenerated : null,
                 Replays = ReplaysOnOffer,
                 EscTaken = EscTakenByReplay,
-                Tracks = () => TrackView.AllTracks()
-                    .Select(t => ($"{TrackLabel(t.Track)}{(t.Saved ? ", saved" : string.Empty)}", (Action)(() => StartAgainOn(args, $"--track={t.Path}"))))
-                    .ToList(),
+                Tracks = () => TracksToLoad(args, _menuCatalogue ??= TrackView.LoadCatalogue()),
                 NewTrack = () => StartAgainOn(args, "--edit=new"),
-                EditThis = _track is not null && _track.Track.Ground is null && trackName is not null ? () => StartAgainOn(args, $"--edit={trackName}") : null,
+                EditThis = EditThisTrack(args, trackName),
+                NewOnGround = _track?.Track.Ground is TrackGround here ? () => StartAgainOn(args, $"--edit=new:{here.Seed}") : null,
             });
         }
         _telemetry = new TelemetryOverlay { Car = _car, Visible = panels.Contains("telemetry") };
@@ -688,7 +693,7 @@ public partial class Main : Node3D
     /// </summary>
     private string SaveGenerated()
     {
-        const string Folder = TrackView.SavedPath;
+        string Folder = TrackView.SavedPath;
         DirAccess.MakeDirRecursiveAbsolute(Folder);
         string path = $"{Folder}/{_generated!.Track.Id.Replace(':', '-')}.json";
         using (FileAccess? file = FileAccess.Open(path, FileAccess.ModeFlags.Write))

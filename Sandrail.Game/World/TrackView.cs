@@ -65,8 +65,8 @@ public static class TrackView
         throw new System.IO.InvalidDataException($"There's no track called {idOrPath}. Known: {string.Join(", ", known)}.");
     }
 
-    /// <summary>Where generated tracks are saved from the Esc menu (M3e).</summary>
-    public const string SavedPath = "user://tracks";
+    /// <summary>Where tracks are saved from the Esc menu (M3e) and the editor (M5d): <c>user://tracks</c>, or <c>--saved=</c>.</summary>
+    public static string SavedPath { get; set; } = "user://tracks";
 
     /// <summary>
     /// Every track there is to load, for the Esc menu's list: the game's own, then the ones saved from the menu,

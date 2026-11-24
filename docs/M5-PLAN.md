@@ -173,6 +173,19 @@ from a piece, untimed, reading its file without refusing it. R and Backspace go 
 
 ## M5d — ground, saving and circuits
 
+**Built 2026-11-24**, as below; 3 tests, worklog that date. Departures: **the editor's ground is 64 squares of
+128 m**, and a change rebuilds only the squares whose ground moved: half a second after the last change, the bed
+is laid under every placed piece and the moved squares' arrays worked out off the main thread (about 40-80 ms),
+and showing them takes about 2 ms, so the worst frame stays at 10 ms. The first version rebuilt the whole mesh,
+50 ms on the main thread and a 66 ms frame. **`Bed.Lay` takes any pieces**, so an unfinished track has its bed
+in the editor and on a test drive (and no rocks, which keep clear of a route). **The free cursor rides the
+ground**: its level is the ground's under it, Page Up and Down lifting it. **Saving is Ctrl+S**, a name box (the
+track's own name, or "My track", "My track 2"), Enter to save as `user:<name>`, Esc not to. A generated track
+becomes "Seed 5, edited" at its first change. **Laying a start-finish line makes a circuit of 3 laps**, L
+changes them, and taking the line away makes a sprint again. `--saved=<folder>` moves where tracks are saved,
+which the checks use. The menu has **New track on this ground** on a generated track, and **Edit this track**
+hands a generated one to the editor directly.
+
 - **Game:** editing a generated track on its terrain, the bed laid again in the background (decision 5);
   a new track on a seed's ground; Save with a name (decision 6); unfinished tracks saved and reopened; Edit
   this track; the start-finish piece and the laps (decision 7).

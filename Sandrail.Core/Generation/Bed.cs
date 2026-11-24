@@ -48,7 +48,13 @@ public static class Bed
     private const float NaturalTan = 0.2679f;
 
     /// <summary>The terrain with the route's bed laid in it.</summary>
-    public static Terrain Lay(Terrain terrain, LaidTrack track)
+    public static Terrain Lay(Terrain terrain, LaidTrack track) => Lay(terrain, track.Route);
+
+    /// <summary>
+    /// The terrain with a bed laid under some pieces: the route's, in the game; in the editor (M5d), every
+    /// piece placed, since a track being built has no route yet and its ground should still meet its road.
+    /// </summary>
+    public static Terrain Lay(Terrain terrain, IEnumerable<PlacedPiece> pieces)
     {
         const int N = Terrain.Samples;
         float half = Terrain.SizeM / 2.0f;
@@ -61,7 +67,7 @@ public static class Bed
         Array.Fill(fill, float.NegativeInfinity);
         Array.Fill(cut, float.PositiveInfinity);
 
-        foreach (PlacedPiece piece in track.Route)
+        foreach (PlacedPiece piece in pieces)
         {
             float halfWidth = piece.Def.WidthM / 2.0f;
             foreach (ICentreline c in piece.Road().Pieces)

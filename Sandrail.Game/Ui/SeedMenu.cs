@@ -52,6 +52,9 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>Opens the editor on the track being driven (M5a); null hides the button.</summary>
     public Action? EditThis { get; init; }
 
+    /// <summary>Opens the editor on an empty grid on this seed's ground (M5d); null hides the button.</summary>
+    public Action? NewOnGround { get; init; }
+
     private VBoxContainer _replays = null!;
     private ScrollContainer _trackList = null!;
     private VBoxContainer _trackRows = null!;
@@ -168,6 +171,15 @@ public partial class SeedMenu : CanvasLayer
             {
                 GetTree().Paused = false;
                 fresh();
+            }));
+        }
+
+        if (NewOnGround is Action onGround)
+        {
+            rows.AddChild(Button("New track on this ground", () =>
+            {
+                GetTree().Paused = false;
+                onGround();
             }));
         }
 

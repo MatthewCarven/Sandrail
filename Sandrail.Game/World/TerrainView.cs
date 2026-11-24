@@ -83,9 +83,47 @@ public static class TerrainView
         return body;
     }
 
-    private static ArrayMesh Mesh(Terrain terrain)
+    /// <summary>A terrain mesh's arrays, worked out apart from Godot so they can be worked out off the main thread (M5d).</summary>
+    public sealed record MeshArrays(Vector3[] Vertices, Vector3[] Normals, Color[] Colours, int[] Indices);
+
+    /// <summary>
+    /// The terrain to look at and not drive on: its mesh only, no collider. The editor's ground (M5d), built
+    /// again from arrays worked out in the background whenever the bed has caught up with the road.
+    /// </summary>
+    private static ShaderMaterial? _looksMaterial;
+
+    public static MeshInstance3D Looks(MeshArrays arrays) => new()
     {
-        int side = ((Terrain.Samples - 1) / MeshStep) + 1;
+        Name = "Terrain looks",
+        Mesh = MeshOf(arrays),
+        MaterialOverride = _looksMaterial ??= new ShaderMaterial { Shader = new Shader { Code = Shader } },
+    };
+
+    private static ArrayMesh Mesh(Terrain terrain) => MeshOf(Arrays(terrain));
+
+    private static ArrayMesh MeshOf(MeshArrays a)
+    {
+        var arrays = new Godot.Collections.Array();
+        arrays.Resize((int)Godot.Mesh.ArrayType.Max);
+        arrays[(int)Godot.Mesh.ArrayType.Vertex] = a.Vertices;
+        arrays[(int)Godot.Mesh.ArrayType.Normal] = a.Normals;
+        arrays[(int)Godot.Mesh.ArrayType.Color] = a.Colours;
+        arrays[(int)Godot.Mesh.ArrayType.Index] = a.Indices;
+        var mesh = new ArrayMesh();
+        mesh.AddSurfaceFromArrays(Godot.Mesh.PrimitiveType.Triangles, arrays);
+        return mesh;
+    }
+
+    /// <summary>The mesh's arrays: plain C#, safe off the main thread.</summary>
+    public static MeshArrays Arrays(Terrain terrain) => Arrays(terrain, 0, 0, Terrain.Samples);
+
+    /// <summary>
+    /// One square of the mesh's arrays: the samples from (i0, j0), <paramref name="samples"/> a side, a vertex every
+    /// <c>MeshStep</c>. The editor's ground is in squares like this (M5d), so a change rebuilds only its own.
+    /// </summary>
+    public static MeshArrays Arrays(Terrain terrain, int i0, int j0, int samples)
+    {
+        int side = ((samples - 1) / MeshStep) + 1;
         var vertices = new Vector3[side * side];
         var normals = new Vector3[side * side];
         var colours = new Color[side * side];
@@ -95,8 +133,8 @@ public static class TerrainView
         {
             for (int a = 0; a < side; a++)
             {
-                int i = a * MeshStep;
-                int j = b * MeshStep;
+                int i = i0 + (a * MeshStep);
+                int j = j0 + (b * MeshStep);
                 float x = (i * Terrain.SpacingM) - half;
                 float z = (j * Terrain.SpacingM) - half;
                 int k = (b * side) + a;
@@ -131,14 +169,6 @@ public static class TerrainView
             }
         }
 
-        var arrays = new Godot.Collections.Array();
-        arrays.Resize((int)Godot.Mesh.ArrayType.Max);
-        arrays[(int)Godot.Mesh.ArrayType.Vertex] = vertices;
-        arrays[(int)Godot.Mesh.ArrayType.Normal] = normals;
-        arrays[(int)Godot.Mesh.ArrayType.Color] = colours;
-        arrays[(int)Godot.Mesh.ArrayType.Index] = indices;
-        var mesh = new ArrayMesh();
-        mesh.AddSurfaceFromArrays(Godot.Mesh.PrimitiveType.Triangles, arrays);
-        return mesh;
+        return new MeshArrays(vertices, normals, colours, indices);
     }
 }

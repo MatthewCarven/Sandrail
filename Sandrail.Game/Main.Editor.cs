@@ -59,6 +59,40 @@ public partial class Main
         + (_track.Problems.Count > 0 ? $"UNTIMED      the track has {_track.Problems.Count} thing{(_track.Problems.Count == 1 ? string.Empty : "s")} to do" : "UNTIMED      the race is from the start gate")
         + "\nKEYS         R: back to here  ·  Tab: back to the editor";
 
+    /// <summary>The piece catalogue for the game's Load list, read the first time it's opened.</summary>
+    private PieceCatalogue? _menuCatalogue;
+
+    /// <summary>
+    /// The game menu's Edit this track (M5a, M5d): a generated track is handed to the editor as it is, through
+    /// its session (it has no file); a test drive goes back to its editor; any other track opens by its ID or path.
+    /// </summary>
+    private Action? EditThisTrack(string[] args, string? trackName)
+    {
+        if (_generated is Sandrail.Core.Generation.Generated made)
+        {
+            return () =>
+            {
+                EditorSession.Editor = new TrackEditor(made.Track, _menuCatalogue ??= TrackView.LoadCatalogue());
+                EditorSession.State = null;
+                StartAgainOn(args, $"--edit={EditorSession.Id}");
+            };
+        }
+
+        return _track is not null && trackName is not null ? () => StartAgainOn(args, $"--edit={trackName}") : null;
+    }
+
+    /// <summary>
+    /// The Esc menu's Load list (M4, M5d): every track there is, a finished one to drive, an unfinished one (a
+    /// saved track still being built) to open in the editor, since the game can't race it.
+    /// </summary>
+    private System.Collections.Generic.List<(string Label, Action Load)> TracksToLoad(string[] args, PieceCatalogue catalogue) =>
+        TrackView.AllTracks().Select(t =>
+        {
+            bool unfinished = t.Track.Lay(catalogue).Problems.Count > 0;
+            string label = $"{TrackLabel(t.Track)}{(t.Saved ? ", saved" : string.Empty)}{(unfinished ? ", unfinished: opens in the editor" : string.Empty)}";
+            return (label, (Action)(() => StartAgainOn(args, unfinished ? $"--edit={t.Path}" : $"--track={t.Path}")));
+        }).ToList();
+
     /// <summary>The grid tile under a point.</summary>
     private static Tile TileUnder(Vector3 at) =>
         new((int)MathF.Floor((at.X - TrackGrid.Origin.X) / TrackGrid.TileM), (int)MathF.Floor((at.Z - TrackGrid.Origin.Z) / TrackGrid.TileM));
@@ -82,13 +116,11 @@ public partial class Main
             }
             else
             {
-                Track fresh = edit == "new" ? TrackEditor.Empty() : TrackView.ReadTrack(edit);
-                if (fresh.Ground is not null)
-                {
-                    Refuse($"--edit={edit}: {fresh.Name} is on generated ground, which the editor takes on in M5d; for now it edits tracks on the plain.");
-                    return;
-                }
-
+                // new, new:<seed> for an empty grid on a seed's ground (M5d), or a track by its ID or path.
+                Track fresh = edit == "new" ? TrackEditor.Empty()
+                    : edit.StartsWith("new:", StringComparison.Ordinal) && ulong.TryParse(edit[4..], out ulong seed)
+                        ? TrackEditor.Empty() with { Ground = new TrackGround { Seed = seed } }
+                    : TrackView.ReadTrack(edit);
                 editor = new TrackEditor(fresh, catalogue);
                 EditorSession.Editor = editor;
                 EditorSession.State = null;
@@ -100,7 +132,15 @@ public partial class Main
             return;
         }
 
+        // On a seed's ground the editor shows the terrain, so the plain goes, as it does for a generated track.
         Track track = editor.Track;
+        if (track.Ground is not null)
+        {
+            var plain = GetNode<StaticBody3D>("Ground");
+            plain.GetNode<MeshInstance3D>("Mesh").Visible = false;
+            plain.GetNode<CollisionShape3D>("Shape").Disabled = true;
+        }
+
         _editorView = new EditorView
         {
             Editor = editor,
@@ -112,10 +152,10 @@ public partial class Main
         {
             Where = $"Editing {track.Name}",
             Generate = c => GoToCode(args, c),
-            Tracks = () => TrackView.AllTracks()
-                .Select(t => ($"{TrackLabel(t.Track)}{(t.Saved ? ", saved" : string.Empty)}", (Action)(() => StartAgainOn(args, $"--track={t.Path}"))))
-                .ToList(),
+            Tracks = () => TracksToLoad(args, catalogue),
             NewTrack = () => StartAgainOn(args, "--edit=new"),
+            NewOnGround = track.Ground is TrackGround g ? () => StartAgainOn(args, $"--edit=new:{g.Seed}") : null,
+            EscTaken = () => _editorView?.Typing == true,
         });
         GD.Print($"Editing {track.Id} ({track.Name}): {track.Pieces.Length} pieces");
     }

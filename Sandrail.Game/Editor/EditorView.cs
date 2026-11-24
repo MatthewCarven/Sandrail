@@ -74,6 +74,36 @@ public partial class EditorView : Node3D
     private Vector3 _cameraAt;
     private bool _cameraPlaced;
 
+    // The ground, on a seed's (M5d): the terrain before any bed, its looks with the bed, and the next bed being
+    // worked out off the main thread, due a moment after the last change.
+    private Sandrail.Core.Generation.Terrain? _bare;
+    private Sandrail.Core.Generation.Terrain? _bedded;
+    private readonly MeshInstance3D?[,] _squares = new MeshInstance3D?[Squares, Squares];
+    private System.Threading.Tasks.Task<(Sandrail.Core.Generation.Terrain Bed, List<(int I, int J, TerrainView.MeshArrays Arrays)> Changed)>? _groundTask;
+
+    /// <summary>The ground's looks are this many squares a side, each rebuilt only when its ground moves.</summary>
+    private const int Squares = 8;
+
+    /// <summary>Samples a square spans: 128 m.</summary>
+    private const int SquareSamples = (Sandrail.Core.Generation.Terrain.Samples - 1) / Squares;
+    private System.Diagnostics.Stopwatch? _groundClock;
+    private bool _groundDirty;
+    private double _groundDueIn;
+
+    /// <summary>How long after the last change the ground starts to catch up, seconds.</summary>
+    private const double GroundAfter = 0.5;
+
+    /// <summary>On a seed's ground, how many levels above the ground under it the free cursor rides.</summary>
+    private int _lift;
+
+    // Saving (decision 6): the name being typed, and the frame typing ended, so the Esc that ends it isn't the menu's too.
+    private PanelContainer _saveBox = null!;
+    private LineEdit _saveName = null!;
+    private ulong _typingEndedFrame = ulong.MaxValue;
+
+    /// <summary>Whether a name is being typed, so Esc is the editor's (it cancels) and not the menu's.</summary>
+    public bool Typing => _saveBox.Visible || _typingEndedFrame == Engine.GetProcessFrames();
+
     /// <summary>Whether the cursor waits at the road's end (chain mode) rather than going where it's moved.</summary>
     private bool _atEnd;
 
@@ -130,6 +160,21 @@ public partial class EditorView : Node3D
 
         BuildPanels();
 
+        // On a seed's ground (M5d): the terrain as it is, and its bed under the pieces, built now, then caught up in
+        // the background a moment after each change. Only its looks: the editor drives nothing, so no collider.
+        if (Editor.Track.Ground is TrackGround ground)
+        {
+            _bare = new Sandrail.Core.Generation.Terrain(ground.Seed, ground.Terrain);
+            _bedded = Sandrail.Core.Generation.Bed.Lay(_bare, Editor.Laid.Placed);
+            for (int i = 0; i < Squares; i++)
+            {
+                for (int j = 0; j < Squares; j++)
+                {
+                    ShowSquare(i, j, TerrainView.Arrays(_bedded, i * SquareSamples, j * SquareSamples, SquareSamples + 1));
+                }
+            }
+        }
+
         // Start where the work is: the road's newest open end; on an empty grid, with a start gate in hand.
         if (Editor.OpenEnds().Count > 0)
         {
@@ -143,6 +188,7 @@ public partial class EditorView : Node3D
         else
         {
             Pick(_palette.FindIndex(d => d.Id == "base:start"));
+            _level = GroundLevel(_cursor);
         }
 
         // Back from a test drive: the view as it was left.
@@ -170,10 +216,11 @@ public partial class EditorView : Node3D
         switch (e)
         {
             case InputEventMouseMotion motion when motion.Relative.Length() > 2.0f:
-                if (Pointed(motion.Position) is Tile pointed)
+                if (Pointed(motion.Position) is Tile pointed && (pointed != _cursor || _atEnd))
                 {
-                    _atEnd = false;
+                    GoFree();
                     _cursor = pointed;
+                    FollowGround();
                 }
 
                 return;
@@ -197,8 +244,9 @@ public partial class EditorView : Node3D
         switch (click.ButtonIndex)
         {
             case MouseButton.Left when Pointed(click.Position) is Tile at:
-                _atEnd = false;
+                GoFree();
                 _cursor = at;
+                FollowGround();
                 PlaceHand();
                 break;
             case MouseButton.Right when Pointed(click.Position) is Tile at:
@@ -281,9 +329,17 @@ public partial class EditorView : Node3D
                 break;
             case Key.Pageup:
                 _level = Math.Min(Track.MaxLevel, _level + 1);
+                _lift++;
                 break;
             case Key.Pagedown:
                 _level = Math.Max(Editor.Track.Ground is null ? 0 : -Track.MaxLevel, _level - 1);
+                _lift--;
+                break;
+            case Key.S when key.CtrlPressed:
+                StartSaving();
+                break;
+            case Key.L:
+                NextLaps();
                 break;
             case Key.Enter or Key.KpEnter or Key.Space:
                 PlaceHand();
@@ -338,6 +394,12 @@ public partial class EditorView : Node3D
         }
 
         ShowHand(hand, why is null);
+        CatchUpGround(delta);
+
+        if (_saveBox.Visible && Input.IsActionJustPressed(Controls.Menu))
+        {
+            EndTyping("Not saved.");
+        }
         Vector3 middle = TrackGrid.Middle(_cursor, _level).ToGodot();
         _cursorMark.Position = middle + new Vector3(0.0f, 0.05f, 0.0f);
 
@@ -355,6 +417,8 @@ public partial class EditorView : Node3D
             ? $"the road's end, {_cursor}, going {facing}, level {_level}{(Editor.OpenEnds().Count > 1 ? $" ({_endIndex + 1} of {Editor.OpenEnds().Count} ends)" : string.Empty)}"
             : $"{_cursor}, facing {facing}, level {_level}{(Editor.PieceAt(_cursor) is PlacedPiece under ? $", on the {Short(under.Def)}" : string.Empty)}";
         _status.Text = $"EDITOR   {Editor.Track.Name}\n"
+            + (Editor.Track.Circuit ? $"       A circuit of {Editor.Track.Laps} laps (L for more)" : "       A sprint")
+            + (Editor.Track.Ground is TrackGround g ? $", on seed {g.Seed}'s ground{(_groundTask is not null || _groundDirty ? ", catching up" : string.Empty)}\n" : "\n")
             + $"PIECE  {def.Name}{(_mirrored && Mirrors(def) ? (IsCorner(def) ? ", turning left" : ", mirrored") : string.Empty)}\n"
             + $"AT     {where}"
             + (why is null ? string.Empty : $"\n       {char.ToUpperInvariant(why[0])}{why[1..]}");
@@ -449,6 +513,7 @@ public partial class EditorView : Node3D
         }
 
         Rebuild();
+        Changed();
         Say($"Laid the {Short(laid?.Def ?? _palette[_piece])}.", 2.0);
     }
 
@@ -466,10 +531,221 @@ public partial class EditorView : Node3D
         }
     }
 
+    /// <summary>
+    /// Once a frame on a seed's ground: a bed finished in the background shown, and a new one begun once the
+    /// track has stood still for a moment. The bed and the mesh's arrays are worked out off the main thread;
+    /// only handing them to Godot happens on it (fact 4).
+    /// </summary>
+    private void CatchUpGround(double delta)
+    {
+        if (_bare is null)
+        {
+            return;
+        }
+
+        if (_groundTask is { IsCompleted: true } done)
+        {
+            _groundTask = null;
+            if (done.IsFaulted)
+            {
+                GD.PrintErr($"The ground couldn't catch up: {done.Exception?.GetBaseException().Message}");
+            }
+            else
+            {
+                double behind = _groundClock!.Elapsed.TotalMilliseconds;
+                var swap = System.Diagnostics.Stopwatch.StartNew();
+                foreach ((int i, int j, TerrainView.MeshArrays arrays) in done.Result.Changed)
+                {
+                    ShowSquare(i, j, arrays);
+                }
+
+                _bedded = done.Result.Bed;
+                GD.Print($"The editor's ground caught up: {behind:F0} ms in the background, {done.Result.Changed.Count} of {Squares * Squares} squares shown again in {swap.Elapsed.TotalMilliseconds:F1} ms");
+            }
+        }
+
+        if (_groundDirty && _groundTask is null && (_groundDueIn -= delta) <= 0.0)
+        {
+            _groundDirty = false;
+            IReadOnlyList<PlacedPiece> pieces = Editor.Laid.Placed;
+            Sandrail.Core.Generation.Terrain bare = _bare;
+            Sandrail.Core.Generation.Terrain before = _bedded!;
+            _groundClock = System.Diagnostics.Stopwatch.StartNew();
+            _groundTask = System.Threading.Tasks.Task.Run(() =>
+            {
+                Sandrail.Core.Generation.Terrain bed = Sandrail.Core.Generation.Bed.Lay(bare, pieces);
+                var changed = new List<(int, int, TerrainView.MeshArrays)>();
+                for (int i = 0; i < Squares; i++)
+                {
+                    for (int j = 0; j < Squares; j++)
+                    {
+                        if (SquareMoved(before, bed, i, j))
+                        {
+                            changed.Add((i, j, TerrainView.Arrays(bed, i * SquareSamples, j * SquareSamples, SquareSamples + 1)));
+                        }
+                    }
+                }
+
+                return (bed, changed);
+            });
+        }
+    }
+
+    /// <summary>Whether any of a square's ground (and the sample round it, which its edge's slope reads) moved.</summary>
+    private static bool SquareMoved(Sandrail.Core.Generation.Terrain before, Sandrail.Core.Generation.Terrain after, int square, int squareJ)
+    {
+        for (int j = (squareJ * SquareSamples) - 1; j <= ((squareJ + 1) * SquareSamples) + 1; j++)
+        {
+            for (int i = (square * SquareSamples) - 1; i <= ((square + 1) * SquareSamples) + 1; i++)
+            {
+                if (before.At(i, j) != after.At(i, j))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>A square of the ground's looks, put in the place of the one before.</summary>
+    private void ShowSquare(int i, int j, TerrainView.MeshArrays arrays)
+    {
+        MeshInstance3D square = TerrainView.Looks(arrays);
+        AddChild(square);
+        _squares[i, j]?.QueueFree();
+        _squares[i, j] = square;
+    }
+
+    /// <summary>A change was made: the ground to catch up a moment from now, and a generated track renamed as edited (decision 6).</summary>
+    private void Changed()
+    {
+        _groundDirty = _bare is not null;
+        _groundDueIn = GroundAfter;
+        if (Sandrail.Core.Generation.TrackCode.FromId(Editor.Track.Id) is Sandrail.Core.Generation.TrackCode code)
+        {
+            Editor.Rename($"user:seed-{code.Seed}-edited", $"Seed {code.Seed}, edited");
+        }
+    }
+
+    /// <summary>The level of the ground under a tile's middle, on a seed's ground; 0 on the plain.</summary>
+    private int GroundLevel(Tile tile)
+    {
+        if (_bare is null)
+        {
+            return 0;
+        }
+
+        System.Numerics.Vector3 middle = TrackGrid.Middle(tile, 0);
+        return (int)MathF.Round((_bare.HeightAt(middle.X, middle.Z) - TrackGrid.Origin.Y) / TrackGrid.LevelM);
+    }
+
+    /// <summary>The free cursor, from the road's end if it was there: on a seed's ground, riding as far above the ground as it was.</summary>
+    private void GoFree()
+    {
+        if (_atEnd && _bare is not null)
+        {
+            _lift = _level - GroundLevel(_cursor);
+        }
+
+        _atEnd = false;
+    }
+
+    /// <summary>The free cursor's level after a move: on a seed's ground, the ground's under it and the lift; on the plain, as it was.</summary>
+    private void FollowGround()
+    {
+        if (_bare is not null)
+        {
+            _level = Math.Clamp(GroundLevel(_cursor) + _lift, -Track.MaxLevel, Track.MaxLevel);
+        }
+    }
+
+    /// <summary>L: a circuit's laps, 1 to 9 and round again.</summary>
+    private void NextLaps()
+    {
+        int laps = Editor.Track.Laps;
+        Act(Editor.SetLaps(laps == 0 ? 1 : (laps % 9) + 1), $"{(laps % 9) + 1} laps.");
+    }
+
+    /// <summary>Ctrl+S: the name box, with a name in it to keep or type over.</summary>
+    private void StartSaving()
+    {
+        _saveBox.Visible = true;
+        _saveName.Text = DefaultName();
+        _saveName.GrabFocus();
+        _saveName.SelectAll();
+    }
+
+    /// <summary>The name a track is offered to be saved as: its own, unless it's still untitled.</summary>
+    private string DefaultName()
+    {
+        if (Editor.Track.Name is { Length: > 0 } name && name != TrackEditor.Empty().Name)
+        {
+            return name;
+        }
+
+        for (int n = 1; ; n++)
+        {
+            string offered = n == 1 ? "My track" : $"My track {n}";
+            if (!FileAccess.FileExists($"{TrackView.SavedPath}/{Slug(offered)}.json"))
+            {
+                return offered;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Saves the track under a name (decision 6): <c>user://tracks/&lt;name&gt;.json</c>, its ID <c>user:&lt;name&gt;</c>.
+    /// An unfinished one saves too, and opens in the editor from the Load list.
+    /// </summary>
+    private void SaveAs(string typed)
+    {
+        string name = typed.Trim();
+        if (name.Length == 0)
+        {
+            Say("A track needs a name to be saved under.", 3.0);
+            return;
+        }
+
+        string slug = Slug(name);
+        Editor.Rename($"user:{slug}", name);
+        string path = $"{TrackView.SavedPath}/{slug}.json";
+        DirAccess.MakeDirRecursiveAbsolute(TrackView.SavedPath);
+        using (FileAccess? file = FileAccess.Open(path, FileAccess.ModeFlags.Write))
+        {
+            if (file is null)
+            {
+                EndTyping($"Couldn't save it: {FileAccess.GetOpenError()}.");
+                return;
+            }
+
+            file.StoreString(Editor.Track.Save());
+        }
+
+        GD.Print($"Saved {Editor.Track.Id} to {ProjectSettings.GlobalizePath(path)}");
+        EndTyping($"Saved as \"{name}\"{(Editor.Laid.Problems.Count > 0 ? ", unfinished: it opens in the editor from Load a track" : ": Load a track drives it")}.");
+    }
+
+    private void EndTyping(string said)
+    {
+        _saveBox.Visible = false;
+        _saveName.ReleaseFocus();
+        _typingEndedFrame = Engine.GetProcessFrames();
+        Say(said, 5.0);
+    }
+
+    /// <summary>A name as a file and an ID: lower case, letters and digits, a dash for the rest.</summary>
+    private static string Slug(string name)
+    {
+        string slug = Regex.Replace(name.ToLowerInvariant(), "[^a-z0-9]+", "-").Trim('-');
+        return slug.Length == 0 ? "track" : slug;
+    }
+
     private void Move(Compass way)
     {
-        _atEnd = false;
+        GoFree();
         _cursor = Clamped(_cursor.Step(way));
+        FollowGround();
     }
 
     /// <summary>The tile the mouse points at, on the plane of the cursor's level, if it's on the grid.</summary>
@@ -517,6 +793,7 @@ public partial class EditorView : Node3D
         }
 
         Rebuild();
+        Changed();
         Say(done, 2.0);
     }
 
@@ -534,7 +811,7 @@ public partial class EditorView : Node3D
         {
             if (!_built.ContainsKey(p))
             {
-                Node3D node = TrackView.BuildOne(piece);
+                Node3D node = TrackView.BuildOne(piece, _bare);
                 AddChild(node);
                 _built[p] = node;
             }
@@ -587,7 +864,7 @@ public partial class EditorView : Node3D
         _handShown = hand;
         _handShownFits = fits;
         _hand?.QueueFree();
-        _hand = TrackView.BuildOne(new PlacedPiece(_palette[_piece], hand));
+        _hand = TrackView.BuildOne(new PlacedPiece(_palette[_piece], hand), _bare);
         foreach (CollisionObject3D body in _hand.FindChildren("*", "CollisionObject3D", true, false).OfType<CollisionObject3D>())
         {
             body.CollisionLayer = 0;
@@ -621,11 +898,38 @@ public partial class EditorView : Node3D
         _problems.CustomMinimumSize = new Vector2(520.0f, 0.0f);
         _note = Panel(layer, 18, new Vector2(24.0f, -70.0f), bottom: true);
         Label keys = Panel(layer, 15, new Vector2(24.0f, -20.0f), bottom: true);
-        keys.Text = "Tab: drive it  ·  Enter or click: lay  ·  Backspace: take back  ·  wheel, [ ] or 1-9: piece  ·  M: mirror  ·  F: the road's end  ·  N: another end\n"
-            + "Arrows or mouse: free cursor  ·  Q/E: turn  ·  PgUp/PgDn: level  ·  right click or Delete: take away  ·  Ctrl+Z/Y: undo/redo  ·  C: view  ·  -/+: zoom  ·  Esc: menu";
+        keys.Text = "Tab: drive it  ·  Ctrl+S: save  ·  Enter/click: lay  ·  Backspace: take back  ·  wheel, [ ], 1-9: piece  ·  M: mirror  ·  F: road's end  ·  N: next end\n"
+            + "Arrows/mouse: free cursor  ·  Q/E: turn  ·  PgUp/PgDn: level  ·  Del/right click: take away  ·  Ctrl+Z/Y: undo/redo  ·  L: laps  ·  C: view  ·  -/+: zoom  ·  Esc: menu";
+
+        // The name box for saving (decision 6), in the middle, hidden until Ctrl+S.
+        _saveBox = new PanelContainer { Visible = false };
+        _saveBox.SetAnchorsPreset(Control.LayoutPreset.Center);
+        _saveBox.GrowHorizontal = Control.GrowDirection.Both;
+        _saveBox.GrowVertical = Control.GrowDirection.Both;
+        _saveBox.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color(0.08f, 0.08f, 0.1f, 0.92f),
+            ContentMarginLeft = 20.0f,
+            ContentMarginRight = 20.0f,
+            ContentMarginTop = 16.0f,
+            ContentMarginBottom = 16.0f,
+        });
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 10);
+        var prompt = new Label { Text = "Save as" };
+        prompt.AddThemeFontSizeOverride("font_size", 18);
+        row.AddChild(prompt);
+        _saveName = new LineEdit { CustomMinimumSize = new Vector2(320.0f, 0.0f), PlaceholderText = "a name for the track" };
+        _saveName.AddThemeFontSizeOverride("font_size", 18);
+        _saveName.TextSubmitted += SaveAs;
+        row.AddChild(_saveName);
+        var hint = new Label { Text = "Enter saves, Esc doesn't", Modulate = new Color(1.0f, 1.0f, 1.0f, 0.6f) };
+        row.AddChild(hint);
+        _saveBox.AddChild(row);
+        layer.AddChild(_saveBox);
 
         // The palette down the left in two columns, a button a piece, the one in hand lit.
-        var backing = new PanelContainer { OffsetLeft = 16.0f, OffsetTop = 126.0f };
+        var backing = new PanelContainer { OffsetLeft = 16.0f, OffsetTop = 162.0f };
         backing.AddThemeStyleboxOverride("panel", new StyleBoxFlat
         {
             BgColor = new Color(0.06f, 0.06f, 0.08f, 0.6f),

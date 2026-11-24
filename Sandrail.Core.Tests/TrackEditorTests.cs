@@ -96,7 +96,7 @@ public class TrackEditorTests
         // first's gap. The first's own way in and the second's own way out are loose ends, as they should be.
         static bool Wrong(string p) =>
             (p.StartsWith("pieces[0]", StringComparison.Ordinal) && !p.Contains("is a landing that no jump", StringComparison.Ordinal)
-                && !p.Contains("which is for a circuit", StringComparison.Ordinal))
+                && !p.Contains("circuit", StringComparison.Ordinal))
             || p.Contains("nothing leads into pieces[1]", StringComparison.Ordinal)
             || p.Contains("pieces[1] (base:", StringComparison.Ordinal) && p.Contains("is in the gap", StringComparison.Ordinal)
             || p.Contains("pieces[1]", StringComparison.Ordinal) && p.Contains("a landing that no jump", StringComparison.Ordinal);
@@ -178,6 +178,73 @@ public class TrackEditorTests
             Assert.Empty(editor.Laid.Problems);
             Assert.Equal(route.Select(p => p.Placement), editor.Laid.Route.Select(p => p.Placement));
         }
+    }
+
+    /// <summary>Laying a start-finish line makes a circuit of three laps; laps change and undo; taking the line away makes a sprint (M5d, decision 7).</summary>
+    [Fact]
+    public void ALineMakesACircuitAndTakingItAwayASprint()
+    {
+        TrackEditor editor = New();
+        Assert.Contains("lay a start-finish line", editor.SetLaps(5));
+        Assert.Null(editor.Place(new Placement("base:start-finish", new Tile(14, 14), 0, (int)Compass.North, false)));
+        Assert.Equal(TrackEditor.DefaultLaps, editor.Track.Laps);
+        Assert.Equal(3, editor.Track.Format);
+
+        Assert.Null(editor.SetLaps(5));
+        Assert.Equal(5, editor.Track.Laps);
+        Assert.NotNull(editor.SetLaps(0));
+        editor.Undo();
+        Assert.Equal(3, editor.Track.Laps);
+
+        Assert.Null(editor.Erase(new Tile(14, 14)));
+        Assert.Equal(0, editor.Track.Laps);
+        Assert.Equal(1, editor.Track.FormatNeeded);
+    }
+
+    /// <summary>A circuit laid by <see cref="TrackEditor.Next"/> from its line, round and back to it, closes: sound, three laps, nothing left open.</summary>
+    [Fact]
+    public void ACircuitLaidByNextCloses()
+    {
+        TrackEditor editor = New();
+        editor.Place(new Placement("base:start-finish", new Tile(14, 20), 0, (int)Compass.North, false));
+        foreach (string piece in Circuit)
+        {
+            WorldConnector end = editor.OpenEnds()[^1];
+            Placement next = editor.Next(end, piece, false, out string? why) ?? throw new InvalidOperationException(why);
+            Assert.True(editor.Place(next) is null, $"{piece} at {next.At}: {editor.Fits(next)}");
+        }
+
+        Assert.Empty(editor.Laid.Problems);
+        Assert.Empty(editor.OpenEnds());
+        Assert.True(editor.Track.Circuit);
+        Assert.Equal(Circuit.Length + 1, editor.Laid.Route.Count);
+    }
+
+    /// <summary>The circuit the editor's checks lay: round to the right by four 50 m corners, a straight on each side.</summary>
+    public static readonly string[] Circuit =
+    [
+        "base:straight", "base:corner-50", "base:straight", "base:straight", "base:corner-50",
+        "base:straight", "base:straight", "base:corner-50", "base:straight", "base:straight", "base:corner-50",
+    ];
+
+    /// <summary>A generated track edited, saved and read back is the same track, and its ground beds the same (M5d).</summary>
+    [Fact]
+    public void AnEditedGeneratedTrackSavesAndLoadsOnItsGround()
+    {
+        Generated g = TrackGenerator.Generate(5UL, new GenSettings(), Catalogue.Value);
+        var editor = new TrackEditor(g.Track, Catalogue.Value);
+        Tile corner = editor.Laid.Route.First(p => p.Def.Path.Any(s => s.Turn is not null)).Placement.At;
+        Assert.Null(editor.Erase(corner));
+        editor.Rename("user:seed-5-edited", "Seed 5, edited");
+
+        string file = editor.Track.Save();
+        TrackEditor back = TrackEditor.Open(file, Catalogue.Value);
+        Assert.Equal(file, back.Track.Save());
+        Assert.Equal(editor.Laid.Problems, back.Laid.Problems);
+
+        TrackGround ground = back.Track.Ground!;
+        Terrain bare = new(ground.Seed, ground.Terrain);
+        Assert.Equal(Bed.Lay(bare, editor.Laid.Placed).Heights, Bed.Lay(bare, back.Laid.Placed).Heights);
     }
 
     /// <summary>The editor's way in keeps a track's problems where loading it would refuse it (fact 2).</summary>

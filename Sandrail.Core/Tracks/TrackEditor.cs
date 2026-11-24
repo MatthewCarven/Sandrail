@@ -85,7 +85,13 @@ public sealed class TrackEditor
         return null;
     }
 
-    /// <summary>Puts a piece on the track: null if it's placed, or why it can't be.</summary>
+    /// <summary>The laps a circuit starts with when its start-finish line is laid (M3-PLAN decision 8).</summary>
+    public const int DefaultLaps = 3;
+
+    /// <summary>
+    /// Puts a piece on the track: null if it's placed, or why it can't be. Laying a start-finish line makes a
+    /// sprint a circuit of <see cref="DefaultLaps"/> laps (M5-PLAN decision 7), in the same change.
+    /// </summary>
     public string? Place(Placement p)
     {
         if (Fits(p) is string why)
@@ -93,11 +99,15 @@ public sealed class TrackEditor
             return why;
         }
 
-        Change(Track with { Pieces = [.. Track.Pieces, TrackPiece.Of(p)] });
+        bool line = _catalogue.Find(p.Piece)?.Gate == GateKind.StartFinish;
+        Change(Track with { Pieces = [.. Track.Pieces, TrackPiece.Of(p)], Laps = line && Track.Laps == 0 ? DefaultLaps : Track.Laps });
         return null;
     }
 
-    /// <summary>Takes away the piece covering a tile: null if one was, or why not.</summary>
+    /// <summary>
+    /// Takes away the piece covering a tile: null if one was, or why not. Taking away a circuit's last
+    /// start-finish line makes it a sprint again, in the same change.
+    /// </summary>
     public string? Erase(Tile tile)
     {
         if (PieceAt(tile) is not PlacedPiece piece)
@@ -107,8 +117,41 @@ public sealed class TrackEditor
 
         TrackPiece[] pieces = Track.Pieces;
         int index = Array.FindIndex(pieces, t => t.ToPlacement() == piece.Placement);
-        Change(Track with { Pieces = [.. pieces[..index], .. pieces[(index + 1)..]] });
+        TrackPiece[] left = [.. pieces[..index], .. pieces[(index + 1)..]];
+        bool lineLeft = left.Any(t => _catalogue.Find(t.Piece)?.Gate == GateKind.StartFinish);
+        Change(Track with { Pieces = left, Laps = lineLeft ? Track.Laps : 0 });
         return null;
+    }
+
+    /// <summary>A circuit's laps (decision 7): null if set, or why not. A change of its own, undone like any other.</summary>
+    public string? SetLaps(int laps)
+    {
+        if (Track.Laps == 0)
+        {
+            return "laps are for a circuit: lay a start-finish line first";
+        }
+
+        if (laps < 1 || laps > Track.MaxLaps)
+        {
+            return $"a circuit is 1 to {Track.MaxLaps} laps";
+        }
+
+        if (laps != Track.Laps)
+        {
+            Change(Track with { Laps = laps });
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The track's ID and name, as it's saved (decision 6): not a change to undo, since it's what the track is
+    /// called, not what it is. A track's fingerprint doesn't read either.
+    /// </summary>
+    public void Rename(string id, string name)
+    {
+        Track = Track with { Id = id, Name = name };
+        Laid = Relay();
     }
 
     /// <summary>Back one change; false if there's none.</summary>

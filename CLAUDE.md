@@ -122,7 +122,7 @@ the air (the M4b entry: millimetres, and 1.75 cm for a tick on a hard landing). 
 it on two specs and read the flying lap, the corner speeds and where it left the road; `track` says
 whether a car (or a track) can be finished at all.
 
-Game flags, after `--` (or passed to `start.cmd`): `--edit=new` or `--edit=<track id or path>` (the editor, M5, no car and no race; the Esc menu's New track and Edit this track use it; tracks on generated ground wait for M5d; `--edit=@editor` is the editor's own track, kept across a test drive), `--drive-from=<column>,<row>` with `--track=` (a test drive from the piece on that tile, untimed unless it's a sound track's start gate, the file read without refusing it; `--track=@editor` drives the editor's track; M5c), `--seed=<n>` (a generated track on its own ground,
+Game flags, after `--` (or passed to `start.cmd`): `--edit=new` or `--edit=<track id or path>` (the editor, M5, no car and no race; the Esc menu's New track and Edit this track use it; `--edit=new:<seed>` for an empty grid on a seed's ground; `--edit=@editor` is the editor's own track, kept across a test drive), `--drive-from=<column>,<row>` with `--track=` (a test drive from the piece on that tile, untimed unless it's a sound track's start gate, the file read without refusing it; `--track=@editor` drives the editor's track; M5c), `--seed=<n>` (a generated track on its own ground,
 M3b, with stunts and checkpoints since M3c; since M4a a code too, `--seed=5v1`, and a code from another
 version of the generator drives its file if the game has one, or says why not: the timer, P and `--oracle=track` all work on it; the
 autodriver finishes all five test sprints and three of the five test circuits at `--caution=0.7`; since
@@ -142,7 +142,7 @@ again), and holding R for a second or pressing Backspace starts again, clock and
 for the game and the `lap` oracle alike; in the game - and + change it),
 `--ghost=you|auto|none` (whose ghost shows on a track, M4c; G changes it in the game) and
 `--ghosts=<folder>` (where ghosts and bests are kept, `user://ghosts` unless told: **point checks at a
-scratch folder**, so his bests are never touched), `--replay=you|auto` with `--replay-at=<seconds>` and
+scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--replay=you|auto` with `--replay-at=<seconds>` and
 `--replay-camera=trackside|chase|free` (a saved best's replay from the start, M4d, for a look or a
 screenshot; in the game Enter watches the last run and the Esc menu offers the bests),
 and `--screenshot=<path.png>`, which saves a frame at rest and one driving, then quits; with it,
@@ -247,7 +247,8 @@ brakes are on, white reversing, on the car, the ghost (not faded) and the replay
 (`docs/M5-PLAN.md`), its seven decisions taken as recommended, and under way: **M5a, the editor's core, is built**
 (`TrackEditor` in Core: place, erase, open ends, next, undo; the editor from the Esc menu on the plain), and **M5b**:
 track laid onto the road's end by Enter, the palette, the mouse, and **M5c**: Tab test-drives from the piece under the
-cursor and Tab comes back (`EditorSession` keeps the work). Next: M5d, ground, saving and circuits. His tuning comes after
+cursor and Tab comes back (`EditorSession` keeps the work), and **M5d**: tracks on a seed's ground (the bed caught up in
+squares, off the main thread), Ctrl+S to save with a name, circuits with laps. **M5 is built**; M5e, his play, passes it. His tuning comes after
 M5. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by

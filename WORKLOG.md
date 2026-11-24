@@ -2,6 +2,48 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M5d: ground, saving and circuits; M5 is built
+
+*"Go on to M5d"*. Built as M5-PLAN has it (decisions 5, 6 and 7).
+
+**Ground.** The editor opens a track on its seed's ground: a generated track (the menu's Edit this track hands it
+over directly; it has no file), a saved one, or an empty grid on a seed's ground (`--edit=new:<seed>`, the menu's
+New track on this ground). Pieces build against the bare terrain; the free cursor rides the ground, its level the
+ground's under it, Page Up and Down lifting it. **The ground catches up in squares**: the editor's terrain is 64
+squares of 128 m, and half a second after the last change the bed is laid under every placed piece (`Bed.Lay`
+takes any pieces now, so an unfinished track has its bed) and only the squares whose ground moved are worked out,
+all off the main thread; showing them takes about 2 ms. The first version rebuilt the whole 1 km mesh, 50 ms on
+the main thread and a 66 ms frame just after he'd stop; with squares: *"42 ms in the background, 3 of 64 squares
+shown again in 2.3 ms"*, the worst frame 10 ms, the same as on the plain. The editor needs no collider; a test
+drive builds the real ground. A test drive of an unfinished track has its bed under every piece, and no rocks.
+
+**Saving** (decision 6): **Ctrl+S** opens a name box offering the track's own name or "My track" (then "My track
+2", and so on); Enter saves to `user://tracks/<name>.json` as `user:<name>`, Esc doesn't. Unfinished tracks save
+too, and the Load list marks them ("unfinished: opens in the editor") and opens them in the editor, since the game
+can't race them. A generated track becomes "Seed 5, edited" (`user:seed-5-edited`) at its first change, its code
+no longer its own. `--saved=<folder>` moves the folder, which every check here used, so none of his tracks were
+touched.
+
+**Circuits** (decision 7, PLAN's M6 folded in): laying a start-finish line makes the track a circuit of 3 laps, L
+changes the laps (1 to 9), and taking the line away makes it a sprint again; the status says which, and on whose
+ground.
+
+**Checks:**
+
+- 3 tests (337 in all): a line makes a circuit, laps change and undo, taking it away makes a sprint; a circuit
+  laid by `Next` from its line closes, sound, nothing open; a generated track edited, saved and read back is the
+  same file, and its ground beds the same.
+- A temporary probe (since removed) laid a circuit by the keys on an empty grid: the line (3 laps by itself),
+  straights and four 50 m corners round to it: 12 pieces, no problems, nothing open. Ctrl+S and Enter saved it as
+  "My track". **The `track` oracle raced it: FINISHED in 1:01.16, laps 21.95, 19.61, 19.61.**
+- The probe on seed 5's ground: road laid, the ground caught up as above, saved as "My track 2"; reopened from
+  its file with the same two things to do; test-driven from its start gate, untimed.
+- All seventeen oracles as before. Not clicked: the menu's Edit this track on a generated track and New track on
+  this ground, which go the ways tested.
+
+**M5 is built** (M5a-M5d). M5e, his play, passes it; then his tuning, with the wheel-spin talk he asked to be
+reminded of.
+
 ## 2026-11-24 — M5c: test driving
 
 *"Go on to M5c"*. Built as M5-PLAN has it (decision 4).
