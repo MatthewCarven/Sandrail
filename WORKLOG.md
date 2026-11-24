@@ -2,15 +2,23 @@
 
 Newest first. What happened and why; findings worth keeping.
 
-## 2026-11-25 — F2 no longer runs off the window
+## 2026-11-25 — F2 is the right half of the window
 
 His screenshot: F2 open on `matthew-2026-11-23-original`, with Save as new car cut to "Save as new ca", and Reset, the
 number boxes' last digits and the scrollbar off the right edge (*"can we move the edit car dialog a little to the
 left"*). The panel is pinned 470 px wide to the right edge, but its top bar (the car's name and fingerprint beside
 Save, Save as a new car and Reset) needs about 545 px with a name that long. A Godot control that must be wider than
-its anchors allow grows to the right by default, so the extra 75 px went off the window. It now grows to the left
-(`GrowHorizontal = Begin`): a short name keeps it at 470, and a long one widens it into the view instead.
-`--screenshot` with `--panels=tuning` on that car in the default 1152 × 648 window shows the whole panel.
+its anchors allow grows to the right by default, so the extra 75 px went off the window. It grew to the left after
+that (`GrowHorizontal = Begin`), which brought everything on screen but left its left edge wandering with the car's
+name (*"the left side has become a little unbound"*).
+
+**So it's now the right half of the window**, from the centre to the right edge, at his ask, with the sliders taking
+the width that the names (205 px) and number boxes (112 px) leave. In the default 1152 × 648 window the sliders go from
+about 210 px to 240 px, and in 1600 × 900 to about 465 px (`--screenshot --panels=tuning --resolution`, both on that
+car). It still grows to the left if half a narrow window can't hold the bar. In the default window it now covers the
+right half of the car. **A slider's step is a 400th of its range**, made a round number. So past about 400 to 700 px,
+which only a near-maximised window gives, the step rather than the pixels sets how fine a drag is. That's the next
+lever if he wants finer still; typing in the box is always exact.
 
 ## 2026-11-25 — Cars set inactive, behind a lock
 

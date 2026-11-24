@@ -30,8 +30,6 @@ namespace Sandrail.Game.Ui;
 /// </remarks>
 public partial class TuningPanel : PanelContainer
 {
-    private const float Width = 470.0f;
-
     private static readonly Color Changed = new(1.0f, 0.85f, 0.3f);
     private static readonly Color Refused = new(1.0f, 0.4f, 0.35f);
 
@@ -72,16 +70,19 @@ public partial class TuningPanel : PanelContainer
         // It keeps working while the game is paused for typing a name, which stops the letters driving the car.
         ProcessMode = ProcessModeEnum.Always;
 
-        AnchorLeft = 1.0f;
+        // The right half of the window, from its centre to its right edge (his ask, 2026-11-25): the sliders take the
+        // width the names and boxes leave, so a wider window is finer control. It had been 470 px wide, and wider
+        // whenever a long car name needed it, so its left edge wandered.
+        AnchorLeft = 0.5f;
         AnchorRight = 1.0f;
         AnchorTop = 0.0f;
         AnchorBottom = 1.0f;
-        OffsetLeft = -Width;
+        OffsetLeft = 0.0f;
         OffsetRight = 0.0f;
         OffsetTop = 0.0f;
         OffsetBottom = 0.0f;
 
-        // Wider than its width when the bar needs it (a long car name beside the three buttons), and it widens to the
+        // In a window too narrow for half to hold the bar (a long car name beside the three buttons), it widens to the
         // left: by default it widened to the right, off the window, cutting off Reset and the number boxes (his
         // screenshot, 2026-11-25, with matthew-2026-11-23-original).
         GrowHorizontal = GrowDirection.Begin;
