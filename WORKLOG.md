@@ -2,6 +2,14 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M3f: the rocks pass
+
+His word on the rocks: *"they look like the scenery now to me like, they are perfect as they are like
+:-{D I stopped noticing them"*. Scenery you stop noticing is what they were for, so `RockSettings` stays as
+it is (about 120 per km offered, 12-70 m out, never on the bed). Still to come in M3f: the seeds he likes
+or finds broken, and whether a jump straight after a corner should get a straight before it (that would
+move seed 5's jumps, so it waits for his word).
+
 ## 2026-11-24 — M3f: he tries the menu
 
 His first report of M3f's play, after trying the Esc menu: *"Load works, new random track works :-{D"*.
