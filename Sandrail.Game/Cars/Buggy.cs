@@ -65,12 +65,10 @@ public partial class Buggy : RigidBody3D
     private readonly float[] _wheelSpeed = new float[4];
     private readonly bool[] _saturated = new bool[4];
     private readonly Surface[] _surface = new Surface[4];
-    private readonly float[] _spin = new float[4];
 
     /// <summary>Each wheel's own steering angle: Ackermann turns the inside front more. The rears stay at 0.</summary>
     private readonly float[] _wheelSteerDeg = new float[4];
-    private readonly Node3D[] _wheelPivots = new Node3D[4];
-    private readonly Node3D[] _wheelSpinners = new Node3D[4];
+
     /// <summary>Each collider's surface, once read; null for one painted by position.</summary>
     private readonly Dictionary<ulong, Surface?> _surfaceCache = new();
 
@@ -79,7 +77,9 @@ public partial class Buggy : RigidBody3D
     /// body, many surfaces (M3-PLAN fact 7). Null where there's no such ground.
     /// </summary>
     public System.Func<Vector3, Surface>? PaintedSurface { get; set; }
-    private readonly List<Node> _looks = new();
+
+    /// <summary>The grey boxes it wears (M4b: in a node of their own, so a ghost can wear the same).</summary>
+    private CarLooks? _looks;
 
     private CarSpec _spec = new();
     private CollisionShape3D? _shape;
@@ -91,8 +91,6 @@ public partial class Buggy : RigidBody3D
     private Transform3D? _pendingRespawn;
     private float _pendingSpeed;
     private bool _resetInterpolation;
-    private Node3D? _wingLook;
-    private (string, float, float, float, float) _wingKey;
 
     /// <summary>Set every physics tick by whoever is driving.</summary>
     public DriverInput Driver { get; set; }
@@ -204,7 +202,13 @@ public partial class Buggy : RigidBody3D
         _mounts[RearLeft] = new Vector3(-halfTrack, spec.MountHeightM, halfBase);
         _mounts[RearRight] = new Vector3(halfTrack, spec.MountHeightM, halfBase);
 
-        BuildWing(spec);
+        if (_looks is null)
+        {
+            _looks = new CarLooks();
+            AddChild(_looks);
+        }
+
+        _looks.Show(spec);
         if (!reshape)
         {
             return;
@@ -218,18 +222,10 @@ public partial class Buggy : RigidBody3D
         }
 
         _shape.Shape = new BoxShape3D { Size = chassisSize };
-
-        foreach (Node look in _looks)
-        {
-            RemoveChild(look);
-            look.QueueFree();
-        }
-
-        _looks.Clear();
-        BuildLooks(spec, chassisSize);
     }
 
-    private static bool ShapeDiffers(CarSpec a, CarSpec b) =>
+    /// <summary>Whether two specs differ in a dimension the collider or the grey boxes are built from.</summary>
+    internal static bool ShapeDiffers(CarSpec a, CarSpec b) =>
         a.ChassisLengthM != b.ChassisLengthM
         || a.ChassisWidthM != b.ChassisWidthM
         || a.ChassisHeightM != b.ChassisHeightM
@@ -267,20 +263,41 @@ public partial class Buggy : RigidBody3D
         float step = (float)delta;
         for (int i = 0; i < 4; i++)
         {
-            float droop = _spec.SuspensionTravelM - (_grounded[i] ? _compression[i] : 0.0f);
-            _wheelPivots[i].Position = _mounts[i] + (Vector3.Down * droop);
-
-            _wheelPivots[i].Rotation = new Vector3(0.0f, -Mathf.DegToRad(_wheelSteerDeg[i]), 0.0f);
-
             // Visual only: a wheel pushed past its grip spins half as fast again, and a locked one stops.
             float spinSpeed = _wheelSpeed[i] * (_saturated[i] && _throttle > 0.0f ? 1.5f : 1.0f);
             if (i is RearLeft or RearRight)
             {
                 spinSpeed *= 1.0f - HandbrakeAmount;
             }
-            _spin[i] = Mathf.Wrap(_spin[i] - (spinSpeed / _spec.WheelRadiusM * step), -Mathf.Pi, Mathf.Pi);
-            _wheelSpinners[i].Rotation = new Vector3(_spin[i], 0.0f, 0.0f);
+
+            _looks!.Wheel(i, Droop(i), _wheelSteerDeg[i], spinSpeed, step);
         }
+    }
+
+    /// <summary>How far a wheel hangs below its mount, metres: all its travel in the air, less its compression on the ground.</summary>
+    public float Droop(int wheel) => _spec.SuspensionTravelM - (_grounded[wheel] ? _compression[wheel] : 0.0f);
+
+    /// <summary>
+    /// How many times the car has been put somewhere (R, the auto-respawn, a restart), counted as the move
+    /// happens, so a ghost's recorder can mark the snapshot after it as a cut (M4b).
+    /// </summary>
+    public int Teleports { get; private set; }
+
+    /// <summary>The car now, as a ghost keeps it (M4b): pose, steering, droop and pedals.</summary>
+    public Sandrail.Core.Ghosts.Snapshot Snapshot()
+    {
+        Transform3D xf = GlobalTransform;
+        Quaternion q = xf.Basis.Orthonormalized().GetRotationQuaternion();
+        return new Sandrail.Core.Ghosts.Snapshot
+        {
+            Position = new System.Numerics.Vector3(xf.Origin.X, xf.Origin.Y, xf.Origin.Z),
+            Rotation = new System.Numerics.Quaternion(q.X, q.Y, q.Z, q.W),
+            SteerDeg = _steerDeg,
+            Droop = new System.Numerics.Vector4(Droop(FrontLeft), Droop(FrontRight), Droop(RearLeft), Droop(RearRight)),
+            Throttle = _throttle,
+            Brake = _brake,
+            Handbrake = HandbrakeAmount,
+        };
     }
 
     public override void _IntegrateForces(PhysicsDirectBodyState3D state)
@@ -300,6 +317,7 @@ public partial class Buggy : RigidBody3D
             Acceleration = Vector3.Zero;
             _pendingRespawn = null;
             _resetInterpolation = true;
+            Teleports++;
             return;
         }
 
@@ -499,148 +517,4 @@ public partial class Buggy : RigidBody3D
     }
 
     private Surface PaintedAt(Vector3 at) => PaintedSurface?.Invoke(at) ?? Surfaces.Sand;
-
-    private void BuildLooks(CarSpec spec, Vector3 chassisSize)
-    {
-        var body = new StandardMaterial3D { AlbedoColor = new Color(0.55f, 0.56f, 0.58f), Roughness = 0.6f };
-        var dark = new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.12f, 0.13f), Roughness = 0.9f };
-        var nose = new StandardMaterial3D { AlbedoColor = new Color(0.95f, 0.45f, 0.1f), Roughness = 0.5f };
-
-        Look(new MeshInstance3D { Mesh = new BoxMesh { Size = chassisSize }, MaterialOverride = body });
-
-        // A cockpit hoop, and an orange nose so the front is never in doubt.
-        Look(new MeshInstance3D
-        {
-            Mesh = new BoxMesh { Size = new Vector3(chassisSize.X * 0.8f, 0.7f, 0.15f) },
-            MaterialOverride = dark,
-            Position = new Vector3(0.0f, (chassisSize.Y / 2.0f) + 0.35f, chassisSize.Z * 0.1f),
-        });
-        Look(new MeshInstance3D
-        {
-            Mesh = new BoxMesh { Size = new Vector3(chassisSize.X * 0.6f, 0.2f, 0.4f) },
-            MaterialOverride = nose,
-            Position = new Vector3(0.0f, chassisSize.Y * 0.2f, -chassisSize.Z / 2.0f),
-        });
-
-        var wheel = new CylinderMesh
-        {
-            TopRadius = spec.WheelRadiusM,
-            BottomRadius = spec.WheelRadiusM,
-            Height = 0.3f,
-            RadialSegments = 20,
-        };
-
-        for (int i = 0; i < 4; i++)
-        {
-            var pivot = new Node3D { Position = _mounts[i] + (Vector3.Down * spec.SuspensionTravelM) };
-            var spinner = new Node3D();
-
-            // The cylinder's axis is Y; lying it on its side puts the axle across the car.
-            spinner.AddChild(new MeshInstance3D
-            {
-                Mesh = wheel,
-                MaterialOverride = dark,
-                Rotation = new Vector3(0.0f, 0.0f, Mathf.Pi / 2.0f),
-            });
-            pivot.AddChild(spinner);
-            Look(pivot);
-            _wheelPivots[i] = pivot;
-            _wheelSpinners[i] = spinner;
-        }
-    }
-
-    /// <summary>
-    /// The wing's grey box: a plate as wide as three times its depth, tilted trailing edge up by its
-    /// angle, on two struts from the chassis's top, at the point its forces act. The twin-plane wing has
-    /// a second, smaller plate behind and above the first. Rebuilt only when something it shows changed,
-    /// since the angle slider moves it many times a second.
-    /// </summary>
-    private void BuildWing(CarSpec spec)
-    {
-        var key = (spec.WingId, spec.WingAngleDeg, spec.WingBackM, spec.WingHeightM, spec.ChassisHeightM);
-        if (_wingLook is not null && _wingKey == key)
-        {
-            return;
-        }
-
-        _wingKey = key;
-        if (_wingLook is not null)
-        {
-            RemoveChild(_wingLook);
-            _wingLook.QueueFree();
-            _wingLook = null;
-        }
-
-        Wing wing = spec.FittedWing();
-        _wingLook = new Node3D { Position = new Vector3(0.0f, spec.WingHeightM, spec.WingBackM) };
-        AddChild(_wingLook);
-        if (wing.AreaM2 <= 0.0f)
-        {
-            return;
-        }
-
-        var plate = new StandardMaterial3D { AlbedoColor = new Color(0.9f, 0.9f, 0.86f), Roughness = 0.5f };
-        var dark = new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.12f, 0.13f), Roughness = 0.9f };
-        bool twin = wing == Wings.TwinPlane;
-        float span = MathF.Sqrt(3.0f * wing.AreaM2);
-        float mainChord = wing.AreaM2 / span * (twin ? 0.6f : 1.0f);
-        float tilt = -Mathf.DegToRad(spec.WingAngleDeg);
-
-        var main = new MeshInstance3D
-        {
-            Mesh = new BoxMesh { Size = new Vector3(span, 0.04f, mainChord) },
-            MaterialOverride = plate,
-            Rotation = new Vector3(tilt, 0.0f, 0.0f),
-        };
-        _wingLook.AddChild(main);
-
-        if (twin)
-        {
-            float flapChord = wing.AreaM2 / span * 0.4f;
-            _wingLook.AddChild(new MeshInstance3D
-            {
-                Mesh = new BoxMesh { Size = new Vector3(span, 0.04f, flapChord) },
-                MaterialOverride = plate,
-                Position = new Vector3(0.0f, 0.12f + (MathF.Sin(-tilt) * mainChord / 2.0f), (mainChord / 2.0f) + (flapChord / 2.0f) - 0.05f),
-                Rotation = new Vector3(tilt * 1.6f, 0.0f, 0.0f),
-            });
-        }
-
-        // End plates, which make it read as a wing from any angle.
-        if (wing != Wings.Lip)
-        {
-            float plateDepth = twin ? mainChord * 1.9f : mainChord * 1.2f;
-            foreach (float side in new[] { -1.0f, 1.0f })
-            {
-                _wingLook.AddChild(new MeshInstance3D
-                {
-                    Mesh = new BoxMesh { Size = new Vector3(0.03f, 0.3f, plateDepth) },
-                    MaterialOverride = dark,
-                    Position = new Vector3(side * span / 2.0f, 0.05f, twin ? mainChord * 0.3f : 0.0f),
-                });
-            }
-        }
-
-        // Struts down to the chassis's top, if the wing stands above it.
-        float drop = spec.WingHeightM - (spec.ChassisHeightM / 2.0f);
-        if (drop > 0.02f)
-        {
-            foreach (float side in new[] { -1.0f, 1.0f })
-            {
-                _wingLook.AddChild(new MeshInstance3D
-                {
-                    Mesh = new BoxMesh { Size = new Vector3(0.05f, drop, 0.12f) },
-                    MaterialOverride = dark,
-                    Position = new Vector3(side * span * 0.3f, -drop / 2.0f, 0.0f),
-                });
-            }
-        }
-    }
-
-    /// <summary>Adds a grey-box part, remembered so a reshape can take it away again.</summary>
-    private void Look(Node3D node)
-    {
-        AddChild(node);
-        _looks.Add(node);
-    }
 }

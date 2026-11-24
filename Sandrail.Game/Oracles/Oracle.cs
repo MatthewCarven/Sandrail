@@ -188,6 +188,7 @@ public partial class Oracle : Node
                 RunAir();
                 break;
             case TrackDrive:
+            case GhostDrive:
                 RunTrack();
                 break;
             case Climb:

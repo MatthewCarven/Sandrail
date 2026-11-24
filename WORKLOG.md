@@ -2,6 +2,44 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M4b: the snapshot stream
+
+*"Go on to M4b"*. Built as M4-PLAN has it.
+
+**Core, `Ghosts/`**: `Snapshot` (position to the millimetre, rotation as four 16-bit components with W kept
+positive, steering to a hundredth of a degree, each wheel's droop to the millimetre, throttle, brake and
+handbrake to a 255th, and a cut flag), quantised as it's kept so a ghost saved and loaded is the same to the
+bit. `Ghost`: the header (format, the track's fingerprint, ID and name, his or the autodriver's, the time,
+splits, laps, when, the car's fingerprint) on one line of JSON with the car's whole spec in it, then the
+snapshots column by column, positions and rotations as changes, deflated. `At(t)` lands on a snapshot
+exactly, goes in a straight line between two (rotation slerped), holds before a cut, and holds at either end.
+A newer format is refused by name. `GhostRecorder` takes every 4th tick from the clock's zero to the first
+at or after the finish, and marks the snapshot after a teleport. 12 tests; 320 in all.
+
+**Game**: `CarLooks`, the buggy's grey boxes and wing, moved out of `Buggy` into a node a ghost can wear
+too, with a `Fade` for see-through. Nothing changed on screen: frames at rest and turning, before and after,
+match, and his winged tune still shows its twin plane. `Buggy` gained `Droop(i)`, `Snapshot()` and a
+`Teleports` count. **The race records every run** (`Main.Race`, `RecordGhost`), and keeps the last finished
+one: the autodriver on the shakedown in the game filed *"The run as a ghost: 1703 snapshots over 56.73 s,
+23.0 KB as a file"*.
+
+**The `ghost` oracle** (seventeen now): the track oracle's drive, recorded the same way, saved and loaded,
+and played back against the car at 120 a second:
+
+```
+shakedown 80%   FINISHED in 56.76 | 1704 snapshots, 22.8 KB (0.40 KB a second), saved and loaded the same
+                worst miss: straights 17.5 mm, corners 4.1 mm, the loop 10.6 mm, in the air 1.8 mm; rotation 0.41°
+                the worst of all 44.62 in, on the long jump's landing
+seed 5, 70%     FINISHED in 1:25.19 | 2557 snapshots, 36.4 KB | straights 14.2, corners 4.5, air 1.8 mm; a landing
+circuit 8, 70%  FINISHED in 2:04.08 | 3724 snapshots, 48.6 KB | straights 13.8, corners 4.4, air 1.9 mm; a landing
+```
+
+**Fact 2's arithmetic held in the corners and the air, and the loop came out at twice its guess (10.6 mm
+against 5)**: the bump stop, not the loop's radius, sets the loop's worst. **The worst of all is a landing**,
+one tick of 1.75 cm as the suspension hits its stops, which no straight line between snapshots can follow and
+no eye could see. Files are half fact 3's guess. All the other oracles are as before on the committed car
+(4f918acd): the shakedown 56.76, seed 5 1:25.19, circuit 8 2:04.08.
+
 ## 2026-11-24 — M4a: track codes and fingerprints
 
 M4's seven decisions taken as recommended: *"Yes, as recommended"*. M4a built as M4-PLAN has it.

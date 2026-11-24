@@ -47,7 +47,10 @@ driven on, so ghosts become a way to compare tunes by eye as well as by the `lap
    by is the turning acceleration ÷ 7200 (the sagitta of 1/30 s of arc): **under 2 mm in any corner** at
    1.2 g, **about 5 mm at the loop's foot** (26 m/s on an 18 m radius), **1.4 mm through a jump's arc**.
    Rotations are slerped; a spin at a full turn a second is 12° between snapshots. The `ghost` oracle
-   (M4b) measures the real miss rather than trusting the arithmetic.
+   (M4b) measures the real miss rather than trusting the arithmetic. **Measured (M4b)**: corners 4.1 mm,
+   the loop 10.6 mm, the air 1.8 mm, rotation 0.4°; the worst is **17.5 mm, for a tick, on a hard landing**,
+   where the suspension hits its bump stop and the body's acceleration is far past any corner's. Still
+   nothing an eye can see.
 3. **A run is small.** About 30 bytes a snapshot (position, rotation, steering, four suspension lengths,
    throttle, brake, handbrake, a flag), so **about 0.9 KB a second**: seed 5's 1:25 run is about 75 KB and
    a 3½-minute circuit about 190 KB, before compression. PLAN's "a few hundred KB" was 120 floats a second.
@@ -184,6 +187,15 @@ set to 2 for a moment: `5v1` drove the shipped file, `7v1` drove his own saved `
   the same fingerprint; the bench's time per track hardly moves.
 
 ## M4b — the snapshot stream
+
+**Built 2026-11-24**, as below; 12 tests, worklog that date. **The `ghost` oracle drives the shakedown**
+unless told, for its loop and both jumps (seed 5 has no loop), and `--seed=` drives another: the shakedown's
+57 s is 1,704 snapshots and 22.8 KB (0.40 KB a second, half fact 3's guess, deflating columns of changes),
+saved and loaded the same; seed 5 at 70% is 36.4 KB, circuit 8's three laps 48.6 KB. The misses are in fact
+2. `CarLooks` moved out of `Buggy` with nothing changed on screen (frames before and after, the car at rest
+and turning, and his winged tune) and all seventeen oracles as before. The game's own recorder filed the
+autodriver's shakedown run as a ghost of 1,703 snapshots. **The buggy counts its teleports** (`Teleports`),
+which is how a recorder knows the next snapshot is a cut.
 
 - **Core:** `Snapshot`, `Ghost` (the header, packing and deflating, `At(t)` with its cuts), their file.
 - **Game:** `CarLooks` out of `Buggy`, which then uses it (nothing it shows may change); the recorder on the

@@ -491,7 +491,7 @@ public partial class Main : Node3D
         if (oracle is not null)
         {
             _oracle = true;
-            AddChild(new Oracle { Kind = oracle, Car = _car, Layout = _layout, Showroom = _showroom, Course = _track, Ground = _terrain, Caution = _caution });
+            AddChild(new Oracle { Kind = oracle, Car = _car, Layout = _layout, Showroom = _showroom, Course = _track, Ground = _terrain, Caution = _caution, TrackPrint = _trackPrint });
         }
 
         if (args.Contains("--record"))

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Sandrail.Core.Driving;
+using Sandrail.Core.Ghosts;
 using Sandrail.Core.Pieces;
 using Sandrail.Core.Tracks;
 using Sandrail.Game.Cars;
@@ -48,6 +49,11 @@ public partial class Main
 
     private sealed record RaceRun(double Seconds, IReadOnlyList<double> Splits, bool Auto);
 
+    // The run as a ghost (M4b): recorded from the clock's start, every 4th tick, and the last finished run kept.
+    private GhostRecorder? _ghostRecorder;
+    private int _teleportsSeen;
+    private Ghost? _lastGhost;
+
     /// <summary>Whether the track being raced is a circuit, run in laps.</summary>
     private bool OnACircuit => _track?.Track.Circuit == true;
 
@@ -59,6 +65,7 @@ public partial class Main
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
         _race = new RaceTimer(track.Gates());
+        _ghostRecorder = new GhostRecorder(Engine.PhysicsTicksPerSecond);
         _routeLine = track.RouteLine(spec);
         DrawLine(spec);
         GD.Print($"Race: {_race.Checkpoints} checkpoints; the racing line ({_routeLine.Count} samples) in {clock.Elapsed.TotalMilliseconds:F0} ms");
@@ -71,6 +78,7 @@ public partial class Main
         _raceArmIn = 2;
         _lastRun = null;
         _lastLapTime = null;
+        _ghostRecorder?.Stop();
     }
 
     /// <summary>Where the car is put back on a track: the last gate passed while a run is on, the start otherwise.</summary>
@@ -194,6 +202,8 @@ public partial class Main
         {
             _race.Go(now);
             _autoThisRun = _autodriver is not null;
+            _ghostRecorder?.Go();
+            _teleportsSeen = _car.Teleports;
         }
 
         RaceEvent e = _race.Update(_car.GlobalPosition.ToCore(), now);
@@ -213,6 +223,47 @@ public partial class Main
                 FileRun(e.Seconds, OnACircuit ? LapDone(_race.Passed) + ".  " : string.Empty);
                 break;
         }
+
+        RecordGhost();
+    }
+
+    /// <summary>
+    /// Once a tick on a track: the car into the run's ghost, every 4th tick from the clock's start until just
+    /// past the finish, the snapshot after a trip back to a checkpoint marked as a cut (M4b). A finished run's
+    /// ghost is kept as the last run's, for M4c's ghosts and M4d's replays.
+    /// </summary>
+    private void RecordGhost()
+    {
+        if (_ghostRecorder is not { Recording: true } recorder || _car is null || _race is null)
+        {
+            return;
+        }
+
+        if (_car.Teleports != _teleportsSeen)
+        {
+            _teleportsSeen = _car.Teleports;
+            recorder.Cut();
+        }
+
+        recorder.Tick(_car.Snapshot(), _race.Finished);
+        if (!recorder.Done)
+        {
+            return;
+        }
+
+        IReadOnlyList<double> splits = _race.Splits;
+        _lastGhost = recorder.ToGhost(new GhostHeader
+        {
+            Track = _trackPrint ?? string.Empty,
+            TrackId = _track!.Track.Id,
+            TrackName = _track.Track.Name,
+            Driver = _autoThisRun ? GhostDriver.Autodriver : GhostDriver.You,
+            Seconds = splits[^1],
+            Splits = splits.ToArray(),
+            Laps = _track.Track.Laps,
+            When = System.DateTimeOffset.Now,
+        }, _car.Spec);
+        GD.Print($"The run as a ghost: {_lastGhost.Snapshots.Count} snapshots over {_lastGhost.Duration:F2} s, {_lastGhost.Save().Length / 1024.0:F1} KB as a file");
     }
 
     /// <summary>

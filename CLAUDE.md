@@ -100,7 +100,7 @@ pwsh tools/oracles.ps1
 ```
 
 `-Oracles drop` runs one; `-Spec variant.json` drives a variant file instead of the shipped buggy, which
-is how to try numbers without touching what plays. There are sixteen: `straight`, `drop`, `brake` and
+is how to try numbers without touching what plays. There are seventeen: `straight`, `drop`, `brake` and
 `circle` on the bare plain with road grip (their M1a figures are in the 2026-10-31 worklog entry;
 `straight` runs off the plain's end at 26 s and counts top speed only before), `handbrake` there too (a
 stop on it alone, and a full-lock turn with and without it; the M1d entry), `sweeper` there too (the
@@ -115,7 +115,9 @@ lapping station 6 (figures in the 2026-11-23 autodriver entry), and `track`, the
 shakedown start to finish (or `--track=` or `--seed=` another): its time, splits, each jump and the
 loop, where it left the road, or exactly where it stopped (the M2d entry), and `bank`, from rest at the
 foot of a generated track's three tallest banks (`--seed=`, 1 unless told), full throttle at the road
-(the M3d entry). **`lap` is how a tune is compared**: run
+(the M3d entry), and `ghost`, the `track` oracle's drive recorded as a ghost, saved, loaded and played back
+against the car at 120 a second: its size and the worst miss on straights, in corners, in the loop and in
+the air (the M4b entry: millimetres, and 1.75 cm for a tick on a hard landing). **`lap` is how a tune is compared**: run
 it on two specs and read the flying lap, the corner speeds and where it left the road; `track` says
 whether a car (or a track) can be finished at all.
 
@@ -182,11 +184,15 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   it), the `RaceTimer` (gates passed through their arches, in order, with
   splits) and `TrackRacing` (a laid track's gates, and its route as one racing line, stunts down the
   middle at their speed hints), and `TrackFingerprint` (M4a: eight hex digits over what's driven, the
-  placements, the pieces' shapes, the bedded heights and the rocks; ghosts are filed under it). `Pads/` is `PadProfile`. The generator and its formats land beside them.
+  placements, the pieces' shapes, the bedded heights and the rocks; ghosts are filed under it). `Ghosts/` is M4's stream: `Snapshot` (a pose, quantised as the file keeps
+  it), `Ghost` (a header line of JSON with the car's spec, then the snapshots deflated; `At(t)` plays it back,
+  holding at cuts) and `GhostRecorder` (every 4th tick from the clock's zero to just past the finish).
+  `Pads/` is `PadProfile`.
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
-  physics interpolation. `Cars/` is the `Buggy`, its `ChaseCamera`, `CarReadout` and the `RunRecorder`;
+  physics interpolation. `Cars/` is the `Buggy`, its `CarLooks` (the grey boxes and wing, a node a ghost
+  can wear too), its `ChaseCamera`, `CarReadout` and the `RunRecorder`;
   `Ui/` the `Hud`, `TelemetryOverlay` and `TuningPanel`; `World/` builds the test ground's meshes and
   colliders; `Oracles/` the headless drives; `content/base/cars/buggy.json` the shipped spec.
 - `tools/godot-sln/` — the solution Godot's editor builds from (`project/solution_directory`).
@@ -220,8 +226,10 @@ is built too. **M3 passed on his word, 2026-11-24** ("It all looks and feels goo
 continue"). **M4 (ghosts, replays and track codes) is planned** (`docs/M4-PLAN.md`), its seven decisions
 taken as recommended, and under way: **M4a, codes and fingerprints, is built** (the generator is version 1;
 codes like `5v1` in the menu and on `--seed=`; generated IDs `gen:5v1`; the track fingerprint; seed 5 ships as
-`content/base/tracks/gen-5v1.json`, `--track=gen:5v1`, so a later generator can't take it from him). Next:
-M4b, the snapshot stream and the `ghost` oracle. **The stock car has his
+`content/base/tracks/gen-5v1.json`, `--track=gen:5v1`, so a later generator can't take it from him), and
+**M4b, the snapshot stream, is built** (every run recorded at 30 a second, about 0.4 KB a second; the
+`ghost` oracle; `CarLooks` out of `Buggy`, nothing changed on screen). Next: M4c, ghosts beside you,
+saved per track, bests kept between sessions. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles

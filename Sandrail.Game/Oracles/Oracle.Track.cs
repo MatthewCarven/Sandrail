@@ -27,7 +27,7 @@ public partial class Oracle
     /// <summary>The track the track oracle drives; null elsewhere.</summary>
     public LaidTrack? Course { get; init; }
 
-    public static bool NeedsTrack(string kind) => kind is TrackDrive;
+    public static bool NeedsTrack(string kind) => kind is TrackDrive or GhostDrive;
 
     /// <summary>How long the car may go without getting a metre further before it's called stuck.</summary>
     private const float StuckSeconds = 8.0f;
@@ -102,6 +102,10 @@ public partial class Oracle
         if (timer.Armed && cmd.Throttle > 0.0f)
         {
             timer.Go(Time);
+            if (Kind == GhostDrive)
+            {
+                StartGhost();
+            }
         }
 
         RaceEvent passed = timer.Update(Car.GlobalPosition.ToCore(), Time);
@@ -154,6 +158,16 @@ public partial class Oracle
 
         bool tipped = up.Y < 0.342f && _loopAt is null;
         _courseTippedFor = tipped ? _courseTippedFor + (1.0f / Engine.PhysicsTicksPerSecond) : 0.0f;
+
+        // The ghost oracle records the run, and keeps going past the finish to the snapshot after it.
+        if (Kind == GhostDrive)
+        {
+            WatchGhost(here, piece, airborne, timer.Finished);
+            if (timer.Finished && !GhostDone)
+            {
+                return;
+            }
+        }
 
         if (timer.Finished)
         {
@@ -258,6 +272,12 @@ public partial class Oracle
 
     private void FinishTrack(LaidTrack track, string verdict, RaceTimer timer)
     {
+        if (Kind == GhostDrive)
+        {
+            Finish(GhostLine(track, timer, verdict));
+            return;
+        }
+
         float tps = Engine.PhysicsTicksPerSecond;
         string splits = timer.Splits.Count == 0 ? "none"
             : string.Join(", ", timer.Splits.Take(Math.Min(timer.Splits.Count, timer.Checkpoints)).Select(s => Clock(s)));
