@@ -200,7 +200,7 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   each raised until it sees its stretch of road over the ground). `Pads/` is `PadProfile`. `Profiles/` is the
   car profile's (PROFILE-PLAN, P1): `RunMeter` (a run tick by tick: time and slowest speed on each route piece, lap
   by lap, top speed, off road, slides, spins past 30°, respawns; clean or not) and `CarSheet` (a run as a CSV row
-  under a header from the track's route, one file per track, every car's numbers in `cars.csv`).
+  under a header from the track's route, one file per track, each row ending in every one of its car's numbers).
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and

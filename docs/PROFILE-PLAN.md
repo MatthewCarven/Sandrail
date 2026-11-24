@@ -108,7 +108,10 @@ the worst slide, spins, and **for each route piece the time on it and the slowes
 on the best lap).
 
 **`CarSheet`** (Core, pure): a run's summary as a row of plain numbers and words, under a header made from the
-track's route. Two files, both in `user://profiles/` (`%APPDATA%\Godot\app_userdata\Sandrail\profiles\`):
+track's route, in `user://profiles/` (`%APPDATA%\Godot\app_userdata\Sandrail\profiles\`). **Since 2026-11-25 it's
+one file a track, each row ending in every one of its car's numbers** (the wing, then each number in the panel's
+words), at his ask: *"can cars.csv just go into the other file as duplicated rows so you can sort easily?"* As first
+built, it was two files:
 
 - **`<track name> <fingerprint>.csv`**, one per track, one row per run, newest at the bottom:
   - who and what: when, the game's version, driver (`auto` or `you`), the car's name and fingerprint, the
@@ -157,7 +160,8 @@ Claude"*).
 3. **One file per track, one row per run, time and slowest speed for each piece, the car named with its
    differences from stock in words, and every number in `cars.csv`** (the model). The alternatives are every
    one of the car's numbers on every row (some fifty more columns), or one row per piece per run (easier to
-   filter, harder to read a run across).
+   filter, harder to read a run across). **Changed at his word on 2026-11-25 to every number on every row**, after
+   trying it, so the runs sort by any of the car's numbers; `cars.csv` is gone.
 4. **Every finished run of his is written down without asking.** The alternative is only when he presses a key,
    which forgets the lap he didn't expect to be good.
 5. **The garage: cars live in `tunes/`, F2's Save on the stock car asks for a name and saves a new car there,

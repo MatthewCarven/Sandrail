@@ -61,7 +61,7 @@ public partial class Main
     private static string? _sheetLastFile;
 
     /// <summary>Rows not yet written: a spreadsheet holding the file open (fact 8) makes them wait, never lost.</summary>
-    private static readonly List<(string Folder, string File, string Header, string Row, string CarName, CarSpec Car)> PendingRows = new();
+    private static readonly List<(string Folder, string File, string Header, string Row)> PendingRows = new();
 
     private static readonly string GameVersion = ShortVersion(typeof(Main).Assembly
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown");
@@ -319,7 +319,7 @@ public partial class Main
         _hud?.Flash(said, 8.0);
     }
 
-    /// <summary>A run as a row in the track's sheet, and its car in <c>cars.csv</c>; held if the file can't be written.</summary>
+    /// <summary>A run as a row in the track's sheet, its car's numbers on the end; held if the file can't be written.</summary>
     private void WriteSheetRow(string driver, float? caution, RunSummary run)
     {
         if (_track is null || _trackPrint is null || _car is null || _tuning is null || _runMeter is null)
@@ -330,9 +330,9 @@ public partial class Main
         SheetShape shape = SheetShape.Of(_track);
         string name = Garage.NameOf(_tuning.SpecPath) + (_tuning.Unsaved ? " (changed)" : string.Empty);
         _stockSpec ??= Garage.Read(Garage.StockPath).Spec ?? new CarSpec();
-        var row = new SheetRow(DateTime.Now, GameVersion, driver, name, CarPrint, caution, CarSheet.Differences(_car.Spec, _stockSpec), run);
+        var row = new SheetRow(DateTime.Now, GameVersion, driver, name, CarPrint, caution, CarSheet.Differences(_car.Spec, _stockSpec), run, _car.Spec);
         PendingRows.Add((_profilesFolder, CarSheet.FileName(_track.Track.Name, _trackPrint), CarSheet.Line(CarSheet.Header(shape)),
-            CarSheet.Line(CarSheet.Cells(shape, row)), name, _car.Spec));
+            CarSheet.Line(CarSheet.Cells(shape, row))));
         FlushPendingRows();
     }
 
@@ -345,10 +345,9 @@ public partial class Main
         int before = PendingRows.Count;
         while (PendingRows.Count > 0)
         {
-            var (folder, file, header, row, carName, car) = PendingRows[0];
+            var (folder, file, header, row) = PendingRows[0];
             try
             {
-                CarSheet.AddCar(folder, carName, car);
                 _sheetLastFile = CarSheet.Append(folder, file, header, row);
                 PendingRows.RemoveAt(0);
                 _profileRows++;
@@ -377,7 +376,7 @@ public partial class Main
     private static void HoldPendingRows()
     {
         FlushPendingRowsQuietly();
-        foreach (var (folder, file, header, row, _, _) in PendingRows)
+        foreach (var (folder, file, header, row) in PendingRows)
         {
             string aside = $"{Path.GetFileNameWithoutExtension(file)} (written while open){Path.GetExtension(file)}";
             try
@@ -399,10 +398,9 @@ public partial class Main
     {
         while (PendingRows.Count > 0)
         {
-            var (folder, file, header, row, carName, car) = PendingRows[0];
+            var (folder, file, header, row) = PendingRows[0];
             try
             {
-                CarSheet.AddCar(folder, carName, car);
                 _sheetLastFile = CarSheet.Append(folder, file, header, row);
                 PendingRows.RemoveAt(0);
             }

@@ -208,7 +208,7 @@ public partial class SeedMenu : CanvasLayer
             {
                 try
                 {
-                    _note.Text = $"Opened {open()}: a sheet a track, and cars.csv.";
+                    _note.Text = $"Opened {open()}: a sheet a track, each run a row, its car's numbers at the end.";
                 }
                 catch (System.IO.IOException e)
                 {
