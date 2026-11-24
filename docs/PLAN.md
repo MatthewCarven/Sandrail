@@ -180,7 +180,8 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
 - **M4, ghosts, replays and track codes.** **Planned 2026-11-24**: [M4-PLAN.md](M4-PLAN.md), its
   decisions his. **Built and passed 2026-11-24**, with brake lights besides (his idea).
 - **M5, the editor.** Grid cursor, piece palette, rotate, raise and lower, place and erase; generate
-  from a code and then edit; test-drive from the cursor; validate; save and load.
+  from a code and then edit; test-drive from the cursor; validate; save and load. **Planned 2026-11-24**:
+  [M5-PLAN.md](M5-PLAN.md), its decisions his (decision 7 would fold M6's circuits into it).
 - **M6, closed circuits.** Circuits in the editor. The loop generator and laps moved into M3 (M3g) at
   his word, 2026-11-24.
 - **Later:** multiplayer on the snapshot stream, AI opponents following the centreline, more cars, a daily

@@ -2,6 +2,16 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M5 planned
+
+*"Plan M5"*. [docs/M5-PLAN.md](docs/M5-PLAN.md): the editor, in five slices (its core, laying track,
+test-driving, ground with saving and circuits, his play), with seven decisions for him, then his tuning.
+Measured for it on the bench (seeds 1-6): `Lay` takes 0.1 to 1.3 ms, so the editor can check the whole track
+after every change; the bed takes 36 to 84 ms to lay again and the rocks about 1 ms; the terrain's noise 15 to
+60 ms, made once. Godot's terrain mesh and collider are the slow part, about 400 ms (a saved track builds in
+559 ms, its pieces in 50), so on a seed's ground the editor lets the ground catch up a moment after an edit,
+off the main thread, while each piece shows at once.
+
 ## 2026-11-24 — M4 passes
 
 His word, after the brake lights: *"Looks great to me Claude lets continue"*. **M4 passes on it** (M4e: "M4

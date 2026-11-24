@@ -21,6 +21,7 @@ free of Godot. Its generator's `Hash64` and `GradientNoise` are ported here unch
 | [docs/M2-PLAN.md](docs/M2-PLAN.md) | **M2, pieces and the track file**: eight facts (corner radii on a grid, connectors, crests, the loop on the grid, checkpoints, gap jumps), the model written down (grid, piece, placement, track, validation), six decisions (his, written 2026-11-23), slices M2a–M2e. Read "The model" before touching pieces or tracks. |
 | [docs/M3-PLAN.md](docs/M3-PLAN.md) | **M3, the generator**: eight facts (the noise's reach, how fast the road can climb, how steep the car can, why the route is walked in pieces, why a stunt can only replace its own footprint, the height field, painted ground, terrain in the track file), the model (settings, a seed per stage, terrain, route, stunts, the bed), ten decisions (his, all taken: six on 2026-11-23, four on circuits on 2026-11-24), slices M3a–M3f and M3g, circuits (walked out and walked home, 3 laps of 0.8–1.5 km, half the seeds; built after M3c). **Passed 2026-11-24.** |
 | [docs/M4-PLAN.md](docs/M4-PLAN.md) | **M4, ghosts, replays and track codes**: nine facts (record what happened, not inputs; 30 snapshots a second misses a curve by millimetres; a ghost belongs to one track, named by a fingerprint of what's driven; a seed is a track for one generator version), the model (the generator version, codes like `5v1`, the track fingerprint, the snapshot, the ghost file, `CarLooks`, replay cameras from the laid track), seven decisions (his, all taken as recommended 2026-11-24), slices M4a–M4e. |
+| [docs/M5-PLAN.md](docs/M5-PLAN.md) | **M5, the editor**: seven facts (validating is free; a track being built is unsound, and `Track.Load` refuses that; a piece builds in 1.5 ms, the ground in about 400 ms; big pieces want laying onto the road's open end; an edited generated track needs a name of its own; one key in, one key back), the model (`TrackEditor` in Core: place, erase, open ends, next, undo; the editor's camera, cursor, palette and problems), seven decisions (his, not yet taken), slices M5a–M5e, then his tuning. |
 | [WORKLOG.md](WORKLOG.md) | What happened and why, newest first. Findings worth keeping live here. |
 
 ## Non-negotiables
@@ -242,7 +243,8 @@ best or the autodriver's, see-through beside him on the race clock, G to choose;
 under the track's fingerprint, so bests last between sessions), and **M4d, replays, is built** (the last run
 or a best, from the Esc menu or Enter; cameras beside the track, chase or free; pause, skip, ¼ to 2x). M4 is
 built and **passed on his word, 2026-11-24** ("Looks great to me Claude lets continue"). **Brake lights** too, at his word: red when the
-brakes are on, white reversing, on the car, the ghost (not faded) and the replay. **The stock car has his
+brakes are on, white reversing, on the car, the ghost (not faded) and the replay. **M5, the editor, is planned**
+(`docs/M5-PLAN.md`), its seven decisions put to him and not yet taken; his tuning comes after it. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles
