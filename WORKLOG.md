@@ -24,6 +24,8 @@ at ×1 on the committed spec are identical to M5d's.
 At ×0.1 the screen gets only 12 physics ticks a second, and interpolation smooths the frames in between, so it
 should still look smooth; at ×2 the machine runs 240 ticks a second, which it does easily.
 
+**His verdict**, having tried it: *"i've tried it fast and slow and all seems in order"*.
+
 ## 2026-11-24 — M5e: the view holds still under the mouse
 
 His next: *"Ok haveing the camera follow the mouse to move around make it too difficult to place things with it
