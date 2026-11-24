@@ -176,8 +176,9 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
   [M2-PLAN.md](M2-PLAN.md), its decisions his.
 - **M3, the generator.** Stages 1–5, with the seed on the command line and in a menu, the bench, and
   terrain you can drive on, and since 2026-11-24 circuits for about half the seeds (M3g). **Planned
-  2026-11-23**: [M3-PLAN.md](M3-PLAN.md), its decisions his.
-- **M4, ghosts, replays and track codes.**
+  2026-11-23**: [M3-PLAN.md](M3-PLAN.md), its decisions his. **Built and passed 2026-11-24.**
+- **M4, ghosts, replays and track codes.** **Planned 2026-11-24**: [M4-PLAN.md](M4-PLAN.md), its
+  decisions his.
 - **M5, the editor.** Grid cursor, piece palette, rotate, raise and lower, place and erase; generate
   from a code and then edit; test-drive from the cursor; validate; save and load.
 - **M6, closed circuits.** Circuits in the editor. The loop generator and laps moved into M3 (M3g) at
@@ -218,7 +219,7 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
 
 1. ~~**The name**, or a codename, before M0.~~ **Codename Tumbleweed, 2026-10-31; named Sandrail, 2026-11-17.**
 2. **Ghosts before the editor** (M4 before M5)? Recommended, because he named ghosts as "better" and they
-   make generated tracks worth replaying before there's an editor.
+   make generated tracks worth replaying before there's an editor. Put to him again as M4-PLAN decision 1.
 3. **Where Godot lives:** share MinerCraft's `Godot_v4.7.1-stable_mono_win64\`, or copy it into this
    folder, gitignored. Recommended: copy, so the two projects can move to different Godot versions apart.
    **Taken as recommended at M0**; `start.cmd` falls back to MinerCraft's copy.

@@ -2,6 +2,24 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M3 passes; M4 planned
+
+His word, after the rocks: *"It all looks and feels good to me so far Claude lets continue"*. **M3 passes on
+it** (M3f: "M3 passes on his word"). What M3f left open stays open and can come back whenever he drives: any
+seed he finds broken or no fun, and the cure for a jump straight after a corner (it would move seed 5's
+jumps).
+
+"Lets continue" was read as the plan's order, so **M4 is planned** ([docs/M4-PLAN.md](docs/M4-PLAN.md)):
+ghosts, replays and track codes, in five slices (codes and fingerprints, the snapshot stream, ghosts,
+replays, his play), with seven decisions for him. The first is PLAN's open decision 2, M4 before the
+editor. Two findings from the planning, worth keeping:
+
+- **30 snapshots a second is plenty**: a straight line between snapshots misses a curve by the turning
+  acceleration ÷ 7200, under 2 mm in any corner, about 5 mm at the loop's foot, 1.4 mm through a jump.
+- **Codes free the generator.** With the version in the code, and seed 5 as it is now shipped as its own
+  file, the generator can change a seed's track when there's reason (the jumps-after-corners cure), without
+  taking seed 5 away from him. That's decision 3.
+
 ## 2026-11-24 — M3f: the rocks pass
 
 His word on the rocks: *"they look like the scenery now to me like, they are perfect as they are like

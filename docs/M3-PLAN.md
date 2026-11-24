@@ -343,6 +343,11 @@ His, on generated tracks: **whether they're tracks he wants to drive.** Too twis
 stunts or too few, the hills, the length. Each verdict goes into the worklog verbatim, and the dials move
 by them. M3 passes on his word.
 
+**Passed 2026-11-24**: *"It all looks and feels good to me so far Claude lets continue"*. On the way, the menu
+("Load works, new random track works :-{D") and the rocks ("perfect as they are like :-{D I stopped noticing
+them"). Still open: seeds he finds broken, and the cure for jumps straight after corners (M4-PLAN decision 3
+is what would let it in without moving his seed 5).
+
 ---
 
 ## Order and why

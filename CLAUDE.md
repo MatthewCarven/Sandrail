@@ -19,7 +19,8 @@ free of Godot. Its generator's `Hash64` and `GradientNoise` are ported here unch
 | [docs/PLAN.md](docs/PLAN.md) | **The plan**: his decisions, Claude's suggestions, the car, pieces, generator, ghosts, milestones M0–M6, and the decisions still his. |
 | [docs/M1-PLAN.md](docs/M1-PLAN.md) | **M1, the buggy**: six facts, the car's model written down with its starting numbers, six decisions (all taken 2026-10-31), slices M1a–M1e with their checks, and the named levers. Read "The car's model" before touching `Buggy` or `CarSpec`. |
 | [docs/M2-PLAN.md](docs/M2-PLAN.md) | **M2, pieces and the track file**: eight facts (corner radii on a grid, connectors, crests, the loop on the grid, checkpoints, gap jumps), the model written down (grid, piece, placement, track, validation), six decisions (his, written 2026-11-23), slices M2a–M2e. Read "The model" before touching pieces or tracks. |
-| [docs/M3-PLAN.md](docs/M3-PLAN.md) | **M3, the generator**: eight facts (the noise's reach, how fast the road can climb, how steep the car can, why the route is walked in pieces, why a stunt can only replace its own footprint, the height field, painted ground, terrain in the track file), the model (settings, a seed per stage, terrain, route, stunts, the bed), ten decisions (his, all taken: six on 2026-11-23, four on circuits on 2026-11-24), slices M3a–M3f and M3g, circuits (walked out and walked home, 3 laps of 0.8–1.5 km, half the seeds; built after M3c). |
+| [docs/M3-PLAN.md](docs/M3-PLAN.md) | **M3, the generator**: eight facts (the noise's reach, how fast the road can climb, how steep the car can, why the route is walked in pieces, why a stunt can only replace its own footprint, the height field, painted ground, terrain in the track file), the model (settings, a seed per stage, terrain, route, stunts, the bed), ten decisions (his, all taken: six on 2026-11-23, four on circuits on 2026-11-24), slices M3a–M3f and M3g, circuits (walked out and walked home, 3 laps of 0.8–1.5 km, half the seeds; built after M3c). **Passed 2026-11-24.** |
+| [docs/M4-PLAN.md](docs/M4-PLAN.md) | **M4, ghosts, replays and track codes**: nine facts (record what happened, not inputs; 30 snapshots a second misses a curve by millimetres; a ghost belongs to one track, named by a fingerprint of what's driven; a seed is a track for one generator version), the model (the generator version, codes like `5v1`, the track fingerprint, the snapshot, the ghost file, `CarLooks`, replay cameras from the laid track), seven decisions (his, not yet taken), slices M4a–M4e. |
 | [WORKLOG.md](WORKLOG.md) | What happened and why, newest first. Findings worth keeping live here. |
 
 ## Non-negotiables
@@ -211,7 +212,9 @@ home again; format 3 carries `laps`; the board counts laps and keeps a best lap;
 seed 5 his favourite, are byte for byte the sprints they were), and rocks off the road (M3d's last piece,
 `Rocks`: grey boxes 12-70 m out from the road's edge, never on the bed). M3e (the Esc menu: the seed, generate, a new
 random seed, save this track; `--track=user://tracks/gen-<seed>.json` drives a saved one on its own ground)
-is built too. Next: M3f, his play, and M3 passes on his word. **The stock car has his
+is built too. **M3 passed on his word, 2026-11-24** ("It all looks and feels good to me so far Claude lets
+continue"). **M4 (ghosts, replays and track codes) is planned** (`docs/M4-PLAN.md`), its seven decisions
+put to him and not yet taken; nothing of it is built. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles
