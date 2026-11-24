@@ -79,9 +79,40 @@ public partial class CarLooks : Node3D
         }
     }
 
-    /// <summary>A part and everything under it at an opacity. Each car's materials are its own, so a ghost's fading leaves the car alone.</summary>
-    private static void Faded(Node node, float opacity)
+    // The lights (his idea, 2026-11-24): red at the back's corners when the brakes are on, brighter the
+    // harder; white inboard of them when it's driving backwards. Unshaded, so they read at any distance and
+    // in any light, and never faded with a ghost, so a ghost's braking shows far up the road.
+    private static readonly Color BrakeOff = new(0.32f, 0.04f, 0.04f);
+    private static readonly Color BrakeOn = new(1.0f, 0.08f, 0.06f);
+    private static readonly Color ReverseOff = new(0.42f, 0.42f, 0.40f);
+    private static readonly Color ReverseOn = new(1.0f, 1.0f, 0.95f);
+    private readonly HashSet<MeshInstance3D> _lights = new();
+    private StandardMaterial3D? _brakeLight;
+    private StandardMaterial3D? _reverseLight;
+
+    /// <summary>
+    /// The lights now: the brakes as applied, 0 to 1 (lit from a touch, brighter the harder), and whether it's
+    /// driving backwards.
+    /// </summary>
+    public void Lights(float brake, bool reversing)
     {
+        if (_brakeLight is null || _reverseLight is null)
+        {
+            return;
+        }
+
+        _brakeLight.AlbedoColor = brake > 0.02f ? BrakeOff.Lerp(BrakeOn, 0.6f + (0.4f * Math.Clamp(brake, 0.0f, 1.0f))) : BrakeOff;
+        _reverseLight.AlbedoColor = reversing ? ReverseOn : ReverseOff;
+    }
+
+    /// <summary>A part and everything under it at an opacity, the lights aside. Each car's materials are its own, so a ghost's fading leaves the car alone.</summary>
+    private void Faded(Node node, float opacity)
+    {
+        if (node is MeshInstance3D light && _lights.Contains(light))
+        {
+            return;
+        }
+
         if (node is MeshInstance3D mesh)
         {
             mesh.CastShadow = opacity >= 1.0f ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off;
@@ -121,6 +152,32 @@ public partial class CarLooks : Node3D
             MaterialOverride = nose,
             Position = new Vector3(0.0f, chassisSize.Y * 0.2f, -chassisSize.Z / 2.0f),
         });
+
+        // The lights, on the back face (forward is -Z, so the back is +Z), standing a little proud of it.
+        _lights.Clear();
+        _brakeLight = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = BrakeOff };
+        _reverseLight = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = ReverseOff };
+        var brakeBox = new BoxMesh { Size = new Vector3(0.34f, 0.16f, 0.06f) };
+        var reverseBox = new BoxMesh { Size = new Vector3(0.16f, 0.12f, 0.06f) };
+        float back = (chassisSize.Z / 2.0f) + 0.02f;
+        float high = chassisSize.Y * 0.15f;
+        foreach (float side in new[] { -1.0f, 1.0f })
+        {
+            Light(new MeshInstance3D
+            {
+                Mesh = brakeBox,
+                MaterialOverride = _brakeLight,
+                Position = new Vector3(side * ((chassisSize.X / 2.0f) - 0.2f), high, back),
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            });
+            Light(new MeshInstance3D
+            {
+                Mesh = reverseBox,
+                MaterialOverride = _reverseLight,
+                Position = new Vector3(side * ((chassisSize.X / 2.0f) - 0.48f), high, back),
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            });
+        }
 
         var wheel = new CylinderMesh
         {
@@ -243,5 +300,12 @@ public partial class CarLooks : Node3D
     {
         AddChild(node);
         _body.Add(node);
+    }
+
+    /// <summary>Adds a light: a body part that fading leaves alone.</summary>
+    private void Light(MeshInstance3D light)
+    {
+        Part(light);
+        _lights.Add(light);
     }
 }

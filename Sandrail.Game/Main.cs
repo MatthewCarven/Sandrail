@@ -255,6 +255,7 @@ public partial class Main : Node3D
                 Steer = parts.Length > 1 ? float.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) : 0.0f,
                 WideLock = parts.Length > 2 && parts[2] == "1",
                 Handbrake = parts.Length > 3 && parts[3] == "1",
+                Brake = parts.Length > 4 ? float.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture) : 0.0f,
             };
         }
 

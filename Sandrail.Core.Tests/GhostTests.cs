@@ -25,6 +25,7 @@ public class GhostTests
                 Throttle = 0.5f + (0.5f * MathF.Sin(t)),
                 Brake = MathF.Max(0.0f, -MathF.Sin(t)),
                 Handbrake = k % 50 < 5 ? 1.0f : 0.0f,
+                Reversing = k % 70 < 10,
                 Cut = k == cutAt,
             };
         }
@@ -67,6 +68,8 @@ public class GhostTests
         Ghost back = Ghost.Load(file);
 
         Assert.Equal(ghost.Snapshots, back.Snapshots);
+        Assert.Equal(ghost.Snapshots.Count(s => s.Reversing), back.Snapshots.Count(s => s.Reversing));
+        Assert.Contains(back.Snapshots, s => s.Reversing && !s.Cut);
         Assert.Equal(file, back.Save());
         Assert.Equal("0070ecd8", back.Header.Track);
         Assert.Equal("gen:5v1", back.Header.TrackId);

@@ -2,6 +2,30 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M4e begins: "the replay works"; brake lights
+
+His word on the replays, after the menu offered *"Watch the last run (1:20.67)"* on a random seed: *"the
+replay works, do the brake lights now please Claude and thanks!"*. That's the menu's Watch button tried, one
+of the things M4d hadn't. M4e, his play, goes on.
+
+**Brake lights** (his idea, 2026-11-24: *"like anytime you request goes into the opposite direction to the
+throttle on the brakes"*), on `CarLooks`, so the car, the ghost and the replay's car all have them:
+
+- **Red at the back's corners when the brakes are on**, lit from a touch and brighter the harder. They
+  follow the brakes as the pedals resolve them (`BrakeAmount`: the brake key rolling forward, or throttle
+  rolling backward), not the key, so they don't light while the brake key is reversing the car.
+- **White inboard of them when it's driving backwards** (`DriveForce` below 0).
+- Unshaded, so they read at any distance and in any light. **A ghost's aren't faded**, so its braking points
+  show far up the road while the rest of it is see-through.
+- **Snapshots keep them**: `Brake` is now the brakes as applied, and `Reversing` rides in the flags byte's
+  second bit, so ghosts saved before read as never reversing and nothing else changes.
+
+Checked in frames: seed 5's replay from the chase camera at 45.8 s, the autodriver braking from 110 km/h,
+both lights bright red; and the car reversing at 22 km/h (`--drive=` takes a fifth number now, the brake),
+white lights on and the red ones dark. Not seen on a see-through ghost, though the code leaves its lights
+out of the fade. Tests 326 (the ghost test carries reversing through the file); all seventeen oracles as
+before.
+
 ## 2026-11-24 — M4d: replays
 
 *"ok lets continue please Claude"*, then, offered brake lights first, *"carry on with the replays we can do

@@ -96,6 +96,7 @@ public partial class GhostCar : Node3D
         _looks.Wheel(1, s.Droop.Y, right, rolling, seconds);
         _looks.Wheel(2, s.Droop.Z, 0.0f, rear, seconds);
         _looks.Wheel(3, s.Droop.W, 0.0f, rear, seconds);
+        _looks.Lights(s.Brake, s.Reversing);
 
         float near = !Fades || camera is null ? 1.0f : Mathf.SmoothStep(NearM, ClearM, camera.GlobalPosition.DistanceTo(at));
         float over = !Fades ? 1.0f : (float)Math.Clamp(1.0 - ((clock - run.Duration) / FadeOutSeconds), 0.0, 1.0);

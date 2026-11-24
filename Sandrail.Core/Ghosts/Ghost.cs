@@ -293,7 +293,7 @@ public sealed class Ghost
 
             foreach (Snapshot s in snapshots)
             {
-                w.Write((byte)(s.Cut ? 1 : 0));
+                w.Write((byte)((s.Cut ? 1 : 0) | (s.Reversing ? 2 : 0)));
             }
         }
 
@@ -377,6 +377,7 @@ public sealed class Ghost
                 Brake = Snapshot.FromByte(pedals[1][i]),
                 Handbrake = Snapshot.FromByte(pedals[2][i]),
                 Cut = (flags[i] & 1) != 0,
+                Reversing = (flags[i] & 2) != 0,
             };
         }
 

@@ -35,8 +35,11 @@ public readonly record struct Snapshot
     /// <summary>0..1.</summary>
     public float Throttle { get; init; }
 
-    /// <summary>0..1.</summary>
+    /// <summary>The brakes as applied, 0..1: the brake key rolling forward, the throttle rolling backward. What the brake lights show.</summary>
     public float Brake { get; init; }
+
+    /// <summary>Driving backwards: what the reversing lights show. Kept in the flags' second bit, which older ghosts leave clear.</summary>
+    public bool Reversing { get; init; }
 
     /// <summary>How far the rear wheels are locked, 0..1.</summary>
     public float Handbrake { get; init; }
@@ -108,5 +111,6 @@ public readonly record struct Snapshot
         Throttle = a.Throttle + ((b.Throttle - a.Throttle) * share),
         Brake = a.Brake + ((b.Brake - a.Brake) * share),
         Handbrake = a.Handbrake + ((b.Handbrake - a.Handbrake) * share),
+        Reversing = share < 0.5f ? a.Reversing : b.Reversing,
     };
 }

@@ -272,6 +272,9 @@ public partial class Buggy : RigidBody3D
 
             _looks!.Wheel(i, Droop(i), _wheelSteerDeg[i], spinSpeed, step);
         }
+
+        // The lights: the brakes as the pedals resolved them, and reversing when the drive is backwards.
+        _looks!.Lights(BrakeAmount, DriveForce < 0.0f);
     }
 
     /// <summary>How far a wheel hangs below its mount, metres: all its travel in the air, less its compression on the ground.</summary>
@@ -295,7 +298,8 @@ public partial class Buggy : RigidBody3D
             SteerDeg = _steerDeg,
             Droop = new System.Numerics.Vector4(Droop(FrontLeft), Droop(FrontRight), Droop(RearLeft), Droop(RearRight)),
             Throttle = _throttle,
-            Brake = _brake,
+            Brake = BrakeAmount,
+            Reversing = DriveForce < 0.0f,
             Handbrake = HandbrakeAmount,
         };
     }

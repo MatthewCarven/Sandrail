@@ -145,7 +145,7 @@ scratch folder**, so his bests are never touched), `--replay=you|auto` with `--r
 `--replay-camera=trackside|chase|free` (a saved best's replay from the start, M4d, for a look or a
 screenshot; in the game Enter watches the last run and the Esc menu offers the bests),
 and `--screenshot=<path.png>`, which saves a frame at rest and one driving, then quits; with it,
-`--drive=throttle,steer` sets how it drives and `--camera=x,y,z:x,y,z` looks at the ground from a fixed
+`--drive=throttle,steer[,wide,handbrake,brake]` sets how it drives (the fifth number, the brake, reverses it from rest) and `--camera=x,y,z:x,y,z` looks at the ground from a fixed
 point instead of following the car. It opens a window for a few seconds, and it is how Claude sees
 anything at all. `--padcheck` is a sensor run on a gamepad instead of a drive: it waits for a touch,
 records 30 s, and writes `user://padcheck.txt` (worklog 2026-11-22 has his pad's). `--bindpad` asks
@@ -240,7 +240,8 @@ codes like `5v1` in the menu and on `--seed=`; generated IDs `gen:5v1`; the trac
 best or the autodriver's, see-through beside him on the race clock, G to choose; each driver's best saved
 under the track's fingerprint, so bests last between sessions), and **M4d, replays, is built** (the last run
 or a best, from the Esc menu or Enter; cameras beside the track, chase or free; pause, skip, ¼ to 2x). M4 is
-built; M4e, his play, passes it. Next, at his word: brake lights. **The stock car has his
+built; M4e, his play, passes it ("the replay works" so far). **Brake lights** too, at his word: red when the
+brakes are on, white reversing, on the car, the ghost (not faded) and the replay. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles
