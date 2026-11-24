@@ -81,6 +81,11 @@ public partial class TuningPanel : PanelContainer
         OffsetTop = 0.0f;
         OffsetBottom = 0.0f;
 
+        // Wider than its width when the bar needs it (a long car name beside the three buttons), and it widens to the
+        // left: by default it widened to the right, off the window, cutting off Reset and the number boxes (his
+        // screenshot, 2026-11-25, with matthew-2026-11-23-original).
+        GrowHorizontal = GrowDirection.Begin;
+
         var outer = new VBoxContainer();
         AddChild(outer);
 

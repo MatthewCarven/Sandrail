@@ -2,6 +2,16 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — F2 no longer runs off the window
+
+His screenshot: F2 open on `matthew-2026-11-23-original`, with Save as new car cut to "Save as new ca", and Reset, the
+number boxes' last digits and the scrollbar off the right edge (*"can we move the edit car dialog a little to the
+left"*). The panel is pinned 470 px wide to the right edge, but its top bar (the car's name and fingerprint beside
+Save, Save as a new car and Reset) needs about 545 px with a name that long. A Godot control that must be wider than
+its anchors allow grows to the right by default, so the extra 75 px went off the window. It now grows to the left
+(`GrowHorizontal = Begin`): a short name keeps it at 470, and a long one widens it into the view instead.
+`--screenshot` with `--panels=tuning` on that car in the default 1152 × 648 window shows the whole panel.
+
 ## 2026-11-25 — Cars set inactive, behind a lock
 
 He found two identical cars in his garage (`matthew-2026-11-23` and `-2`: the same bytes), so every Profile every car
