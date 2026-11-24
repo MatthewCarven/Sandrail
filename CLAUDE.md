@@ -143,7 +143,7 @@ again), and holding R for a second or pressing Backspace starts again, clock and
 for the game and the `lap` oracle alike; in the game - and + change it),
 `--ghost=you|auto|none` (whose ghost shows on a track, M4c; G changes it in the game) and
 `--ghosts=<folder>` (where ghosts and bests are kept, `user://ghosts` unless told: **point checks at a
-scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--replay=you|auto` with `--replay-at=<seconds>` and
+scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--tunes=<folder>` (the garage's cars, `user://tunes` unless told: **a scratch copy for checks** too; the Esc menu's Change car picks one, F2's Save as a new car adds one, and Save on the stock car asks for a name, since the game never writes it), `--replay=you|auto` with `--replay-at=<seconds>` and
 `--replay-camera=trackside|chase|free` (a saved best's replay from the start, M4d, for a look or a
 screenshot; in the game Enter watches the last run and the Esc menu offers the bests),
 `--time=<scale>` (how fast time goes, `0.25` for a quarter speed; in the game `,` and `.`, or the D-pad's left and
@@ -208,7 +208,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   `TicksPerSecond`, never `Engine.PhysicsTicksPerSecond`, which slow motion turns down). `Cars/` is the `Buggy`, its `CarLooks` (the grey boxes and wing, a node a ghost
   can wear too), the `GhostCar` (a best run see-through beside you, on the race clock), its `ChaseCamera`,
   `CarReadout`, the `RunRecorder`, `MeterRead` (the one rule for off the road and a slide, for the profile's
-  meter) and the replay's `FreeCamera`; `Main.Ghosts.cs` loads and saves each
+  meter), the `Garage` (the stock car and `user://tunes/`; `Main.Garage.cs` is the Esc menu's Change car) and the
+  replay's `FreeCamera`; `Main.Ghosts.cs` loads and saves each
   track's bests as ghosts, and `Main.Replay.cs` plays a run back (trackside, chase or free cameras);
   `Editor/` the `EditorView` (M5: camera, cursor, track laid onto the road's end, the palette, the mouse, problems; `Main.Editor.cs` opens it); `Ui/` the `Hud`, `TelemetryOverlay` and `TuningPanel`; `World/` builds the test ground's meshes and
   colliders; `Oracles/` the headless drives; `content/base/cars/buggy.json` the shipped spec.
@@ -259,12 +260,14 @@ cursor and Tab comes back (`EditorSession` keeps the work), and **M5d**: tracks 
 squares, off the main thread), Ctrl+S to save with a name, circuits with laps. **M5 is built**; M5e, his play, passes it. His tuning comes after
 M5, and **the car profile** to tune with is planned (`docs/PROFILE-PLAN.md`, his idea, its seven decisions taken, the
 sweep of cautions from 50%) and under way: **P1, the meter and the sheet, is built** (Core's `Profiles/`; the
-`track` oracle measures with it, its line unchanged).
+`track` oracle measures with it, its line unchanged), and **P2, the garage, is built** (the Esc menu's Change car,
+F2's Save as a new car, the stock car never written by the game).
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
-trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles
-checking Claude's changes run on the committed spec via `-Spec`.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
+trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`, and since
+2026-11-24 also in his garage as `tunes/matthew-2026-11-24.json` (`d0142095`); the repo's file goes back to the
+stock car only at his word. Oracles checking Claude's changes run on the committed spec via `-Spec`.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
 jump, a slope and plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels
 straight, a dirt bump patch, and a 526 m lap of six different corners (flat to 35° bank, 18 to 60 m
 radius, one left-hander), which is also the shortlist for M2's corner tiles. **The autodriver** (his

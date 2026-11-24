@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Sandrail.Core.Generation;
 
@@ -54,6 +55,12 @@ public partial class SeedMenu : CanvasLayer
 
     /// <summary>Opens the editor on an empty grid on this seed's ground (M5d); null hides the button.</summary>
     public Action? NewOnGround { get; init; }
+
+    /// <summary>The garage (PROFILE-PLAN, P2): every car, each with what picking it does; null for the one being driven or one that can't be read.</summary>
+    public Func<IReadOnlyList<(string Label, Action? Pick)>>? Cars { get; init; }
+
+    /// <summary>Which list is open under its button: the tracks or the cars; null for none.</summary>
+    private string? _listing;
 
     private VBoxContainer _replays = null!;
     private ScrollContainer _trackList = null!;
@@ -137,10 +144,20 @@ public partial class SeedMenu : CanvasLayer
             }));
         }
 
-        // Load a track: a list that opens under the button, the game's own tracks and every saved one.
-        if (Tracks is not null)
+        // Load a track: a list that opens under the button, the game's own tracks and every saved one. Change car
+        // (P2) opens the garage in the same place.
+        if (Tracks is not null || Cars is not null)
         {
-            rows.AddChild(Button("Load a track", ToggleTracks));
+            if (Tracks is not null)
+            {
+                rows.AddChild(Button("Load a track", ToggleTracks));
+            }
+
+            if (Cars is not null)
+            {
+                rows.AddChild(Button("Change car", ToggleCars));
+            }
+
             _trackRows = new VBoxContainer();
             _trackRows.AddThemeConstantOverride("separation", 6);
             _trackRows.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -216,8 +233,26 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>Opens the list of tracks to load, read afresh, or closes it.</summary>
     private void ToggleTracks()
     {
-        if (_trackList.Visible)
+        IReadOnlyList<(string Label, Action? Pick)> tracks = _listing == "tracks" ? [] : Tracks?.Invoke().Select(t => (t.Label, (Action?)t.Load)).ToList() ?? [];
+        ShowList("tracks", tracks, tracks.Count == 0 ? "No tracks to load." : $"{tracks.Count} tracks: the game's own, then the ones you've saved, newest first.");
+    }
+
+    /// <summary>Opens the garage, read afresh, or closes it (P2).</summary>
+    private void ToggleCars()
+    {
+        IReadOnlyList<(string Label, Action? Pick)> cars = _listing == "cars" ? [] : Cars?.Invoke() ?? [];
+        ShowList("cars", cars, $"{cars.Count} cars: the stock car, then yours, newest first. F2's Save as a new car adds one.");
+    }
+
+    /// <summary>
+    /// The list under the buttons, filled with one kind of thing, or closed if that kind was open already: a button a
+    /// row, picking it unpausing the game first, as Generate does, since the scene starts again.
+    /// </summary>
+    private void ShowList(string kind, IReadOnlyList<(string Label, Action? Pick)> items, string note)
+    {
+        if (_listing == kind)
         {
+            _listing = null;
             _trackList.Visible = false;
             return;
         }
@@ -228,26 +263,29 @@ public partial class SeedMenu : CanvasLayer
             old.QueueFree();
         }
 
-        IReadOnlyList<(string Label, Action Load)> tracks = Tracks?.Invoke() ?? [];
-        foreach ((string label, Action load) in tracks)
+        foreach ((string label, Action? pick) in items)
         {
             Button row = Button(label, () =>
             {
-                // Unpaused first, as Generate is: the scene leaves the tree as the track loads.
-                GetTree().Paused = false;
-                load();
+                if (pick is not null)
+                {
+                    GetTree().Paused = false;
+                    pick();
+                }
             });
+            row.Disabled = pick is null;
             row.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             row.AddThemeFontSizeOverride("font_size", 16);
             _trackRows.AddChild(row);
         }
 
-        _note.Text = tracks.Count == 0 ? "No tracks to load." : $"{tracks.Count} tracks: the game's own, then the ones you've saved, newest first.";
+        _note.Text = note;
+        _listing = kind;
 
         // As tall as the window leaves room for, so the menu never runs off the screen; it scrolls for the rest.
         float room = GetViewport().GetVisibleRect().Size.Y - 520.0f;
         _trackList.CustomMinimumSize = new Vector2(0.0f, Math.Clamp(room, 90.0f, 300.0f));
-        _trackList.Visible = tracks.Count > 0;
+        _trackList.Visible = items.Count > 0;
     }
 
     /// <summary>A button for each thing there is to watch now, the menu closing as it starts.</summary>

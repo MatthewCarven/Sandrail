@@ -50,7 +50,7 @@ namespace Sandrail.Game;
 /// </remarks>
 public partial class Main : Node3D
 {
-    private const string BuggyPath = "res://content/base/cars/buggy.json";
+    private const string BuggyPath = Garage.StockPath;
 
     private const string GroundShader = """
         shader_type spatial;
@@ -135,6 +135,9 @@ public partial class Main : Node3D
 
         // Where tracks are saved and read back from (M3e, M5d): user://tracks unless told; checks point it elsewhere.
         TrackView.SavedPath = Flag(args, "--saved=") ?? "user://tracks";
+
+        // Where his cars are kept (PROFILE-PLAN, P2): user://tunes unless told; checks point it elsewhere too.
+        Garage.TunesPath = Flag(args, "--tunes=") ?? "user://tunes";
 
         // How fast time goes from the start (, and . change it in play): kept across the Esc menu's new tracks otherwise.
         if (FloatFlag(args, "--time=") is float time && time > 0.0f)
@@ -531,13 +534,14 @@ public partial class Main : Node3D
             AddChild(new SeedMenu
             {
                 Where = driving,
-                Detail = _trackPrint is null ? string.Empty : $"Track fingerprint {_trackPrint}",
+                Detail = string.Join("\n", new[] { _trackPrint is null ? string.Empty : $"Track fingerprint {_trackPrint}", CarWords() }.Where(s => s.Length > 0)),
                 Seed = code?.ToString() ?? (_generated is not null ? genSeed.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty),
                 Generate = c => GoToCode(args, c),
                 Save = _generated is not null ? SaveGenerated : null,
                 Replays = ReplaysOnOffer,
-                EscTaken = EscTakenByReplay,
+                EscTaken = () => EscTakenByReplay() || _tuning?.Typing == true,
                 Tracks = () => TracksToLoad(args, _menuCatalogue ??= TrackView.LoadCatalogue()),
+                Cars = () => CarsToDrive(args),
                 NewTrack = () => StartAgainOn(args, "--edit=new"),
                 EditThis = EditThisTrack(args, trackName),
                 NewOnGround = _track?.Track.Ground is TrackGround here ? () => StartAgainOn(args, $"--edit=new:{here.Seed}") : null,
@@ -675,8 +679,13 @@ public partial class Main : Node3D
     /// <summary>The scene started again somewhere else, the player's other flags kept.</summary>
     private void StartAgainOn(string[] args, params string[] places)
     {
-        NextArgs = args.Where(a => !PlaceFlags.Any(p => a.StartsWith(p, StringComparison.Ordinal)) && a != "--autodrive")
+        // The car goes along (P2): the one being driven, which F2's Save as a new car may have made since the scene
+        // began. In the editor there's no car, and whatever --spec= the scene had is kept for the next drive.
+        string? driving = _tuning?.SpecPath;
+        NextArgs = args.Where(a => !PlaceFlags.Any(p => a.StartsWith(p, StringComparison.Ordinal)) && a != "--autodrive"
+                && !(driving is not null && a.StartsWith("--spec=", StringComparison.Ordinal)))
             .Concat(places)
+            .Concat(driving is not null && !Garage.IsStock(driving) ? [$"--spec={driving}"] : [])
             .ToArray();
         GD.Print($"Starting again: {string.Join(' ', NextArgs)}");
         GetTree().ReloadCurrentScene();

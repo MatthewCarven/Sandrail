@@ -184,6 +184,10 @@ oracle did.
 
 ### P2 — the garage
 
+**Built 2026-11-24**, with one change: picking a car **starts the scene again with it, on the same track**, rather
+than swapping it in place, so nothing built from the old car is left over (the racing line, the autodriver's plan,
+F2's file), at the cost of a track's reload.
+
 The Cars list in the Esc menu, the car changed in place (F2 already swaps a car's numbers mid-drive); **Save as
 a new car** in F2; the stock car never written. **His working car saved into `tunes/` under his name for it
 before anything else**, and the repo's `buggy.json` put back only at his word. Checks: switching cars on a

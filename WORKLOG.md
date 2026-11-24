@@ -2,6 +2,35 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — P2: the garage
+
+**His working car first**: asked what to call it, *"matthew-2026-11-24"*, so `buggy.json` as F2 last saved it (22:48,
+fingerprint `d0142095`) is now `%APPDATA%\Godot\app_userdata\Sandrail\tunes\matthew-2026-11-24.json`, byte for byte.
+**The repo's `buggy.json` is untouched and still his car**, so on his machine the "stock" car is his tune until he
+says to put it back.
+
+**Built:**
+- **`Garage`** (Game) is the stock car (`res://content/base/cars/buggy.json`) and every car in `user://tunes/`
+  (`--tunes=` for checks), named by file, newest first.
+- **The Esc menu's Change car** lists them, each with its fingerprint, the one being driven marked. **Picking one
+  starts the scene again with it, on the same track.** That isn't the in-place swap the plan said: a restart leaves
+  nothing built from the old car behind (the racing line, the autodriver's plan, F2's file), and costs a track's
+  reload. The menu also says which car you're driving.
+- **F2:** Save writes the car's own file. **On the stock car it asks for a name instead, since the game never writes
+  the stock car.** **Save as a new car** asks for a name on any car. The new car goes into the garage and becomes the
+  one Save writes. A name already taken is refused, never written over. **The game pauses while the name is typed**,
+  so the letters don't drive the car; Enter saves, Esc doesn't. The panel's title is the car's name, not `base:buggy`.
+- **Every scene restart takes the car being driven along**: a new track, Load a track, the editor and back.
+
+**Checked with a temporary probe (since removed), on scratch copies of his tunes:**
+- Save on the stock car opened the name box and paused the game.
+- "Probe Car" was saved as `probe-car.json`, became the car being driven, and the game unpaused.
+- The same name again was refused, and Esc closed the box ("Not saved.") without opening the menu.
+- **The stock file's MD5 was the same after as before.**
+- Change car to `matthew-2026-11-24` restarted on the shakedown with fingerprint `d0142095`, as its file says, and a
+  new track (seed 5) kept that car.
+- Tests (348) and the headless check pass, and the seventeen oracles are identical to M5d's.
+
 ## 2026-11-24 — P1: the profile's meter and sheet
 
 His decisions: *"2. yes but start at 50 some tracks the autodriver wont complete without this without crashing

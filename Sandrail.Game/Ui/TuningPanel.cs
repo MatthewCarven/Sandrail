@@ -45,13 +45,29 @@ public partial class TuningPanel : PanelContainer
 
     public required Buggy Car { get; init; }
 
-    public required string SpecPath { get; init; }
+    /// <summary>The car's file: what Save writes and Reset reloads. Save as a new car moves it to the new car's (P2).</summary>
+    public required string SpecPath { get; set; }
 
     public required Hud Hud { get; init; }
+
+    /// <summary>Whether a name is being typed, so Esc is the panel's (it cancels) and not the menu's.</summary>
+    public bool Typing => _nameRow.Visible || _typingEndedFrame == Engine.GetProcessFrames();
+
+    private HBoxContainer _nameRow = null!;
+    private LineEdit _name = null!;
+    private Label _note = null!;
+    private ulong _typingEndedFrame = ulong.MaxValue;
+    private bool _wasPaused;
+
+    /// <summary>The car's name, its file's (P2): "stock" for the stock car.</summary>
+    private string CarName => Garage.NameOf(SpecPath);
 
     public override void _Ready()
     {
         _saved = Car.Spec;
+
+        // It keeps working while the game is paused for typing a name, which stops the letters driving the car.
+        ProcessMode = ProcessModeEnum.Always;
 
         AnchorLeft = 1.0f;
         AnchorRight = 1.0f;
@@ -70,14 +86,31 @@ public partial class TuningPanel : PanelContainer
         _title = new Label { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         bar.AddChild(_title);
         bar.AddChild(MakeButton("Save", Save));
+        bar.AddChild(MakeButton("Save as new car", () => StartNaming("A name for this car: it's kept with your others, and Change car in the Esc menu lists it.")));
         bar.AddChild(MakeButton("Reset", Reset));
 
         outer.AddChild(new Label
         {
-            Text = "Drag or type; it applies at once. Yellow is changed from the file. Save writes the file, Reset reloads it.",
+            Text = "Drag or type; it applies at once. Yellow is changed from the file. Save writes this car's file (the stock car "
+                + "is never written: it's saved as a new car), Reset reloads it.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             LabelSettings = new LabelSettings { FontSize = 13, FontColor = new Color(0.8f, 0.8f, 0.8f) },
         });
+
+        // Save as a new car (P2): a name typed in, Enter to save, Esc not to.
+        _nameRow = new HBoxContainer { Visible = false };
+        _name = new LineEdit { SizeFlagsHorizontal = SizeFlags.ExpandFill, PlaceholderText = "a name, like matthew-2026-11-25" };
+        _name.TextSubmitted += SaveNamed;
+        _nameRow.AddChild(_name);
+        _nameRow.AddChild(MakeButton("Save it", () => SaveNamed(_name.Text)));
+        outer.AddChild(_nameRow);
+        _note = new Label
+        {
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            LabelSettings = new LabelSettings { FontSize = 14, FontColor = Changed },
+            Visible = false,
+        };
+        outer.AddChild(_note);
 
         _problem = new Label
         {
@@ -274,20 +307,91 @@ public partial class TuningPanel : PanelContainer
         Refresh();
     }
 
+    public override void _Process(double delta)
+    {
+        if (_nameRow.Visible && Input.IsActionJustPressed(Controls.Menu))
+        {
+            EndNaming("Not saved.");
+        }
+    }
+
+    /// <summary>Save: this car's file; the stock car is never written (P2, decision 5), so it asks for a name instead.</summary>
     private void Save()
     {
-        string json = Car.Spec.ToJson() + "\n";
-        using FileAccess? file = FileAccess.Open(SpecPath, FileAccess.ModeFlags.Write);
-        if (file is null)
+        if (Garage.IsStock(SpecPath))
         {
-            Hud.Flash($"Couldn't save {SpecPath}: {FileAccess.GetOpenError()}");
+            StartNaming("The stock car stays as it is: give yours a name and it's saved as a new car.");
             return;
         }
 
-        file.StoreString(json);
+        if (Garage.Write(SpecPath, Car.Spec) is string why)
+        {
+            Hud.Flash($"Couldn't save {CarName}: {why}");
+            return;
+        }
+
         _saved = Car.Spec;
         Refresh();
-        Hud.Flash($"Saved {Car.Spec.Id} ({Car.Spec.Fingerprint()}) to {SpecPath}");
+        Say($"Saved {CarName} ({Car.Spec.Fingerprint()}) to {ProjectSettings.GlobalizePath(SpecPath)}");
+    }
+
+    /// <summary>Opens the name box, a free name in it, the game paused so typing doesn't drive the car.</summary>
+    private void StartNaming(string why)
+    {
+        if (_nameRow.Visible)
+        {
+            return;
+        }
+
+        _note.Text = why;
+        _note.Visible = true;
+        _nameRow.Visible = true;
+        _name.Text = Garage.FreeName(Garage.IsStock(SpecPath) ? "my-car" : CarName);
+        _wasPaused = GetTree().Paused;
+        GetTree().Paused = true;
+        _name.GrabFocus();
+        _name.SelectAll();
+    }
+
+    /// <summary>Saves the car under a name in the garage, never over another car, and makes it the car Save writes from now on.</summary>
+    private void SaveNamed(string typed)
+    {
+        string name = Garage.Slug(typed);
+        string path = Garage.PathFor(name);
+        if (FileAccess.FileExists(path))
+        {
+            _note.Text = $"There's a car called {name} already: pick another name (or change to it in the Esc menu, and Save writes it).";
+            return;
+        }
+
+        if (Garage.Write(path, Car.Spec) is string why)
+        {
+            EndNaming($"Couldn't save it: {why}");
+            return;
+        }
+
+        SpecPath = path;
+        _saved = Car.Spec;
+        Refresh();
+        GD.Print($"Saved a new car, {name} ({Car.Spec.Fingerprint()}), to {ProjectSettings.GlobalizePath(path)}");
+        EndNaming($"Saved as {name} ({Car.Spec.Fingerprint()}): you're driving it, Save writes it, and Change car in the Esc menu lists it.");
+    }
+
+    private void EndNaming(string said)
+    {
+        _nameRow.Visible = false;
+        _name.ReleaseFocus();
+        _typingEndedFrame = Engine.GetProcessFrames();
+        GetTree().Paused = _wasPaused;
+        Say(said);
+    }
+
+    /// <summary>A word under the panel's buttons and on the screen.</summary>
+    private void Say(string said)
+    {
+        _note.Text = said;
+        _note.Visible = true;
+        Hud.Flash(said, 5.0);
     }
 
     private void Reset()
@@ -318,7 +422,7 @@ public partial class TuningPanel : PanelContainer
 
         _problem.Visible = false;
         Refresh();
-        Hud.Flash($"Reloaded {spec.Id} ({spec.Fingerprint()}) from {SpecPath}");
+        Say($"Reloaded {CarName} ({spec.Fingerprint()}) from its file.");
     }
 
     private void Refresh()
@@ -332,7 +436,7 @@ public partial class TuningPanel : PanelContainer
 
         _wingLabel.Modulate = now.WingId != _saved.WingId ? Changed : Colors.White;
 
-        _title.Text = $"{now.Id}  {now.Fingerprint()}{(now != _saved ? "  unsaved" : string.Empty)}";
+        _title.Text = $"{CarName}  {now.Fingerprint()}{(now != _saved ? "  unsaved" : string.Empty)}";
     }
 
     private void Sync(Action set)
