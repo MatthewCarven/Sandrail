@@ -196,7 +196,7 @@ public partial class Oracle
         {
             string corners = string.Join(", ", Enumerable.Range(0, _cornerSlowest.Length)
                 .Select(c => $"{c + 1}: {_cornerSlowest[c] * 3.6f:F0}/{_cornerPlanned[c] * 3.6f:F0}"));
-            float tps = Engine.PhysicsTicksPerSecond;
+            float tps = GameClock.TicksPerSecond;
             string offWhere = string.Join(", ", Enumerable.Range(0, _offRoadByPiece.Length)
                 .Where(p => _offRoadByPiece[p] > 0)
                 .Select(p => $"{PieceName(p)} {_offRoadByPiece[p] / tps:F2} s"));
@@ -463,7 +463,7 @@ public partial class Oracle
             _slowestOverTop = MathF.Min(_slowestOverTop, Car.LinearVelocity.Length());
         }
 
-        int tps = Engine.PhysicsTicksPerSecond;
+        int tps = GameClock.TicksPerSecond;
         string stress = $"deepest compression {_deepest:F3} of {Car.Spec.SuspensionTravelM:F2} m, "
             + $"{_stopTicks / (float)tps:F2} s on the bump stop | all four wheels off the road {_airTicks / (float)tps:F2} s";
 
@@ -539,7 +539,7 @@ public partial class Oracle
         }
 
         float n = _insideTicks;
-        int tps = Engine.PhysicsTicksPerSecond;
+        int tps = GameClock.TicksPerSecond;
         Finish(
             $"{(through ? "through" : rolled ? "ROLLED in" : "stuck in")} the patch at {_speedSum / n * 3.6f:F0} km/h on average: "
             + $"a wheel off the ground {100.0f * _oneOffTicks / n:F0}% of the time, all four {100.0f * _allOffTicks / n:F0}% "

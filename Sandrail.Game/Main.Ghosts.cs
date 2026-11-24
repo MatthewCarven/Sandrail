@@ -230,7 +230,7 @@ public partial class Main
 
     /// <summary>The race clock's time for the ghost: 0 until the clock starts, then on, past the finish too, so a slower ghost drives on to its own.</summary>
     private double GhostClock(double extraTicks) =>
-        _raceGoTick < 0 ? 0.0 : (_ticks - _raceGoTick + extraTicks) / Engine.PhysicsTicksPerSecond;
+        _raceGoTick < 0 ? 0.0 : (_ticks - _raceGoTick + extraTicks) / GameClock.TicksPerSecond;
 
     /// <summary>Once a frame: the ghost posed between the last two physics ticks, as the car is drawn.</summary>
     private void PoseGhost(double delta) =>

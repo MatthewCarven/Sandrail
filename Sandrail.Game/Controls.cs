@@ -52,6 +52,8 @@ public static class Controls
     public const string Menu = "menu";
     public const string ChooseGhost = "choose_ghost";
     public const string TestDrive = "test_drive";
+    public const string Slower = "time_slower";
+    public const string Faster = "time_faster";
     public const string Watch = "watch";
     public const string ReplayPause = "replay_pause";
     public const string ReplayBack = "replay_back";
@@ -102,6 +104,11 @@ public static class Controls
 
         // Tab (M5c): from a test drive back to the editor. The editor reads Tab itself, to leave for one.
         Add(TestDrive, Key.Tab);
+
+        // How fast time goes (his ask, 2026-11-24, to make tuning more fun): , and . (< and >), and the D-pad's
+        // left and right, which no pad layout rebinds, beside its up and down for the autodriver.
+        Add(Slower, Key.Comma, JoyButton.DpadLeft);
+        Add(Faster, Key.Period, JoyButton.DpadRight);
 
         // Replays (M4d): Enter watches the last run; in a replay, Space pauses, the arrows skip and change
         // its speed. They share keys with driving, which nothing does during a replay.

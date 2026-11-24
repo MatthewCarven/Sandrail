@@ -132,7 +132,7 @@ public partial class Oracle : Node
 
     public static bool IsKnown(string kind) => kind is Straight or Drop or Brake or Circle or Handbrake or Sweeper or Respawn or Climb || NeedsTestGround(kind) || NeedsShowroom(kind) || NeedsTrack(kind) || NeedsSeed(kind);
 
-    private float Time => _tick / (float)Engine.PhysicsTicksPerSecond;
+    private float Time => _tick / (float)GameClock.TicksPerSecond;
 
     private Vector3 Forward => -Car.GlobalBasis.Z.Normalized();
 
@@ -379,7 +379,7 @@ public partial class Oracle : Node
         Vector3 right = Car.GlobalBasis.X.Normalized();
         float yawRate = Car.AngularVelocity.Dot(up);
         _lateral.Enqueue(MathF.Abs(v * yawRate));
-        if (_lateral.Count > Engine.PhysicsTicksPerSecond / 2)
+        if (_lateral.Count > GameClock.TicksPerSecond / 2)
         {
             _lateral.Dequeue();
         }
@@ -488,7 +488,7 @@ public partial class Oracle : Node
             return;
         }
 
-        float dt = 1.0f / Engine.PhysicsTicksPerSecond;
+        float dt = 1.0f / GameClock.TicksPerSecond;
         Vector3 p = Car.GlobalPosition;
         var fromCentre = new Vector2(p.X - SweepRadius, p.Z);
         float distance = fromCentre.Length();
@@ -526,7 +526,7 @@ public partial class Oracle : Node
         var accel = new Vector3(Car.Acceleration.X, 0.0f, Car.Acceleration.Z);
         Vector3 along3 = travel.LengthSquared() > 1.0f ? travel.Normalized() : Forward;
         _sweepLateral.Enqueue((accel - (along3 * accel.Dot(along3))).Length());
-        if (_sweepLateral.Count > Engine.PhysicsTicksPerSecond / 2)
+        if (_sweepLateral.Count > GameClock.TicksPerSecond / 2)
         {
             _sweepLateral.Dequeue();
         }
@@ -617,7 +617,7 @@ public partial class Oracle : Node
         Vector3 velocity = Car.LinearVelocity;
 
         // Godot's yaw is anticlockwise from above, so a right turn is negative; counted positive here.
-        _turned -= Car.AngularVelocity.Dot(up) / Engine.PhysicsTicksPerSecond;
+        _turned -= Car.AngularVelocity.Dot(up) / GameClock.TicksPerSecond;
         if (velocity.Length() > 2.0f)
         {
             _peakSlip = MathF.Max(_peakSlip, MathF.Abs(Mathf.RadToDeg(MathF.Atan2(velocity.Dot(right), v))));

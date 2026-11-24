@@ -158,7 +158,7 @@ public partial class Oracle
             _trialSlowestTop = MathF.Min(_trialSlowestTop, Car.LinearVelocity.Length());
         }
 
-        int tps = Engine.PhysicsTicksPerSecond;
+        int tps = GameClock.TicksPerSecond;
         if (_trialInAt is not null && along > _trialMainEnd + 10.0f && up.Y > 0.8f && Car.GroundedCount >= 2)
         {
             float off = _trialLine!.LateralOffset(_trialHint, Car.GlobalPosition.ToCore());
@@ -222,7 +222,7 @@ public partial class Oracle
 
         if (_trialInAt is not null && along > _trialMainEnd + 20.0f)
         {
-            float air = _trialAirTicks / (float)Engine.PhysicsTicksPerSecond;
+            float air = _trialAirTicks / (float)GameClock.TicksPerSecond;
             _trialFigures.Add($"slope at {_trialInSpeed * 3.6f:F0} km/h: {(air > 0.0f ? $"{air:F2} s in the air" : "wheels down")}");
         }
     }

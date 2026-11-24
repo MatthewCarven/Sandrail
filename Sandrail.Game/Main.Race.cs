@@ -66,7 +66,7 @@ public partial class Main
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
         _race = new RaceTimer(track.Gates());
-        _ghostRecorder = new GhostRecorder(Engine.PhysicsTicksPerSecond);
+        _ghostRecorder = new GhostRecorder(GameClock.TicksPerSecond);
         _routeLine = track.RouteLine(spec);
         DrawLine(spec);
         GD.Print($"Race: {_race.Checkpoints} checkpoints; the racing line ({_routeLine.Count} samples) in {clock.Elapsed.TotalMilliseconds:F0} ms");
@@ -161,7 +161,7 @@ public partial class Main
             return;
         }
 
-        if (++_respawnHeldTicks >= HoldToRestartSeconds * Engine.PhysicsTicksPerSecond)
+        if (++_respawnHeldTicks >= HoldToRestartSeconds * GameClock.TicksPerSecond)
         {
             _respawnHeldTicks = -1;
             RestartRun();
@@ -204,7 +204,7 @@ public partial class Main
             return;
         }
 
-        double now = _ticks / (double)Engine.PhysicsTicksPerSecond;
+        double now = _ticks / (double)GameClock.TicksPerSecond;
         if (_raceArmIn > 0)
         {
             // Until the run is armed afresh, the old run reads no gates: the trip back to the start from
@@ -394,7 +394,7 @@ public partial class Main
     private string RaceBoard()
     {
         RaceTimer race = _race!;
-        double now = _ticks / (double)Engine.PhysicsTicksPerSecond;
+        double now = _ticks / (double)GameClock.TicksPerSecond;
         string clock = race.Running ? LapTime(race.Elapsed(now))
             : race.Finished ? $"{LapTime(race.Elapsed(now))}  finished"
             : $"{LapTime(0.0)}  ready";

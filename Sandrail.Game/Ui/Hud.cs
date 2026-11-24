@@ -96,7 +96,7 @@ public partial class Hud : CanvasLayer
         _keys = new Label
         {
             // Three lines, since two ran off a 1152-wide window once the ghost's key came (M4c).
-            Text = "W/S: throttle, brake, reverse  ·  A/D: steer (Shift: wide lock)  ·  Space: handbrake  ·  C: camera\n"
+            Text = "W/S: throttle, brake, reverse  ·  A/D: steer (Shift: wide lock)  ·  Space: handbrake  ·  C: camera  ·  , and .: time slower, faster\n"
                 + (OnATrack ? "R: last checkpoint (hold: start again)  ·  Backspace: start again  ·  G: ghost  ·  Enter: replay" : "R: respawn  ·  1-9, [ ]: stations") + "  ·  Esc: menu\n"
                 + "In the air: W/S nose up and down, A/D turn  ·  P: autodriver (-/+: its aggression)  ·  L: racing line  ·  F2: tuning  ·  F3: telemetry  ·  F4: record",
             LabelSettings = Settings(16),
@@ -116,7 +116,8 @@ public partial class Hud : CanvasLayer
 
     public override void _Process(double delta)
     {
-        _speed.Text = $"{(SpeedOverrideMps ?? Car.LinearVelocity.Length()) * 3.6f:F0} km/h";
+        _speed.Text = $"{(SpeedOverrideMps ?? Car.LinearVelocity.Length()) * 3.6f:F0} km/h"
+            + (System.Math.Abs(Engine.TimeScale - 1.0) > 1e-6 ? $"   time ×{Engine.TimeScale:0.##}" : string.Empty);
         _keys.Visible = ShowKeys;
 
         bool recording = Recorder?.Recording ?? false;

@@ -37,7 +37,7 @@ public partial class Oracle
     /// <summary>The clock started: the recorder starts with it.</summary>
     private void StartGhost()
     {
-        _ghostRecorder = new GhostRecorder(Engine.PhysicsTicksPerSecond);
+        _ghostRecorder = new GhostRecorder(GameClock.TicksPerSecond);
         _ghostRecorder.Go();
         _ghostFrom = _tick;
         _ghostTeleports = Car.Teleports;
@@ -88,7 +88,7 @@ public partial class Oracle
         Ghost back = Ghost.Load(file);
         bool same = back.Snapshots.SequenceEqual(ghost.Snapshots) && back.Save().AsSpan().SequenceEqual(file);
 
-        float tps = Engine.PhysicsTicksPerSecond;
+        float tps = GameClock.TicksPerSecond;
         var worst = new Dictionary<GhostSpot, float>();
         var ticks = new Dictionary<GhostSpot, int>();
         float worstTurn = 0.0f;

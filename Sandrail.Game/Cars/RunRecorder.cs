@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text;
 using Godot;
 using Sandrail.Core.Cars;
+using Sandrail.Game;
 
 namespace Sandrail.Game.Cars;
 
@@ -35,7 +36,7 @@ public partial class RunRecorder : Node
 
     public bool Recording => _writer is not null;
 
-    public float Seconds => _ticks / (float)Engine.PhysicsTicksPerSecond;
+    public float Seconds => _ticks / (float)GameClock.TicksPerSecond;
 
     /// <summary>Starts a new run file and returns its path.</summary>
     public string Start()

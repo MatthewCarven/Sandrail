@@ -2,6 +2,28 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — Time, slower and faster
+
+His ask: *"Ok how about two keys to adjust how quickly time goes by? It will make tuning funer"*. **`,` and `.`**
+(the keys under `<` and `>`), and the D-pad's left and right on a pad, step time through ×0.1, ×0.25, ×0.5, ×1 and
+×2. The speedometer says so ("38 km/h   time ×0.25") whenever it isn't ×1, a flash says what the keys do, and
+`--time=0.25` starts that way, for a check or a screenshot. The editor always opens at ×1: slow motion is for
+driving. No pad layout rebinds the D-pad, so his clone pad's saved layout keeps it.
+
+**The first try counted real time.** Godot's `Engine.TimeScale` alone keeps 120 physics ticks every real second
+and makes each one shorter, so at ×0.5 the race clock, which counts ticks, timed the autodriver's shakedown at
+1:53.46, twice its 56.73. A ghost's snapshots would have come out half as far apart and played back at half speed
+against the car. **Now `GameClock.SetScale` turns the tick rate down with the time scale** (60 ticks a real second
+at half speed, 12 at a tenth), so a tick stays 1/120 s of game time and the physics steps exactly as at full speed.
+Everything that turned ticks into seconds by `Engine.PhysicsTicksPerSecond` (the race clock, ghosts, replays, the
+run recorder, and the oracles) uses `GameClock.TicksPerSecond`, the project's 120, which never changes. The proof:
+the autodriver's run on the shakedown in the game (`--autodrive`) at ×1, ×0.5 and ×2 alike is **56.73 (splits
+21.52, 40.61)**, its ghost 1703 snapshots and 23.0 KB; and the `ghost` oracle at ×0.5 prints the line it prints
+at ×1, character for character (56.76, 1704 snapshots, the worst miss on a straight 17.5 mm). The seventeen oracles
+at ×1 on the committed spec are identical to M5d's.
+At ×0.1 the screen gets only 12 physics ticks a second, and interpolation smooths the frames in between, so it
+should still look smooth; at ×2 the machine runs 240 ticks a second, which it does easily.
+
 ## 2026-11-24 — M5e: the view holds still under the mouse
 
 His next: *"Ok haveing the camera follow the mouse to move around make it too difficult to place things with it

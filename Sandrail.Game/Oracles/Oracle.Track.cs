@@ -157,7 +157,7 @@ public partial class Oracle
         }
 
         bool tipped = up.Y < 0.342f && _loopAt is null;
-        _courseTippedFor = tipped ? _courseTippedFor + (1.0f / Engine.PhysicsTicksPerSecond) : 0.0f;
+        _courseTippedFor = tipped ? _courseTippedFor + (1.0f / GameClock.TicksPerSecond) : 0.0f;
 
         // The ghost oracle records the run, and keeps going past the finish to the snapshot after it.
         if (Kind == GhostDrive)
@@ -278,7 +278,7 @@ public partial class Oracle
             return;
         }
 
-        float tps = Engine.PhysicsTicksPerSecond;
+        float tps = GameClock.TicksPerSecond;
         string splits = timer.Splits.Count == 0 ? "none"
             : string.Join(", ", timer.Splits.Take(Math.Min(timer.Splits.Count, timer.Checkpoints)).Select(s => Clock(s)));
         string splitWord = timer.Checkpoints == 0 ? "no checkpoints" : $"splits {splits} of {timer.Checkpoints}";

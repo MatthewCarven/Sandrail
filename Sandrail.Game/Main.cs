@@ -136,6 +136,12 @@ public partial class Main : Node3D
         // Where tracks are saved and read back from (M3e, M5d): user://tracks unless told; checks point it elsewhere.
         TrackView.SavedPath = Flag(args, "--saved=") ?? "user://tracks";
 
+        // How fast time goes from the start (, and . change it in play): kept across the Esc menu's new tracks otherwise.
+        if (FloatFlag(args, "--time=") is float time && time > 0.0f)
+        {
+            GameClock.SetScale(time);
+        }
+
         // A sensor run on a gamepad instead of a drive (Diagnostics/PadCheck.cs), or a binding run that
         // saves the pad's own layout (Diagnostics/PadBinder.cs).
         if (args.Contains("--padcheck"))
@@ -790,7 +796,7 @@ public partial class Main : Node3D
             return;
         }
 
-        double now = _ticks / (double)Engine.PhysicsTicksPerSecond;
+        double now = _ticks / (double)GameClock.TicksPerSecond;
         if (_standingIn > 0 && --_standingIn == 0)
         {
             _lapTimer.StandingStart();
@@ -856,7 +862,7 @@ public partial class Main : Node3D
             return null;
         }
 
-        double now = _ticks / (double)Engine.PhysicsTicksPerSecond;
+        double now = _ticks / (double)GameClock.TicksPerSecond;
         string current = _lapTimer.Running
             ? $"{LapTime(_lapTimer.Elapsed(now))}{(_lapTimer.Clean ? string.Empty : "  not counting")}"
             : _lapTimer.Armed || _standingIn > 0 ? $"{LapTime(0.0)}  ready" : "cross the line";
@@ -897,7 +903,7 @@ public partial class Main : Node3D
         _ticks++;
         if (_screenshot is not null)
         {
-            bool driving = _ticks > 2 * Engine.PhysicsTicksPerSecond;
+            bool driving = _ticks > 2 * GameClock.TicksPerSecond;
             _car.Driver = !driving ? default : _autodriver is not null ? AutodriverInput(_autodriver) : _screenshotDrive;
             TimeLap();
             TimeRace();
@@ -1024,6 +1030,16 @@ public partial class Main : Node3D
         if (Input.IsActionJustPressed(Controls.Autodrive))
         {
             ToggleAutodriver();
+        }
+
+        if (Input.IsActionJustPressed(Controls.Slower))
+        {
+            ChangeTime(-1);
+        }
+
+        if (Input.IsActionJustPressed(Controls.Faster))
+        {
+            ChangeTime(1);
         }
 
         if (Input.IsActionJustPressed(Controls.Bolder))
@@ -1212,7 +1228,7 @@ public partial class Main : Node3D
 
     private void TakeScreenshots(string path)
     {
-        int tps = Engine.PhysicsTicksPerSecond;
+        int tps = GameClock.TicksPerSecond;
         string stem = path.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? path[..^4] : path;
 
         // A replay's ticks count too: the race's stop while one plays (M4d).

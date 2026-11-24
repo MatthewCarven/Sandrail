@@ -145,7 +145,9 @@ for the game and the `lap` oracle alike; in the game - and + change it),
 scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--replay=you|auto` with `--replay-at=<seconds>` and
 `--replay-camera=trackside|chase|free` (a saved best's replay from the start, M4d, for a look or a
 screenshot; in the game Enter watches the last run and the Esc menu offers the bests),
-and `--screenshot=<path.png>`, which saves a frame at rest and one driving, then quits; with it,
+`--time=<scale>` (how fast time goes, `0.25` for a quarter speed; in the game `,` and `.`, or the D-pad's left and
+right, step through ×0.1 to ×2, and laps, ghosts and runs stay timed in game time because `GameClock` turns the
+tick rate down with it), and `--screenshot=<path.png>`, which saves a frame at rest and one driving, then quits; with it,
 `--drive=throttle,steer[,wide,handbrake,brake]` sets how it drives (the fifth number, the brake, reverses it from rest) and `--camera=x,y,z:x,y,z` looks at the ground from a fixed
 point instead of following the car. It opens a window for a few seconds, and it is how Claude sees
 anything at all. `--padcheck` is a sensor run on a gamepad instead of a drive: it waits for a touch,
@@ -155,7 +157,7 @@ replaces the default pad bindings for that pad. **His pad (a generic clone) has 
 brake on the right stick, since its L2/R2 are only buttons.
 
 **A tuning session** (M1b): Matthew drives with F3 (telemetry) up, presses F4 to record the bit that
-feels wrong, and says what felt wrong. Runs land in `%APPDATA%\Godot\app_userdata\Sandrail\runs\` as
+feels wrong, and says what felt wrong (`,` slows time down to watch it happen; the run is recorded in game time either way). Runs land in `%APPDATA%\Godot\app_userdata\Sandrail\runs\` as
 `<time>-<fingerprint>.csv` with the spec beside them as `.spec.json`. Read the CSV (49 columns, units
 in the headers), change numbers in a `-Spec` variant, run the oracles, and only then touch
 `buggy.json`. He can also change numbers live with F2, whose Save writes the loaded spec file.
@@ -198,7 +200,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
-  physics interpolation. `Cars/` is the `Buggy`, its `CarLooks` (the grey boxes and wing, a node a ghost
+  physics interpolation; `GameClock` keeps a tick 1/120 s of game time at any time scale (count ticks with its
+  `TicksPerSecond`, never `Engine.PhysicsTicksPerSecond`, which slow motion turns down). `Cars/` is the `Buggy`, its `CarLooks` (the grey boxes and wing, a node a ghost
   can wear too), the `GhostCar` (a best run see-through beside you, on the race clock), its `ChaseCamera`,
   `CarReadout`, the `RunRecorder` and the replay's `FreeCamera`; `Main.Ghosts.cs` loads and saves each
   track's bests as ghosts, and `Main.Replay.cs` plays a run back (trackside, chase or free cameras);
