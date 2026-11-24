@@ -21,3 +21,6 @@ build/
 
 # The Godot editor, copied beside the code (start.cmd looks here first)
 Godot_v*/
+
+# The car profile's viewer, built by tools/profile-viewer/build.cmd and kept beside the code
+/SandrailProfiles.exe
