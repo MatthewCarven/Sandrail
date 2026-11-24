@@ -4,7 +4,7 @@ using Sandrail.Core.Tracks;
 namespace Sandrail.Game.Editor;
 
 /// <summary>Where the editor's view was: the cursor, the piece in hand, the camera. Put back after a test drive.</summary>
-public sealed record EditorState(Tile Cursor, int Level, int Turn, bool Mirrored, int Piece, int Yaw, float Zoom, bool AtEnd, int EndIndex, Vector3 CameraAt);
+public sealed record EditorState(Tile Cursor, int Level, int Turn, bool Mirrored, int Piece, int Yaw, float Zoom, bool AtEnd, int EndIndex, Vector3 CameraAt, Vector3 Focus, bool Follow);
 
 /// <summary>
 /// The editor's work, kept outside the scene (M5c): Tab into a test drive starts the scene again as the game,

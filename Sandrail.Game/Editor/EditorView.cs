@@ -104,6 +104,15 @@ public partial class EditorView : Node3D
     /// <summary>Whether a name is being typed, so Esc is the editor's (it cancels) and not the menu's.</summary>
     public bool Typing => _saveBox.Visible || _typingEndedFrame == Engine.GetProcessFrames();
 
+    /// <summary>The point the view looks at; it follows the cursor only while <see cref="_followCursor"/>.</summary>
+    private Vector3 _focus;
+
+    /// <summary>Whether the view follows the cursor: after the keys move it, not after the mouse does.</summary>
+    private bool _followCursor = true;
+
+    /// <summary>Whether the middle button is held, dragging the view.</summary>
+    private bool _dragging;
+
     /// <summary>Whether the cursor waits at the road's end (chain mode) rather than going where it's moved.</summary>
     private bool _atEnd;
 
@@ -123,7 +132,7 @@ public partial class EditorView : Node3D
     public System.Action<Tile>? TestDrive { get; init; }
 
     /// <summary>Where the view is now, for <see cref="EditorSession.State"/>.</summary>
-    public EditorState Capture() => new(_cursor, _level, _turn, _mirrored, _piece, _yaw, _zoom, _atEnd, _endIndex, _cameraAt);
+    public EditorState Capture() => new(_cursor, _level, _turn, _mirrored, _piece, _yaw, _zoom, _atEnd, _endIndex, _cameraAt, _focus, _followCursor);
 
     /// <summary>
     /// Tab: a test drive from the piece the cursor is on; at the road's end, from the road's last piece; on empty
@@ -197,6 +206,8 @@ public partial class EditorView : Node3D
             (_cursor, _level, _turn, _mirrored, _yaw, _zoom, _atEnd, _endIndex) = (was.Cursor, was.Level, was.Turn, was.Mirrored, was.Yaw, was.Zoom, was.AtEnd, was.EndIndex);
             Pick(was.Piece);
             _cameraAt = was.CameraAt;
+            _focus = was.Focus;
+            _followCursor = was.Follow;
             _cameraPlaced = true;
             EditorSession.State = null;
             Rebuild();
@@ -215,17 +226,35 @@ public partial class EditorView : Node3D
     {
         switch (e)
         {
+            case InputEventMouseMotion drag when _dragging:
+                // The ground under the pointer follows it, as a map dragged by hand does.
+                if (OnGround(drag.Position - drag.Relative) is Vector3 was && OnGround(drag.Position) is Vector3 now)
+                {
+                    _focus -= now - was;
+                    _cameraAt -= now - was;
+                }
+
+                return;
             case InputEventMouseMotion motion when motion.Relative.Length() > 2.0f:
-                // Over the piece in hand at the road's end, it stays there; anywhere else is the free cursor.
+                // Over the piece in hand at the road's end, it stays there; anywhere else is the free cursor. The
+                // view holds still under the mouse.
                 if (Pointed(motion.Position) is Tile pointed && !(_atEnd && HandTiles().Contains(pointed)) && (pointed != _cursor || _atEnd))
                 {
+                    _followCursor = false;
                     GoFree();
                     _cursor = pointed;
                     FollowGround();
                 }
 
                 return;
+            case InputEventMouseButton { ButtonIndex: MouseButton.Middle } middle:
+                // The scroll button held and dragged moves the view (his ask, 2026-11-24).
+                _dragging = middle.Pressed;
+                _followCursor = false;
+                GetViewport().SetInputAsHandled();
+                return;
             case InputEventMouseButton { Pressed: true } click:
+                _followCursor = false;
                 Clicked(click);
                 return;
             case InputEventKey { Pressed: true } key:
@@ -281,6 +310,12 @@ public partial class EditorView : Node3D
     /// <summary>A key: true if the editor used it.</summary>
     private bool Pressed(InputEventKey key)
     {
+        // The keys that move the cursor bring the view back to following it.
+        if (key.Keycode is Key.Up or Key.Down or Key.Left or Key.Right or Key.Enter or Key.KpEnter or Key.Space or Key.F or Key.N or Key.Backspace)
+        {
+            _followCursor = true;
+        }
+
         Compass ahead = TrackGrid.Turned(Compass.North, _yaw);
         switch (key.Keycode)
         {
@@ -410,13 +445,19 @@ public partial class EditorView : Node3D
         Vector3 middle = TrackGrid.Middle(_cursor, _level).ToGodot();
         _cursorMark.Position = middle + new Vector3(0.0f, 0.05f, 0.0f);
 
-        // The camera behind and above the cursor, looking down at it, gliding there.
-        (int dc, int dr) = TrackGrid.Delta(TrackGrid.Turned(Compass.North, _yaw));
-        Vector3 wanted = middle + new Vector3(-dc * _zoom * 0.8f, _zoom * 0.9f, -dr * _zoom * 0.8f);
+        // The camera behind and above the point it looks at, gliding there. That point follows the cursor only when
+        // the keys move it (the arrows, laying track by Enter): under the mouse the view holds still, so the ground
+        // doesn't slide away from the pointer, and the middle button drags it (his ask, 2026-11-24).
+        if (_followCursor)
+        {
+            _focus = middle;
+        }
+
+        Vector3 wanted = _focus + Behind();
         _cameraAt = _cameraPlaced ? _cameraAt.Lerp(wanted, 1.0f - MathF.Exp(-8.0f * (float)delta)) : wanted;
         _cameraPlaced = true;
         _camera.GlobalPosition = _cameraAt;
-        _camera.LookAt(_cameraAt + (middle - wanted), Vector3.Up);
+        _camera.LookAt(_cameraAt - Behind(), Vector3.Up);
 
         PieceDef def = _palette[_piece];
         string facing = TrackGrid.Turned(Compass.North, _turn).ToString().ToLowerInvariant();
@@ -841,6 +882,21 @@ public partial class EditorView : Node3D
         FollowGround();
     }
 
+    /// <summary>Where the camera sits from the point it looks at: behind it the way the view faces, and above, by the zoom.</summary>
+    private Vector3 Behind()
+    {
+        (int dc, int dr) = TrackGrid.Delta(TrackGrid.Turned(Compass.North, _yaw));
+        return new Vector3(-dc * _zoom * 0.8f, _zoom * 0.9f, -dr * _zoom * 0.8f);
+    }
+
+    /// <summary>Where a point on the screen meets the level plane the view looks at, for dragging the view.</summary>
+    private Vector3? OnGround(Vector2 screen)
+    {
+        Vector3 from = _camera.ProjectRayOrigin(screen);
+        Vector3 ray = _camera.ProjectRayNormal(screen);
+        return ray.Y < -1e-4f ? from + (ray * ((_focus.Y - from.Y) / ray.Y)) : null;
+    }
+
     /// <summary>The tile the mouse points at, on the plane of the cursor's level, if it's on the grid.</summary>
     private Tile? Pointed(Vector2 screen)
     {
@@ -989,10 +1045,11 @@ public partial class EditorView : Node3D
         _problems = Panel(layer, 15, new Vector2(-24.0f, 20.0f), right: true);
         _problems.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _problems.CustomMinimumSize = new Vector2(520.0f, 0.0f);
-        _note = Panel(layer, 18, new Vector2(24.0f, -70.0f), bottom: true);
+        _note = Panel(layer, 18, new Vector2(24.0f, -92.0f), bottom: true);
         Label keys = Panel(layer, 15, new Vector2(24.0f, -20.0f), bottom: true);
-        keys.Text = "Tab: drive it  ·  Ctrl+S: save  ·  Enter/click: lay  ·  Backspace: take back  ·  wheel, [ ], 1-9: piece  ·  M: mirror  ·  F: road's end  ·  N: next end\n"
-            + "Arrows/mouse: free cursor  ·  Q/E: left/right (free: turn)  ·  PgUp/PgDn: level  ·  Del/right click: take away  ·  Ctrl+Z/Y: undo/redo  ·  L: laps  ·  C: view  ·  -/+: zoom  ·  Esc: menu";
+        keys.Text = "Tab: drive it  ·  Ctrl+S: save  ·  Enter/click: lay  ·  Backspace: take back  ·  wheel, [ ], 1-9: piece  ·  Q/E: left/right (free: turn)  ·  M: mirror\n"
+            + "F: road's end  ·  N: next end  ·  arrows/mouse: free cursor  ·  PgUp/PgDn: level  ·  Del/right click: take away  ·  Ctrl+Z/Y: undo/redo  ·  L: laps\n"
+            + "Hold the scroll button and drag: move the view  ·  Ctrl+wheel or -/+: zoom  ·  C: turn the view  ·  Esc: menu";
 
         // The name box for saving (decision 6), in the middle, hidden until Ctrl+S.
         _saveBox = new PanelContainer { Visible = false };

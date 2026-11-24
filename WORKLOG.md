@@ -2,6 +2,21 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M5e: the view holds still under the mouse
+
+His next: *"Ok haveing the camera follow the mouse to move around make it too difficult to place things with it
+can the view remain fixed unless you use the scroll button?"*. The view followed the cursor, and the cursor the
+mouse, so the ground slid away under the pointer as he went to click.
+
+**Now the view has a point of its own that it looks at.** It follows the cursor only when the keys move it (the
+arrows, Enter, F, N, Backspace), so laying track by the keys never runs off the screen; the mouse moving the
+cursor, or a click, leaves the view where it is. **Holding the scroll button (the middle button) and dragging
+moves the view**, the ground under the pointer following it as a map dragged by hand does. The wheel still picks
+the piece, Ctrl and the wheel zoom. The keys at the bottom are three lines now. A test drive keeps the view.
+Checked with a temporary probe (since removed): moving the mouse about left the camera where it was (it finished
+the last 1.5 m of its glide), a 200-pixel drag moved the view 35 m without moving the cursor, and Enter brought
+it back to following.
+
 ## 2026-11-24 — M5e: corners, left and right, and clicks that snap
 
 His first play in the editor came back as a picture: a track of 26 problems, nearly all "runs into … which isn't
