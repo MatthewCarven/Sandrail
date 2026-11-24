@@ -2,6 +2,62 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — A viewer for the profile's sheets
+
+The answer to "sort easily": a program of its own, `tools/profile-viewer/`, compiled to `SandrailProfiles.exe`. He
+connected his Python spreadsheet code (Trellis, trellis-gui, PyBindery) and asked what could be reused. *"Yes, go"*
+was to the plan below.
+
+**What his code had, and didn't.**
+- **None of the three sorts**, though he remembered trellis-gui doing it.
+- trellis-gui's grid is an editor: one widget per cell, a floating editor, save. That's wrong for files the game is
+  writing, and slow at a few hundred runs × 130 columns.
+- **Trellis's CSV reader keeps `0.50`, `37.80` and `110.00` as text** (it keeps trailing zeros on purpose) and `0.55`
+  as a number. The game writes fixed decimals, so a caution or time column would sort half as text.
+
+So the viewer is on **the same stack, DearPyGui** (with PyInstaller, both already on his Python 3.14), but on
+DearPyGui's own table. That table has click-to-sort, Shift-click for a second column, frozen header and columns, and
+draws only the rows on screen. His `trellis-errors` puts errors into words. trellis-gui's lessons came along, among
+them reopening the file dialog where it last was.
+
+**Built:**
+- **The window.** The folder (the game's unless changed, remembered with the sheet and groups in
+  `%LOCALAPPDATA%\SandrailProfiles\viewer.json`), its sheets down the left, `(2)` and `(written while open)`
+  included, and the chosen sheet as a table.
+- **Sorting.** Numbers as numbers, text ignoring case, blanks last both ways, ties in the file's order.
+- **The car's numbers.** Joined from `cars.csv` (and any `cars (2).csv`) on the fingerprint as the Car group, off
+  at first.
+- **Columns.** Groups ticked on and off: Run, Laps and splits, Summary, Piece times, Piece speeds, Car. When, driver,
+  car and caution are always shown and frozen at the left.
+- **Reading the rows.** Click a run to mark it. The differences from the stock car are cut to 300 px, with the whole
+  text on hover.
+- **Live.** The sheet and `cars.csv` are checked twice a second and new rows go into their sorted place; F5 re-reads.
+  An empty folder opens its first sheet the moment the game writes one.
+- **It only reads**, a file whole and let go at once.
+
+**Read-only, and why the game is never refused.** `CarSheet.Append` calls `File.AppendAllText`, which shares
+reading. Python's `open()` on Windows shares reading *and* writing, so even a handle held open lets .NET append; a
+test holds a sheet open from Python while pwsh appends to it.
+
+**Two DearPyGui 2.3 traps.**
+- **A table column's `show=False` does nothing**; `enabled=False` hides it. Found on a screenshot: the Laps group
+  was unticked and lap 1 still showed.
+- **A sortable table reports a sort by its first column on its first frame**, which overrode a sort set before it.
+  So the sort being kept is made the column's `default_sort`.
+
+**Checks:**
+- 38 tests, headless: the reader (on files written the way CarSheet writes them, and on his real folder, left
+  untouched by size and time) and the window, built without a viewport the way trellis-gui tests its own.
+- **The real game into a scratch folder**: the viewer opened on an empty folder, then `--profile=this` on the
+  shakedown wrote 8 runs (the stock car clean to 80%, 56.73, stuck at 85%). The sheet appeared, all 8 rows came
+  in as they were written, and nothing was kept aside.
+- **The exe** (12.5 MB, one file) opened his real folder, sorted by piece 02's slowest speed, and left his files
+  as they were.
+
+**Seen in passing:** his own sheet has the stock car's 50% run twice, identical, 13 s apart (00:35:06 and 00:35:19).
+`--profile=this` wrote no duplicate here, so it's most likely his Profile this car before Profile every car, the
+first stopped after one run. Not looked into further.
+
 ## 2026-11-25 — The car's numbers on every row: tried, and taken back
 
 He tried profiling first, a Profile this car and a Profile every car on his own track "4" (14 rows: the stock car clean

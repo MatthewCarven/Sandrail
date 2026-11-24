@@ -212,6 +212,17 @@ shakedown profiled from the command line gives the same rows twice; at the same 
 time is the game's autodriver time (56.73 for the stock car); how fast a profile runs in a window, measured and
 written down; a sweep stops after the first unclean run; three cars on a short track, timed end to end.
 
+### The viewer (2026-11-25, between P3 and P4)
+
+**Built at his ask**, after trying `cars.csv` folded into every row and taking it back: a car's numbers belong once
+per car. So instead there's `tools/profile-viewer/`, a program of its own, `SandrailProfiles.exe`. It lists the
+profiles folder's sheets, sorts the runs by any column (numbers as numbers, blanks last either way), joins each run's
+car from `cars.csv` on the fingerprint as the Car columns, and re-reads a sheet when the game adds a row. It only
+reads, and never holds a file, so a row is never kept aside because of it. Python and DearPyGui, the stack of his
+trellis-gui and PyBindery, on DearPyGui's own table. Checks: the reader and the window tested headless (38 tests);
+the real game profiling the stock car into a scratch folder while the viewer had it open, with all 8 rows in the sheet
+and on screen, none kept aside; his real sheets read and left untouched.
+
 ### P4 — profile ghosts
 
 Each car's fastest clean profile run saved as a ghost under the track and car; G steps through his best, the

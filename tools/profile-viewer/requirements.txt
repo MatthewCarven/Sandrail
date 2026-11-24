@@ -1,0 +1,8 @@
+# The car profile's viewer: Python 3.11 or later.
+#   python -m pip install -r requirements.txt
+dearpygui>=2.3
+pyinstaller>=6
+pytest>=7
+# Optional: Matthew's trellis-errors (from his Trellis checkout) gives the status line its short error
+# reasons; without it the viewer says the exception's own words.
+#   python -m pip install -e <Trellis>\packages\trellis-errors

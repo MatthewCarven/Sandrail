@@ -123,6 +123,16 @@ the air (the M4b entry: millimetres, and 1.75 cm for a tick on a hard landing). 
 it on two specs and read the flying lap, the corner speeds and where it left the road; `track` says
 whether a car (or a track) can be finished at all.
 
+**The car profile's viewer**, `SandrailProfiles.exe`, a program of its own (Python and DearPyGui, not part of
+the solution): the profiles folder's sheets, sorted by any column, the car's numbers from `cars.csv` joined on
+the fingerprint, new rows picked up as the game writes them. It only reads. `build.cmd` runs its tests and
+compiles it into `tools/profile-viewer/dist/` (not committed); `python -m pytest tools/profile-viewer/tests`
+tests it alone; `viewer.py <folder> --screenshot=<png>` is how Claude sees it (its README):
+
+```bash
+tools\profile-viewer\build.cmd
+```
+
 Game flags, after `--` (or passed to `start.cmd`): `--edit=new` or `--edit=<track id or path>` (the editor, M5, no car and no race; the Esc menu's New track and Edit this track use it; `--edit=new:<seed>` for an empty grid on a seed's ground; `--edit=@editor` is the editor's own track, kept across a test drive), `--drive-from=<column>,<row>` with `--track=` (a test drive from the piece on that tile, untimed unless it's a sound track's start gate, the file read without refusing it; `--track=@editor` drives the editor's track; M5c), `--seed=<n>` (a generated track on its own ground,
 M3b, with stunts and checkpoints since M3c; since M4a a code too, `--seed=5v1`, and a code from another
 version of the generator drives its file if the game has one, or says why not: the timer, P and `--oracle=track` all work on it; the
@@ -215,6 +225,9 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   `Editor/` the `EditorView` (M5: camera, cursor, track laid onto the road's end, the palette, the mouse, problems; `Main.Editor.cs` opens it); `Ui/` the `Hud`, `TelemetryOverlay` and `TuningPanel`; `World/` builds the test ground's meshes and
   colliders; `Oracles/` the headless drives; `content/base/cars/buggy.json` the shipped spec.
 - `tools/godot-sln/` — the solution Godot's editor builds from (`project/solution_directory`).
+- `tools/profile-viewer/` — the car profile's viewer, in Python on DearPyGui: `sheets.py` reads, joins and sorts
+  (it groups columns by the names `CarSheet.cs` writes, so change the two together), `viewer.py` is the window,
+  `build.cmd` the exe.
 - `Directory.Build.props` — Debug builds are JIT-optimised, Overburden's measured rule.
 
 ## Where things stand
@@ -264,7 +277,8 @@ sweep of cautions from 50%) and under way: **P1, the meter and the sheet, is bui
 `track` oracle measures with it, its line unchanged), and **P2, the garage, is built** (the Esc menu's Change car,
 F2's Save as a new car, the stock car never written by the game), and **P3, profiling in the game, is built**
 (Profile this car and Profile every car in the Esc menu, `--profile=`, his finished runs as "you" rows; the stock car
-is clean up to 80% on the shakedown, 56.73).
+is clean up to 80% on the shakedown, 56.73), and **a viewer for the sheets** (2026-11-25, at his ask, so he can "sort
+easily" without folding `cars.csv` into every row: `tools/profile-viewer/`, `SandrailProfiles.exe`).
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
