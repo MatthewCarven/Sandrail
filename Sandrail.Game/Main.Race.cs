@@ -50,6 +50,15 @@ public partial class Main
     /// <param name="Car">The fingerprint of the car it was driven on (M4c, decision 6: a best counts whatever the car, and the board says when it's another).</param>
     private sealed record RaceRun(double Seconds, IReadOnlyList<double> Splits, bool Auto, string Car);
 
+    // The run measured for the profile sheet (PROFILE-PLAN, P3): every run on a track, his and the autodriver's,
+    // tick by tick from the clock's start, with the route's pieces, and how far round it the car has got.
+    private Sandrail.Core.Profiles.RunMeter? _runMeter;
+    private IReadOnlyList<int> _routeOwner = [];
+    private int _meterHint = -1;
+    private int _meterRounds;
+    private float _meterLastAlong;
+    private float _meterAlong;
+
     // The run as a ghost (M4b): recorded from the clock's start, every 4th tick, and the last finished run kept.
     private GhostRecorder? _ghostRecorder;
     private int _teleportsSeen;
@@ -68,6 +77,7 @@ public partial class Main
         _race = new RaceTimer(track.Gates());
         _ghostRecorder = new GhostRecorder(GameClock.TicksPerSecond);
         _routeLine = track.RouteLine(spec);
+        _routeOwner = track.RouteRoad().Owner;
         DrawLine(spec);
         GD.Print($"Race: {_race.Checkpoints} checkpoints; the racing line ({_routeLine.Count} samples) in {clock.Elapsed.TotalMilliseconds:F0} ms");
         ArmRace();
@@ -80,6 +90,11 @@ public partial class Main
         _lastRun = null;
         _lastLapTime = null;
         _ghostRecorder?.Stop();
+        _runMeter = _track is not null ? new Sandrail.Core.Profiles.RunMeter(_track.Route.Count, GameClock.TicksPerSecond) : null;
+        _meterHint = -1;
+        _meterRounds = 0;
+        _meterLastAlong = 0.0f;
+        _meterAlong = 0.0f;
 
         // The ghost back on the line, and a best filed since the last run racing from now (M4c).
         _raceGoTick = -1;
@@ -119,6 +134,8 @@ public partial class Main
         if (_race is { Running: true, Passed: > 0 })
         {
             _race.Moved();
+            _runMeter?.Respawned();
+            _meterHint = -1;
             return $"checkpoint {_race.Passed}";
         }
 
@@ -230,6 +247,11 @@ public partial class Main
 
         RaceEvent e = _race.Update(_car.GlobalPosition.ToCore(), now);
         _autoThisRun |= _autodriver is not null && _race.Running;
+        if (_race.Running || e.Kind == RaceEventKind.Finished)
+        {
+            MeasureTick();
+        }
+
         switch (e.Kind)
         {
             case RaceEventKind.Checkpoint when OnACircuit && e.Gate % _track!.GatesPerLap() == 0:
@@ -248,6 +270,40 @@ public partial class Main
 
         RecordGhost();
     }
+
+    /// <summary>
+    /// Once a tick while the clock runs: the car into the run's meter (P3), on the route piece nearest it, with how
+    /// far round the route it is; round a circuit the line's distance starts again each lap, so the laps count too.
+    /// </summary>
+    private void MeasureTick()
+    {
+        if (_runMeter is null || _routeLine is null || _car is null || _track is null)
+        {
+            return;
+        }
+
+        RacingLine line = _routeLine;
+        int index = _meterHint = line.Nearest(_car.GlobalPosition.ToCore(), _meterHint);
+        int piece = _routeOwner[line.PieceAt(index)];
+        float raw = line.DistanceAt(index);
+        if (line.Closed && raw < _meterLastAlong - (line.Length / 2.0f))
+        {
+            _meterRounds++;
+        }
+        else if (line.Closed && raw > _meterLastAlong + (line.Length / 2.0f))
+        {
+            _meterRounds--;
+        }
+
+        _meterLastAlong = raw;
+        _meterAlong = (_meterRounds * line.Length) + raw;
+        int lap = OnACircuit ? _race!.Passed / System.Math.Max(1, _track.GatesPerLap()) : 0;
+        _runMeter.Tick(MeterRead.Of(_car, line, index, _track.Route[piece], piece, lap, _meterAlong));
+    }
+
+    /// <summary>The run so far, or as it ended, for the sheet.</summary>
+    private Sandrail.Core.Profiles.RunSummary RunSoFar() =>
+        _runMeter!.Summary(_race!.Finished, _race.Splits, OnACircuit ? _track!.GatesPerLap() : 0);
 
     /// <summary>
     /// Once a tick on a track: the car into the run's ghost, every 4th tick from the clock's start until just
@@ -352,7 +408,20 @@ public partial class Main
     /// <param name="lastLap">On a circuit, the last lap in words, to go before the run's time.</param>
     private void FileRun(double seconds, string lastLap = "")
     {
+        // A profile's runs are the profiler's to file (P3): they set no bests and save no ghosts.
+        if (Profiling)
+        {
+            return;
+        }
+
         var run = new RaceRun(seconds, _race!.Splits.ToList(), _autoThisRun, CarPrint);
+
+        // Every finished run of his goes in the track's sheet (decision 4); the autodriver's go in from profiles.
+        if (!run.Auto)
+        {
+            WriteSheetRow("you", null, RunSoFar());
+        }
+
         _lastRun = run;
         RaceRun? best = run.Auto ? _bestRunAuto : _bestRunYou;
         string who = run.Auto ? "The autodriver finishes" : "Finish";

@@ -59,6 +59,18 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>The garage (PROFILE-PLAN, P2): every car, each with what picking it does; null for the one being driven or one that can't be read.</summary>
     public Func<IReadOnlyList<(string Label, Action? Pick)>>? Cars { get; init; }
 
+    /// <summary>The profile (P3): the car being driven, swept over this track; null where there's no race to profile on.</summary>
+    public Action? Profile { get; init; }
+
+    /// <summary>The profile of every car in the garage over this track.</summary>
+    public Action? ProfileAll { get; init; }
+
+    /// <summary>Opens the folder the profile sheets are in; says which.</summary>
+    public Func<string>? OpenProfiles { get; init; }
+
+    /// <summary>Done before Quit quits: rows still waiting for the sheet are kept in a file beside it.</summary>
+    public Action? Quitting { get; init; }
+
     /// <summary>Which list is open under its button: the tracks or the cars; null for none.</summary>
     private string? _listing;
 
@@ -171,6 +183,40 @@ public partial class SeedMenu : CanvasLayer
             rows.AddChild(_trackList);
         }
 
+        // The profile (P3): the menu closes and the autodriver drives the sweep; Esc stops it.
+        if (Profile is Action profile)
+        {
+            rows.AddChild(Button("Profile this car", () =>
+            {
+                Close();
+                profile();
+            }));
+        }
+
+        if (ProfileAll is Action profileAll)
+        {
+            rows.AddChild(Button("Profile every car", () =>
+            {
+                Close();
+                profileAll();
+            }));
+        }
+
+        if (OpenProfiles is Func<string> open)
+        {
+            rows.AddChild(Button("Open the profiles folder", () =>
+            {
+                try
+                {
+                    _note.Text = $"Opened {open()}: a sheet a track, and cars.csv.";
+                }
+                catch (System.IO.IOException e)
+                {
+                    _note.Text = $"Couldn't open it: {e.Message}";
+                }
+            }));
+        }
+
         // The editor (M5): the track being driven, or an empty grid. Unpaused first, as Generate is: the scene
         // starts again.
         if (EditThis is Action edit)
@@ -205,7 +251,11 @@ public partial class SeedMenu : CanvasLayer
         rows.AddChild(_replays);
 
         rows.AddChild(Button("Resume", Close));
-        rows.AddChild(Button("Quit", () => GetTree().Quit()));
+        rows.AddChild(Button("Quit", () =>
+        {
+            Quitting?.Invoke();
+            GetTree().Quit();
+        }));
 
         _note = Text("Esc closes this.", 15);
         _note.AutowrapMode = TextServer.AutowrapMode.WordSmart;

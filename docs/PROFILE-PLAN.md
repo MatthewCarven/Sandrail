@@ -198,6 +198,11 @@ and survives a restart; the stock file's bytes don't change after a Save.
 
 ### P3 — profiling in the game
 
+**Built 2026-11-25.** A sweep of the shakedown takes 31.5 s of real time in a window (about ×14), and Profile every car
+did four cars on seed 5 in 2 minutes 2 seconds. A fix along the way: the autodriver takes the car only once the race
+is armed, or a run had a tick's head start whenever the one before ended inside a physics tick (56.70 against 56.73
+at 80%). A profile run ends at a respawn rather than going on, so the row says where it went wrong.
+
 **Profile this car** and **Profile every car** in the Esc menu, and `--profile=` on the command line; his
 finished runs written down; **Open the profiles folder** in the menu. A row that can't be written because the
 spreadsheet has the file open is kept and written once it can, the screen saying so (fact 8). Checks: the

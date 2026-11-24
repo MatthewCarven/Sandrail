@@ -539,9 +539,13 @@ public partial class Main : Node3D
                 Generate = c => GoToCode(args, c),
                 Save = _generated is not null ? SaveGenerated : null,
                 Replays = ReplaysOnOffer,
-                EscTaken = () => EscTakenByReplay() || _tuning?.Typing == true,
+                EscTaken = () => EscTakenByReplay() || _tuning?.Typing == true || ProfileTakesEsc,
                 Tracks = () => TracksToLoad(args, _menuCatalogue ??= TrackView.LoadCatalogue()),
                 Cars = () => CarsToDrive(args),
+                Profile = _race is not null && _testDriveFrom is null ? () => StartProfile(false) : null,
+                ProfileAll = _race is not null && _testDriveFrom is null ? () => StartProfile(true) : null,
+                OpenProfiles = OpenProfilesFolder,
+                Quitting = HoldPendingRows,
                 NewTrack = () => StartAgainOn(args, "--edit=new"),
                 EditThis = EditThisTrack(args, trackName),
                 NewOnGround = _track?.Track.Ground is TrackGround here ? () => StartAgainOn(args, $"--edit=new:{here.Seed}") : null,
@@ -576,6 +580,12 @@ public partial class Main : Node3D
         if (args.Contains("--autodrive"))
         {
             ToggleAutodriver();
+        }
+
+        // The profile sheets (P3): where they go, and a profile carried on from the scene before or asked for.
+        if (oracle is null && _screenshot is null)
+        {
+            SetUpProfiles(args);
         }
 
         // A fixed camera for looking at the ground rather than the car: x,y,z:x,y,z, from and at.
@@ -772,6 +782,14 @@ public partial class Main : Node3D
     /// <summary>The auto-respawn has put the car back where R would; this is what R does after.</summary>
     private void AutoRespawned(StuckReason reason)
     {
+        // In a profile (P3) a respawn ends the run, so its row says where it went wrong.
+        if (_sweeping)
+        {
+            _runMeter?.Respawned();
+            EndProfileRun(reason == StuckReason.Lost ? $"off the world, {_meterAlong:F0} m along" : $"tipped over, {_meterAlong:F0} m along");
+            return;
+        }
+
         PutDown(_spawnStation);
         string where = _track is not null ? AfterTrackRespawn() : _stations is not null ? $"station {_spawnStation}" : "the start";
         _hud?.Flash(reason == StuckReason.Lost
@@ -919,6 +937,16 @@ public partial class Main : Node3D
             return;
         }
 
+        // A profile (P3) drives the race itself: none of his keys, no R, no Backspace; the car still until the
+        // autodriver has it, then the clock and the run's end.
+        if (_sweeping)
+        {
+            _car.Driver = _autodriver is not null ? AutodriverInput(_autodriver) : default;
+            TimeRace();
+            ProfileTick();
+            return;
+        }
+
         for (int number = 1; number <= Controls.NumberedStations; number++)
         {
             if (Input.IsActionJustPressed(Controls.Station(number)))
@@ -1006,6 +1034,27 @@ public partial class Main : Node3D
         // Tab: back to the editor from a test drive (M5c).
         if (WatchTabBack())
         {
+            return;
+        }
+
+        RetryPendingRows();
+
+        // While a profile drives (P3) the keys are its own: Esc stops it.
+        if (_sweeping)
+        {
+            // Esc may have ended it and started the scene again with the car it began with: this one has left the tree.
+            WatchProfileKeys();
+            if (!IsInsideTree())
+            {
+                return;
+            }
+
+            PoseGhost(delta);
+            if (_hud is not null && _race is not null)
+            {
+                _hud.Laps = RaceBoard();
+            }
+
             return;
         }
 

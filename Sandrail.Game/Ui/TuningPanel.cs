@@ -59,6 +59,9 @@ public partial class TuningPanel : PanelContainer
     private ulong _typingEndedFrame = ulong.MaxValue;
     private bool _wasPaused;
 
+    /// <summary>Whether the car's numbers differ from its file's: a profile's row names it "(changed)".</summary>
+    public bool Unsaved => Car.Spec != _saved;
+
     /// <summary>The car's name, its file's (P2): "stock" for the stock car.</summary>
     private string CarName => Garage.NameOf(SpecPath);
 

@@ -2,6 +2,63 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — P3: profiling in the game
+
+His word: *"Go on to P3"*.
+
+**Built:**
+- **The Esc menu's Profile this car and Profile every car.** The autodriver drives the track from its start gate at
+  50%, 55% and on to 100%, until a run isn't clean. Each run is a row in the track's sheet.
+- **A run ends** at the finish; stuck (a metre no further along in 8 s); tipped over or off the world (where the
+  auto-respawn would act, so the row says where it went wrong); or after 10 minutes.
+- **Every car** goes through the garage, starting the scene again for each car (P2), with what's left of the profile
+  kept in statics. At the end it goes back to the car it began with.
+- **It runs at ×16 with up to 64 physics ticks a frame**, a banner saying which car and aggression, and Esc stops it,
+  keeping the rows written.
+- **Every finished run of his** writes a "you" row; runs he handed to the autodriver with P don't.
+- **Open the profiles folder** is in the menu; `--profile=this|all` runs it from the command line and quits;
+  `--profiles=` points the sheets elsewhere, for checks.
+- **A sheet held open by a spreadsheet** keeps its rows waiting and writes them, in order, once it's let go. Any still
+  waiting at quit go into `<sheet> (written while open).csv` beside it.
+- **It's the race's own code**: Backspace's restart, P's autodriver, the race clock and gates, and a meter in the race
+  for every run. A profile's runs set no bests and save no ghosts.
+
+**Found and fixed: a run depended on the one before it.** Handed the car at once, the autodriver had a tick of
+throttle before the clock was armed whenever the last run had ended inside a physics tick: that's every run but a
+sweep's first. So the stock car's 80% on the shakedown read **56.70 after seven runs and 56.73 as the first**. Now
+the autodriver takes the car only once the race is armed, so the clock starts on its first throttle. **The 80% run
+is 56.73 either way, the same as the game's own autodriver.** (The same kind of head start is open to a held throttle
+after Backspace, a tick at most; left as it is.) Also fixed: Esc ending a profile started the scene again and then
+posed the ghost in the scene that had gone (a NullReferenceException), the M5c Tab bug's twin.
+
+**Checks:**
+- The same profile twice gives identical rows, apart from the time of day.
+- **The shakedown with the stock car**: 64.33, 62.52, 60.97, 59.63, 58.47, 57.43 and 56.73 from 50% to 80%, all
+  clean; at 85% stuck 422 m along. **Clean up to 80%.**
+- **Speed:** 34.8 s of real time headless and **31.5 s in a window**, about ×14 (seven and a half minutes of driving),
+  with the same rows.
+- **Profile every car on seed 5, four cars, 22 runs: 2 minutes 2 seconds.** Fastest clean time and the most
+  aggression each car stays clean at:
+
+  | car | fastest clean | clean up to |
+  |---|---|---|
+  | stock | 1:26.66 | 65% (at 70% stuck 709 m along) |
+  | matthew-2026-11-24 | 1:25.07 | 60% (65%: 0.95 s off the road) |
+  | matthew-2026-11-23-late | 1:23.35 | 65% (70%: 14.8 s off the road) |
+  | matthew-2026-11-23 | **1:17.56** | **80%** (85%: stuck 1847 m along) |
+
+  His heavy 243 kW tune of the 23rd, the one whose springs bottom out, is 9 s faster than the stock car on seed 5
+  and stays clean 15 points further up. On the shakedown, none of his three is clean even at 50%: they're quick
+  (1:01.12 and 1:02.53) but run off the road or spin.
+- His run: a finished run that was his gives a "you" row (56.73, no aggression). Checked with a temporary probe
+  that counted an autodriver run as his; since removed.
+- Esc in Profile every car, during the second car: "Profile stopped: 10 runs written". It's back on the stock car,
+  time at ×1, 8 ticks a frame, the autodriver off, and the menu shut.
+- **A sheet held open the way Excel holds one** (other processes may read it but not write it), held for 15 s from
+  PowerShell: three rows waited, then all 8 arrived in order. Held to the end: all 8 went into the
+  "(written while open)" file. That's a stand-in for Excel, not Excel itself.
+- Tests (348), the headless check, and the seventeen oracles.
+
 ## 2026-11-25 — The stock car back in `buggy.json`
 
 Asked whether to put the repo's `buggy.json` back to the stock car now that his car is safe in the garage: *"Yes, put

@@ -143,7 +143,7 @@ again), and holding R for a second or pressing Backspace starts again, clock and
 for the game and the `lap` oracle alike; in the game - and + change it),
 `--ghost=you|auto|none` (whose ghost shows on a track, M4c; G changes it in the game) and
 `--ghosts=<folder>` (where ghosts and bests are kept, `user://ghosts` unless told: **point checks at a
-scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--tunes=<folder>` (the garage's cars, `user://tunes` unless told: **a scratch copy for checks** too; the Esc menu's Change car picks one, F2's Save as a new car adds one, and Save on the stock car asks for a name, since the game never writes it), `--replay=you|auto` with `--replay-at=<seconds>` and
+scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--tunes=<folder>` (the garage's cars, `user://tunes` unless told: **a scratch copy for checks** too; the Esc menu's Change car picks one, F2's Save as a new car adds one, and Save on the stock car asks for a name, since the game never writes it), `--profile=this|all` with `--track=` or `--seed=` (P3: the autodriver sweeps the car, or every car in the garage, from 50% aggression by 5% until a run isn't clean, writes a row a run and quits; the Esc menu's Profile this car and Profile every car do the same in play, Esc stops it) and `--profiles=<folder>` (where the sheets go, `user://profiles` unless told: **a scratch folder for checks**, since every finished run of his writes a row there too), `--replay=you|auto` with `--replay-at=<seconds>` and
 `--replay-camera=trackside|chase|free` (a saved best's replay from the start, M4d, for a look or a
 screenshot; in the game Enter watches the last run and the Esc menu offers the bests),
 `--time=<scale>` (how fast time goes, `0.25` for a quarter speed; in the game `,` and `.`, or the D-pad's left and
@@ -209,7 +209,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   can wear too), the `GhostCar` (a best run see-through beside you, on the race clock), its `ChaseCamera`,
   `CarReadout`, the `RunRecorder`, `MeterRead` (the one rule for off the road and a slide, for the profile's
   meter), the `Garage` (the stock car and `user://tunes/`; `Main.Garage.cs` is the Esc menu's Change car) and the
-  replay's `FreeCamera`; `Main.Ghosts.cs` loads and saves each
+  replay's `FreeCamera`; `Main.Profile.cs` is the profiler (sweeps through the race's own code, rows to the sheet,
+  rows held while a spreadsheet has it open); `Main.Ghosts.cs` loads and saves each
   track's bests as ghosts, and `Main.Replay.cs` plays a run back (trackside, chase or free cameras);
   `Editor/` the `EditorView` (M5: camera, cursor, track laid onto the road's end, the palette, the mouse, problems; `Main.Editor.cs` opens it); `Ui/` the `Hud`, `TelemetryOverlay` and `TuningPanel`; `World/` builds the test ground's meshes and
   colliders; `Oracles/` the headless drives; `content/base/cars/buggy.json` the shipped spec.
@@ -261,7 +262,9 @@ squares, off the main thread), Ctrl+S to save with a name, circuits with laps. *
 M5, and **the car profile** to tune with is planned (`docs/PROFILE-PLAN.md`, his idea, its seven decisions taken, the
 sweep of cautions from 50%) and under way: **P1, the meter and the sheet, is built** (Core's `Profiles/`; the
 `track` oracle measures with it, its line unchanged), and **P2, the garage, is built** (the Esc menu's Change car,
-F2's Save as a new car, the stock car never written by the game).
+F2's Save as a new car, the stock car never written by the game), and **P3, profiling in the game, is built**
+(Profile this car and Profile every car in the Esc menu, `--profile=`, his finished runs as "you" rows; the stock car
+is clean up to 80% on the shakedown, 56.73).
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
