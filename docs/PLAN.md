@@ -170,7 +170,8 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
   loop) from the first version of the piece mesher; the raycast car; chase camera; respawn; the tuning
   panel. **It passes when he drives it and says it feels right.** **Built 2026-11-23** (M1a-M1d, with an
   autodriver, a lap timer, wings and air control besides); the pass waits, at his word, until after the
-  track editor (M5), when there are real tracks to tune on.
+  track editor (M5), when there are real tracks to tune on. **The car profile** (his idea, 2026-11-24), to
+  tune with: [PROFILE-PLAN.md](PROFILE-PLAN.md), its decisions his.
 - **M2, pieces and the track file.** The grid and catalogue in Core, the full starter set, a
   hand-written point-to-point track, start gate, checkpoints, finish, timer. **Planned 2026-11-23**:
   [M2-PLAN.md](M2-PLAN.md), its decisions his.

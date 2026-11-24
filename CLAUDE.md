@@ -22,6 +22,7 @@ free of Godot. Its generator's `Hash64` and `GradientNoise` are ported here unch
 | [docs/M3-PLAN.md](docs/M3-PLAN.md) | **M3, the generator**: eight facts (the noise's reach, how fast the road can climb, how steep the car can, why the route is walked in pieces, why a stunt can only replace its own footprint, the height field, painted ground, terrain in the track file), the model (settings, a seed per stage, terrain, route, stunts, the bed), ten decisions (his, all taken: six on 2026-11-23, four on circuits on 2026-11-24), slices M3a–M3f and M3g, circuits (walked out and walked home, 3 laps of 0.8–1.5 km, half the seeds; built after M3c). **Passed 2026-11-24.** |
 | [docs/M4-PLAN.md](docs/M4-PLAN.md) | **M4, ghosts, replays and track codes**: nine facts (record what happened, not inputs; 30 snapshots a second misses a curve by millimetres; a ghost belongs to one track, named by a fingerprint of what's driven; a seed is a track for one generator version), the model (the generator version, codes like `5v1`, the track fingerprint, the snapshot, the ghost file, `CarLooks`, replay cameras from the laid track), seven decisions (his, all taken as recommended 2026-11-24), slices M4a–M4e. |
 | [docs/M5-PLAN.md](docs/M5-PLAN.md) | **M5, the editor**: seven facts (validating is free; a track being built is unsound, and `Track.Load` refuses that; a piece builds in 1.5 ms, the ground in about 400 ms; big pieces want laying onto the road's open end; an edited generated track needs a name of its own; one key in, one key back), the model (`TrackEditor` in Core: place, erase, open ends, next, undo; the editor's camera, cursor, palette and problems), seven decisions (his, all taken as recommended 2026-11-24; M6 folded in), slices M5a–M5e, then his tuning. |
+| [docs/PROFILE-PLAN.md](docs/PROFILE-PLAN.md) | **The car profile, for his tuning (M1e)**: a car driven over a track by the autodriver, a sweep of cautions, one row a run in a CSV per track (time and slowest speed on each piece), his own runs beside them, and a garage of cars. Eight facts (a run is the same every time and at any speed; about ×10 headless; the autodriver plans from grip, top speed and downforce only, so the clean limit tells cars apart; his working `buggy.json` is a car kept nowhere else), seven decisions (his, waiting), slices P1–P5. No breeding, at his word. |
 | [WORKLOG.md](WORKLOG.md) | What happened and why, newest first. Findings worth keeping live here. |
 
 ## Non-negotiables
@@ -252,7 +253,8 @@ brakes are on, white reversing, on the car, the ghost (not faded) and the replay
 track laid onto the road's end by Enter, the palette, the mouse, and **M5c**: Tab test-drives from the piece under the
 cursor and Tab comes back (`EditorSession` keeps the work), and **M5d**: tracks on a seed's ground (the bed caught up in
 squares, off the main thread), Ctrl+S to save with a name, circuits with laps. **M5 is built**; M5e, his play, passes it. His tuning comes after
-M5. **The stock car has his
+M5, and **the car profile** to tune with is planned (`docs/PROFILE-PLAN.md`, his idea, its seven decisions his).
+Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles

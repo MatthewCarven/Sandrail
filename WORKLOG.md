@@ -2,6 +2,33 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — The car profile, planned
+
+He's been saving tracks of his own (*"generated my own but can never get the heights to work out correctly like
+i want to go under sometimes"*: going under can't be done yet, as a tile takes one piece, raised road sits on
+earth, and a road in a jump's gap is a problem; bridges were left for later in M2 and M3), and is making a short
+track to tune on. Then the idea: *"maybe there would be a way to profile your car over a track and keep the
+result like a spreadsheet but no actual functions like just data and have more than one car … i mean we could
+just implement car breeding like but bruteforcing it doesnt feel right here"*. Asked which to plan first, the
+profile or crossings: *"Plan the car profile"*. **[docs/PROFILE-PLAN.md](docs/PROFILE-PLAN.md)**, its seven
+decisions his.
+
+Measured for it:
+
+- **A run is the same at any speed**: the `track` oracle at ×1, ×8, ×32 and ×64 printed one line, character for
+  character (56.76, splits 21.54, 40.64). So one run per car and caution is the answer.
+- **About ×10 is the machine's ceiling headless**: 58.1 s of real time at ×1, 8.2 s at ×8, 6.9 s at ×32 and ×64,
+  about 1.1 s of it loading. Godot's eight physics ticks a frame is the likely cap.
+- **The autodriver plans from grip × caution, the top speed estimate and a wing's downforce**, braking at 0.9 of
+  the grip (`RacingLine.SpeedProfile`), and nothing else: springs, bars, brakes, weight and steering show only in
+  how well the car holds the plan. So the caution at which a car stops being clean is what tells cars of the same
+  grip apart, and the plan sweeps cautions.
+- **His working `buggy.json` is a car kept nowhere else**: saved by F2 at 22:48 today, 18 numbers from his late
+  tune in `tunes/` (974 kg, grip 1.31, the twin-plane wing), uncommitted in the repo's file. The plan's garage
+  saves it into `tunes/` first, under his name for it, before anything else touches that file.
+- **The game and the `track` oracle differ by 0.03 s** on the shakedown with the stock car (56.73 against
+  56.76), not yet pinned down; the profile is the game's code path only.
+
 ## 2026-11-24 — Time, slower and faster
 
 His ask: *"Ok how about two keys to adjust how quickly time goes by? It will make tuning funer"*. **`,` and `.`**
