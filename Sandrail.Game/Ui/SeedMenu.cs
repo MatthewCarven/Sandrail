@@ -157,14 +157,15 @@ public partial class SeedMenu : CanvasLayer
 
     private void Go(TrackCode code)
     {
-        // The scene starts again at the end of the frame; if it can't, the menu stays up and says why.
+        // Unpaused first: starting the scene again takes this menu out of the tree at once, and a node out of
+        // the tree has no tree to unpause. Unpausing after (M4a) left the new track paused, its camera still
+        // while the car rolled on (found 2026-11-24). If the code can't be driven, it pauses again and says why.
+        GetTree().Paused = false;
         if (Generate(code) is string cannot)
         {
+            GetTree().Paused = true;
             _note.Text = cannot;
-            return;
         }
-
-        GetTree().Paused = false;
     }
 
     private static Label Text(string text, int size)

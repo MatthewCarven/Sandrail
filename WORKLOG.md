@@ -2,6 +2,22 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — Fix: a new track from the menu started paused
+
+His report, trying the ghosts: *"The camera doesnt seem to follow the car correctly anymore?"*, then *"like
+when i go new track it doesnt follow after"*. **M4a's bug.** Godot takes the old scene out of the tree the
+moment the menu starts it again, and M4a had moved the menu's unpause to after that, when the menu had no
+tree left to unpause: a quiet `NullReferenceException`, and the new track ran paused. The physics went on
+(Jolt doesn't stop for the pause), so the car rolled, but the camera, which moves in `_Process`, stayed put.
+Esc and Resume would have freed it. Before M4a the menu unpaused first, which is why he'd found loading and
+new random seeds fine at M3e.
+
+**The fix**: `SeedMenu.Go` unpauses first, and pauses again only if the code can't be driven, saying why.
+Found and checked with a temporary probe (since removed) that put the game on the test ground, paused it as
+Esc does, and went through the menu's own code to seed 7: before the fix, the new scene never ran a frame of
+`_Process`; after it, the car stays at the screen's middle, 7 m ahead of the camera, all the way down seed
+7's first straight.
+
 ## 2026-11-24 — M4c: ghosts
 
 *"Go on to M4c"*. Built as M4-PLAN has it.
