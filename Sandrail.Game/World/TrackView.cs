@@ -148,6 +148,39 @@ public static class TrackView
         + $"({Sandrail.Core.Generation.TrackCode.Of(code.Seed)}). Drive that, or ask for {code}'s file.";
 
     /// <summary>
+    /// A track by its ID or path, read but not laid, so a track with problems comes back with them: the
+    /// editor's way in (M5-PLAN fact 2), where <see cref="LoadTrack"/> refuses what can't be raced.
+    /// </summary>
+    /// <exception cref="System.IO.InvalidDataException">No such track, or it isn't a track file at all.</exception>
+    public static Track ReadTrack(string idOrPath)
+    {
+        if (idOrPath.EndsWith(".json", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return FileAccess.FileExists(idOrPath)
+                ? Track.Parse(FileAccess.GetFileAsString(idOrPath))
+                : throw new System.IO.InvalidDataException($"There's no track file at {idOrPath}.");
+        }
+
+        foreach ((string path, Track track, bool _) in AllTracks())
+        {
+            if (track.Id == idOrPath)
+            {
+                return track;
+            }
+        }
+
+        throw new System.IO.InvalidDataException($"There's no track called {idOrPath}.");
+    }
+
+    /// <summary>One placed piece and its arch, if it has a gate, together under one node: the editor adds and takes them away one at a time (M5a).</summary>
+    public static Node3D BuildOne(PlacedPiece piece, Sandrail.Core.Generation.Terrain? ground = null)
+    {
+        var node = new Node3D { Name = $"{piece.Def.Id} at {piece.Placement.At}" };
+        Build(node, [piece], ground);
+        return node;
+    }
+
+    /// <summary>
     /// Each placed piece as a body of its own, named for the piece and its tile, and an arch over each gate;
     /// on generated ground, each slab deep enough to meet it.
     /// </summary>

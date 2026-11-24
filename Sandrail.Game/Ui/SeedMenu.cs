@@ -46,6 +46,12 @@ public partial class SeedMenu : CanvasLayer
     /// </summary>
     public Func<IReadOnlyList<(string Label, Action Load)>>? Tracks { get; init; }
 
+    /// <summary>Opens the editor on an empty grid (M5a); null hides the button.</summary>
+    public Action? NewTrack { get; init; }
+
+    /// <summary>Opens the editor on the track being driven (M5a); null hides the button.</summary>
+    public Action? EditThis { get; init; }
+
     private VBoxContainer _replays = null!;
     private ScrollContainer _trackList = null!;
     private VBoxContainer _trackRows = null!;
@@ -143,6 +149,26 @@ public partial class SeedMenu : CanvasLayer
             };
             _trackList.AddChild(_trackRows);
             rows.AddChild(_trackList);
+        }
+
+        // The editor (M5): the track being driven, or an empty grid. Unpaused first, as Generate is: the scene
+        // starts again.
+        if (EditThis is Action edit)
+        {
+            rows.AddChild(Button("Edit this track", () =>
+            {
+                GetTree().Paused = false;
+                edit();
+            }));
+        }
+
+        if (NewTrack is Action fresh)
+        {
+            rows.AddChild(Button("New track", () =>
+            {
+                GetTree().Paused = false;
+                fresh();
+            }));
         }
 
         _replays = new VBoxContainer();

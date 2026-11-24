@@ -93,7 +93,8 @@ complete"*), and real wheel spin, his V-line driving and `forwardPriority` are t
 
 ## Decisions
 
-Numbered so they can be answered by number; the recommendation is first.
+Numbered so they can be answered by number; the recommendation is first. **All seven taken as
+recommended, 2026-11-24**: *"Yes, as recommended"*. Decision 7 folds PLAN's M6 into M5.
 
 1. **The editor opens from the Esc menu**: **Edit this track** (whatever is being driven: a generated track,
    a saved one, or the game's own) and **New track** (an empty grid). The alternative is a separate editor
@@ -124,6 +125,14 @@ Numbered so they can be answered by number; the recommendation is first.
 ---
 
 ## M5a — the editor's core
+
+**Built 2026-11-24**, as below; 8 tests, worklog that date. Departures: **the editor reads tracks with
+`TrackView.ReadTrack`**, which parses and doesn't refuse, and builds each piece with `TrackView.BuildOne`;
+**a track on generated ground is refused for now** (M5d takes it on), and so the game's menu offers Edit this
+track only on the plain; **the problems are in plain words**, "the corner-30 at (14, 13)" for the file's
+"pieces[3] (base:corner-30 at (14, 13))"; the editor starts its cursor at the newest open end of the road. The
+keys were pressed by a script (Enter, the arrows, ], Ctrl+Z, Ctrl+Y, Delete, a refused Enter) and did what
+they say.
 
 - **Core:** `TrackEditor`: place, erase, refusals in words, open ends, next, undo and redo; the way in that
   keeps a track's problems (fact 2).

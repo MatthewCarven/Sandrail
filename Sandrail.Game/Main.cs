@@ -281,6 +281,13 @@ public partial class Main : Node3D
         _groundShader = new Shader { Code = GroundShader };
         SetUpGround(surface);
 
+        // The editor (M5): --edit=new for an empty grid, or --edit=<track id or path>. No car, no race.
+        if (Flag(args, "--edit=") is string edit && oracle is null)
+        {
+            OpenEditor(args, edit);
+            return;
+        }
+
         if (testGround)
         {
             _layout = new TestGroundLayout();
@@ -484,6 +491,8 @@ public partial class Main : Node3D
                 Tracks = () => TrackView.AllTracks()
                     .Select(t => ($"{TrackLabel(t.Track)}{(t.Saved ? ", saved" : string.Empty)}", (Action)(() => StartAgainOn(args, $"--track={t.Path}"))))
                     .ToList(),
+                NewTrack = () => StartAgainOn(args, "--edit=new"),
+                EditThis = _track is not null && _track.Track.Ground is null && trackName is not null ? () => StartAgainOn(args, $"--edit={trackName}") : null,
             });
         }
         _telemetry = new TelemetryOverlay { Car = _car, Visible = panels.Contains("telemetry") };
@@ -586,7 +595,7 @@ public partial class Main : Node3D
 
     /// <summary>The flags that choose where to drive, which "generate" replaces with a seed; the rest (the car, the caution, the panels) stay.</summary>
     private static readonly string[] PlaceFlags =
-        ["--seed=", "--track=", "--terrain=", "--ground=", "--station=", "--checkpoint=", "--screenshot=", "--oracle=", "--camera=", "--drive="];
+        ["--seed=", "--track=", "--terrain=", "--ground=", "--station=", "--checkpoint=", "--screenshot=", "--oracle=", "--camera=", "--drive=", "--edit=", "--replay=", "--replay-at=", "--replay-camera="];
 
     /// <summary>
     /// The Esc menu's "generate" (M3e), with codes (M4a): this version's code builds its seed's track; another
@@ -819,6 +828,13 @@ public partial class Main : Node3D
 
     public override void _PhysicsProcess(double delta)
     {
+        // The editor has no race: its ticks are counted apart, as a replay's are, for screenshots.
+        if (_editorView is not null)
+        {
+            _replayTicks++;
+            return;
+        }
+
         if (_car is null || _oracle)
         {
             return;
@@ -905,6 +921,12 @@ public partial class Main : Node3D
     {
         if (_car is null)
         {
+            // The editor (M5) has no car; only a screenshot of it to take.
+            if (_editorView is not null && _screenshot is not null)
+            {
+                TakeScreenshots(_screenshot);
+            }
+
             return;
         }
 

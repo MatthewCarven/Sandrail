@@ -2,6 +2,39 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M5a: the editor's core
+
+M5's seven decisions taken as recommended: *"Yes, as recommended"*. Decision 7 folds PLAN's M6 (circuits in
+the editor) into M5.
+
+**`TrackEditor`** (Core, `Tracks/`): a track being edited and its history. **Place** and **erase**, refused in
+words only when the change can't be made at all ("corner, 30 m at (20, 15) is in the way at (20, 15)", "would
+run off the grid at (32, 5)", "level -1 is below the plain"); **undo** and **redo**, any number of steps;
+**open ends**, every way out nothing meets, newest last; **next**, the placement that continues the road from
+an open end with a piece (across the edge, or across the gap after a lip, facing the way the road goes, at the
+end's level), refusing a piece that can't follow (a landing only after a jump, and only a landing after one).
+The track is laid after every change, so its problems are always current. **`TrackEditor.Open`** reads a
+track file keeping its problems, where `Track.Load` refuses one that can't be raced. 8 tests, the strong ones:
+**next meets every way out**, every piece after every piece, every turn and mirror (over 500 pairs), with
+nothing wrong between them as `Lay` judges it; **next alone lays whole tracks**, the shakedown and circuit 8
+round to its line, piece for piece; the shakedown built placement by placement is the shakedown, byte for
+byte. Tests 334.
+
+**The editor** (`Editor/EditorView`, `Main.Editor`): the Esc menu's **New track** and **Edit this track** start
+the scene again with `--edit=new` or `--edit=<track>`, with no car and no race. A camera above the grid at an
+angle, gliding after the cursor; a tile-sized cursor; the piece in hand at the cursor, see-through, green where
+it fits and red where it doesn't (and why, under the status); every piece built on its own as it's placed;
+the problems listed top right in plain words ("The corner-30 at (14, 13) leads onto empty ground at (12, 14)"),
+the pieces they name tinted red, or "SOUND: it can be raced." in green. Keys: arrows move (away from the camera
+is up), [ ] pick the piece from seventeen (road, then stunts, then gates), Q/E turn, M mirror, Page Up/Down
+level, Enter or Space place, Delete or Backspace take away, Ctrl+Z/Ctrl+Y undo and redo, C turns the view,
+- and + zoom. Tracks on generated ground wait for M5d, so Edit this track shows only on the plain for now.
+
+Checked: frames of the editor on an unfinished track (four problems, the two faulty pieces red) and on the
+shakedown ("SOUND"); a temporary probe pressed the keys (Enter, →, ], Enter, Ctrl+Z, Ctrl+Y, Delete, Enter,
+Enter on the same spot): 6, 6, 6, 7, 6, 7, 6, 7 pieces and a refusal, each as it should be. All seventeen
+oracles as before.
+
 ## 2026-11-24 — M5 planned
 
 *"Plan M5"*. [docs/M5-PLAN.md](docs/M5-PLAN.md): the editor, in five slices (its core, laying track,
