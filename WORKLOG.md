@@ -2,6 +2,13 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — The Esc menu opens with its lists closed
+
+A list left open when the menu closed (Change car's, or Load a track's) was still open the next time. That moved
+everything below it down, and put a car where Change car had been, so a click aimed at Change car changed the car.
+Claude's own check did it once. Closing the menu now closes its list and puts the note back to "Esc closes this.", at
+his word (*"Yes, do it"*). Checked in the window: Change car open, Esc, Esc, and the menu came back as it first opens.
+
 ## 2026-11-25 — F2 is the right half of the window
 
 His screenshot: F2 open on `matthew-2026-11-23-original`, with Save as new car cut to "Save as new ca", and Reset, the
@@ -65,6 +72,7 @@ too):
 - **The five seconds have a cost.** A click that comes after the lock has shut lands on the car's name, which changes
   to that car. Claude's own slow click did it once, driving `-2` from `inactive/`, which at least proved that works.
 - **The Esc menu reopens with the car list still open**, so the menu's buttons sit lower than when it first opens.
+  (Changed the same night: the entry above.)
 - **In the default window the menu is taller than the window**: SANDRAIL is cut off at the top.
 - **F2's buttons and sliders took no clicks** in the small window under Claude's mouse (Save, Save as a new car, the
   Mass slider), while the Esc menu took them. He saved a car with Save as a new car tonight (`-2` is that name), so it

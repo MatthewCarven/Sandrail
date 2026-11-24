@@ -500,9 +500,20 @@ public partial class SeedMenu : CanvasLayer
         _replays.Visible = _replays.GetChildCount() > 0;
     }
 
+    /// <summary>
+    /// Closes the menu, and any list open in it, so it opens next time as it first did: a list left open put a car
+    /// where Change car had been, and a click meant for Change car changed the car (seen 2026-11-25).
+    /// </summary>
     private void Close()
     {
         Relock();
+        if (_listing is not null)
+        {
+            _listing = null;
+            _trackList.Visible = false;
+            _note.Text = "Esc closes this.";
+        }
+
         _panel.Visible = false;
         GetTree().Paused = false;
     }
