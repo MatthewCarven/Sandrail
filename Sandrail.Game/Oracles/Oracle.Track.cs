@@ -4,6 +4,7 @@ using System.Linq;
 using Godot;
 using Sandrail.Core.Driving;
 using Sandrail.Core.Pieces;
+using Sandrail.Core.Profiles;
 using Sandrail.Core.Tracks;
 using Sandrail.Game.Cars;
 using Sandrail.Game.World;
@@ -36,9 +37,9 @@ public partial class Oracle
     private Autodriver? _courseDriver;
     private RaceTimer? _courseTimer;
     private IReadOnlyList<int> _courseOwner = [];
-    private int[] _courseOffTicks = [];
-    private float _courseTop;
-    private float _courseWorstSlide;
+
+    /// <summary>The profile's meter (PROFILE-PLAN, P1): top speed, the worst slide, time off the road piece by piece.</summary>
+    private RunMeter? _courseMeter;
     private float _courseFurthest;
     private float _courseFurthestAt;
     private float _courseTippedFor;
@@ -79,7 +80,7 @@ public partial class Oracle
             _courseTimer = new RaceTimer(track.Gates());
             _courseTimer.Arm();
             _courseOwner = track.RouteRoad().Owner;
-            _courseOffTicks = new int[track.Route.Count];
+            _courseMeter = new RunMeter(track.Route.Count, GameClock.TicksPerSecond);
         }
 
         // Settled on its springs first, as the other oracles start.
@@ -118,23 +119,6 @@ public partial class Oracle
         int piece = _courseOwner[line.PieceAt(index)];
         PlacedPiece here = track.Route[piece];
         float speed = Car.LinearVelocity.Length();
-        _courseTop = MathF.Max(_courseTop, speed);
-        // A slide is read in the horizontal plane, so not in the loop, where the car points at the sky.
-        if (speed > 5.0f && !airborne && !line.StraightAt(index))
-        {
-            _courseWorstSlide = MathF.Max(_courseWorstSlide, MathF.Abs(CarReadout.Of(Car).BodySlipDeg));
-        }
-
-        // Off the road: the car's middle further from the road's middle than the road leaves its tyres, on the ground.
-        float carHalf = (Car.Spec.TrackM / 2.0f) + 0.15f;
-        float roadHalf = (here.Def.WidthM / 2.0f) - 0.15f;
-        if (!airborne && MathF.Abs(line.OffsetFromMiddle(index, Car.GlobalPosition.ToCore())) > roadHalf - carHalf + 0.5f)
-        {
-            _courseOffTicks[piece]++;
-        }
-
-        WatchJumps(track, piece, airborne);
-        WatchLoop(track, piece, speed, up);
 
         // Progress, for calling it stuck: a metre further along the route within the time allowed. Round a
         // circuit (M3g) the line's distance starts again at the line each lap, so the laps gone round count too.
@@ -155,6 +139,16 @@ public partial class Oracle
             _courseFurthest = along;
             _courseFurthestAt = Time;
         }
+
+        // Measured from the clock's start, as a run of his or a profile is.
+        if (!timer.Armed)
+        {
+            int lap = track.Track.Circuit ? timer.Passed / Math.Max(1, track.GatesPerLap()) : 0;
+            _courseMeter!.Tick(MeterRead.Of(Car, line, index, here, piece, lap, along));
+        }
+
+        WatchJumps(track, piece, airborne);
+        WatchLoop(track, piece, speed, up);
 
         bool tipped = up.Y < 0.342f && _loopAt is null;
         _courseTippedFor = tipped ? _courseTippedFor + (1.0f / GameClock.TicksPerSecond) : 0.0f;
@@ -278,7 +272,6 @@ public partial class Oracle
             return;
         }
 
-        float tps = GameClock.TicksPerSecond;
         string splits = timer.Splits.Count == 0 ? "none"
             : string.Join(", ", timer.Splits.Take(Math.Min(timer.Splits.Count, timer.Checkpoints)).Select(s => Clock(s)));
         string splitWord = timer.Checkpoints == 0 ? "no checkpoints" : $"splits {splits} of {timer.Checkpoints}";
@@ -297,14 +290,15 @@ public partial class Oracle
 
             splitWord = $"laps {(laps.Count == 0 ? "none" : string.Join(", ", laps))} of {track.Track.Laps}, {perLap - 1} checkpoints a lap";
         }
-        string off = string.Join(", ", Enumerable.Range(0, _courseOffTicks.Length)
-            .Where(k => _courseOffTicks[k] > 0)
-            .Select(k => $"{Label(track, k)} {_courseOffTicks[k] / tps:F2} s"));
-        float offTotal = _courseOffTicks.Sum() / tps;
+        RunMeter meter = _courseMeter!;
+        string off = string.Join(", ", Enumerable.Range(0, track.Route.Count)
+            .Where(k => meter.OffRoadOn(k) > 0.0f)
+            .Select(k => $"{Label(track, k)} {meter.OffRoadOn(k):F2} s"));
+        float offTotal = meter.OffRoadTotal;
         string missed = _courseMissed.Count == 0 ? string.Empty : $" | MISSED checkpoint {string.Join(", ", _courseMissed)} at first";
         string notes = _courseNotes.Count == 0 ? string.Empty : " | " + string.Join(" | ", _courseNotes);
-        Finish($"{track.Track.Id} at caution {Caution:F2}: {verdict} | {splitWord} | top {_courseTop * 3.6f:F0} km/h"
-            + $"{notes} | wheels off the road {offTotal:F2} s{(off.Length > 0 ? $" ({off})" : string.Empty)}, worst slide {_courseWorstSlide:F0}°{missed}");
+        Finish($"{track.Track.Id} at caution {Caution:F2}: {verdict} | {splitWord} | top {meter.TopMps * 3.6f:F0} km/h"
+            + $"{notes} | wheels off the road {offTotal:F2} s{(off.Length > 0 ? $" ({off})" : string.Empty)}, worst slide {meter.WorstSlideDeg:F0}°{missed}");
     }
 
     private string Where(LaidTrack track, int piece, float along) =>

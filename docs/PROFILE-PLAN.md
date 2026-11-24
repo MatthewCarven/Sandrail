@@ -90,9 +90,10 @@ wheel spin is M1e's to talk over, not this plan's to build.
 **A profile run** is the autodriver driving one car once, at one caution, over one track, from its start gate
 to the finish (on a circuit, all its laps), as the race does it: **the same race code, the same clock**.
 
-**A sweep** profiles one car at rising cautions, **70% to 100% in steps of 5%** (starting numbers), until a run
-isn't clean, that run kept too and marked. **Clean** (starting numbers): finished, under 0.5 s with a wheel off
-the road in all, no spin (the body more than 90° from its travel), no respawn. A sweep says two things: **the
+**A sweep** profiles one car at rising cautions, **50% to 100% in steps of 5%** (decision 2, his: from 50, not
+70), until a run isn't clean, that run kept too and marked. **Clean** (starting numbers): finished, under 0.5 s with a wheel off
+the road in all, no spin, no respawn. **A spin is a slide past 30°**, as the `lap` oracle has always counted one,
+so "clean up to 85%" means what it meant on station 6 (first written here as 90°, changed in P1 to match). A sweep says two things: **the
 car's best clean time, and its limit** (the highest clean caution).
 
 **His own runs**: every run of his that finishes a sound track from its start gate gives a row too, the same
@@ -139,12 +140,17 @@ A's best beside him while he drives car B, or the replay can show two cars racin
 
 ## Decisions
 
-Numbered so they can be answered by number; the recommendation is first.
+Numbered so they can be answered by number; the recommendation is first. **All seven taken, 2026-11-24**:
+decision 2 with the sweep starting at 50% (*"2. yes but start at 50 some tracks the autodriver wont complete
+without this without crashing like the will become obvious as track times rise for later attempts at increasing
+aggression i believe"*), and the rest as recommended (*"everything else as you put it please and thanks
+Claude"*).
 
 1. **The autodriver profiles cars, and his own finished runs go in the same sheet**, marked "you" (facts 3, 4).
    The alternative is his runs only, which mixes driver and car in every row.
 2. **A sweep of cautions, 70% to 100% by 5%, stopping after the first run that isn't clean**, so each car gets
-   its best clean time and its limit (fact 3). The alternatives are one run at 80% (quick, but it measures the
+   its best clean time and its limit (fact 3). **Taken from 50%, at his word**: some tracks the autodriver
+   can't finish at 70% without crashing, and the limit shows as the times rise with the caution. The alternatives are one run at 80% (quick, but it measures the
    plan more than the car), or every step whatever happens (more rows, more time).
 3. **One file per track, one row per run, time and slowest speed for each piece, the car named with its
    differences from stock in words, and every number in `cars.csv`** (the model). The alternatives are every

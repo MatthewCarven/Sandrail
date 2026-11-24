@@ -136,7 +136,7 @@ public partial class TuningPanel : PanelContainer
 
         var name = new Label
         {
-            Text = Display(tunable.Name),
+            Text = tunable.Words,
             TooltipText = $"{tunable.Name}: slider {tunable.Min} to {tunable.Max}",
             CustomMinimumSize = new Vector2(205.0f, 0.0f),
             MouseFilter = MouseFilterEnum.Pass,
@@ -361,47 +361,6 @@ public partial class TuningPanel : PanelContainer
         float power = MathF.Pow(10.0f, MathF.Floor(MathF.Log10(rough)));
         float scaled = rough / power;
         return power * (scaled >= 5.0f ? 5.0f : scaled >= 2.0f ? 2.0f : 1.0f);
-    }
-
-    /// <summary>
-    /// A property name as words with its unit: <c>BumpDampingNsPerM</c> becomes "Bump damping (N·s/m)".
-    /// </summary>
-    private static string Display(string name)
-    {
-        (string Suffix, string Unit)[] units =
-        [
-            ("NPerMps2", "N per (m/s)²"), ("NsPerM", "N·s/m"), ("NPerM", "N/m"), ("DegPerS2", "°/s²"), ("DegPerS", "°/s"),
-            ("PerS", "/s"), ("Mps", "m/s"), ("Deg", "°"), ("Kg", "kg"), ("W", "W"), ("N", "N"), ("M", "m"),
-        ];
-
-        string unit = string.Empty;
-        foreach ((string suffix, string label) in units)
-        {
-            if (name.Length > suffix.Length
-                && name.EndsWith(suffix, StringComparison.Ordinal)
-                && char.IsLower(name[name.Length - suffix.Length - 1]))
-            {
-                name = name[..^suffix.Length];
-                unit = $" ({label})";
-                break;
-            }
-        }
-
-        var words = new StringBuilder();
-        for (int i = 0; i < name.Length; i++)
-        {
-            if (i > 0 && char.IsUpper(name[i]))
-            {
-                words.Append(' ');
-                words.Append(char.ToLowerInvariant(name[i]));
-            }
-            else
-            {
-                words.Append(name[i]);
-            }
-        }
-
-        return words + unit;
     }
 
     private sealed record Row(Tunable Tunable, Label Name, HSlider Slider, SpinBox Box);

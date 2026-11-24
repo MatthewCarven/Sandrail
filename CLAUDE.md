@@ -22,7 +22,7 @@ free of Godot. Its generator's `Hash64` and `GradientNoise` are ported here unch
 | [docs/M3-PLAN.md](docs/M3-PLAN.md) | **M3, the generator**: eight facts (the noise's reach, how fast the road can climb, how steep the car can, why the route is walked in pieces, why a stunt can only replace its own footprint, the height field, painted ground, terrain in the track file), the model (settings, a seed per stage, terrain, route, stunts, the bed), ten decisions (his, all taken: six on 2026-11-23, four on circuits on 2026-11-24), slices M3a–M3f and M3g, circuits (walked out and walked home, 3 laps of 0.8–1.5 km, half the seeds; built after M3c). **Passed 2026-11-24.** |
 | [docs/M4-PLAN.md](docs/M4-PLAN.md) | **M4, ghosts, replays and track codes**: nine facts (record what happened, not inputs; 30 snapshots a second misses a curve by millimetres; a ghost belongs to one track, named by a fingerprint of what's driven; a seed is a track for one generator version), the model (the generator version, codes like `5v1`, the track fingerprint, the snapshot, the ghost file, `CarLooks`, replay cameras from the laid track), seven decisions (his, all taken as recommended 2026-11-24), slices M4a–M4e. |
 | [docs/M5-PLAN.md](docs/M5-PLAN.md) | **M5, the editor**: seven facts (validating is free; a track being built is unsound, and `Track.Load` refuses that; a piece builds in 1.5 ms, the ground in about 400 ms; big pieces want laying onto the road's open end; an edited generated track needs a name of its own; one key in, one key back), the model (`TrackEditor` in Core: place, erase, open ends, next, undo; the editor's camera, cursor, palette and problems), seven decisions (his, all taken as recommended 2026-11-24; M6 folded in), slices M5a–M5e, then his tuning. |
-| [docs/PROFILE-PLAN.md](docs/PROFILE-PLAN.md) | **The car profile, for his tuning (M1e)**: a car driven over a track by the autodriver, a sweep of cautions, one row a run in a CSV per track (time and slowest speed on each piece), his own runs beside them, and a garage of cars. Eight facts (a run is the same every time and at any speed; about ×10 headless; the autodriver plans from grip, top speed and downforce only, so the clean limit tells cars apart; his working `buggy.json` is a car kept nowhere else), seven decisions (his, waiting), slices P1–P5. No breeding, at his word. |
+| [docs/PROFILE-PLAN.md](docs/PROFILE-PLAN.md) | **The car profile, for his tuning (M1e)**: a car driven over a track by the autodriver, a sweep of cautions, one row a run in a CSV per track (time and slowest speed on each piece), his own runs beside them, and a garage of cars. Eight facts (a run is the same every time and at any speed; about ×10 headless; the autodriver plans from grip, top speed and downforce only, so the clean limit tells cars apart; his working `buggy.json` is a car kept nowhere else), seven decisions (his, all taken 2026-11-24, the sweep from 50% at his word), slices P1–P5. No breeding, at his word. |
 | [WORKLOG.md](WORKLOG.md) | What happened and why, newest first. Findings worth keeping live here. |
 
 ## Non-negotiables
@@ -197,14 +197,18 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   it), `Ghost` (a header line of JSON with the car's spec, then the snapshots deflated; `At(t)` plays it back,
   holding at cuts), `GhostRecorder` (every 4th tick from the clock's zero to just past the finish) and
   `ReplayCameras` (M4d: cameras beside a laid track, at the start, each stunt, corners and long straights,
-  each raised until it sees its stretch of road over the ground). `Pads/` is `PadProfile`.
+  each raised until it sees its stretch of road over the ground). `Pads/` is `PadProfile`. `Profiles/` is the
+  car profile's (PROFILE-PLAN, P1): `RunMeter` (a run tick by tick: time and slowest speed on each route piece, lap
+  by lap, top speed, off road, slides, spins past 30°, respawns; clean or not) and `CarSheet` (a run as a CSV row
+  under a header from the track's route, one file per track, every car's numbers in `cars.csv`).
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
   physics interpolation; `GameClock` keeps a tick 1/120 s of game time at any time scale (count ticks with its
   `TicksPerSecond`, never `Engine.PhysicsTicksPerSecond`, which slow motion turns down). `Cars/` is the `Buggy`, its `CarLooks` (the grey boxes and wing, a node a ghost
   can wear too), the `GhostCar` (a best run see-through beside you, on the race clock), its `ChaseCamera`,
-  `CarReadout`, the `RunRecorder` and the replay's `FreeCamera`; `Main.Ghosts.cs` loads and saves each
+  `CarReadout`, the `RunRecorder`, `MeterRead` (the one rule for off the road and a slide, for the profile's
+  meter) and the replay's `FreeCamera`; `Main.Ghosts.cs` loads and saves each
   track's bests as ghosts, and `Main.Replay.cs` plays a run back (trackside, chase or free cameras);
   `Editor/` the `EditorView` (M5: camera, cursor, track laid onto the road's end, the palette, the mouse, problems; `Main.Editor.cs` opens it); `Ui/` the `Hud`, `TelemetryOverlay` and `TuningPanel`; `World/` builds the test ground's meshes and
   colliders; `Oracles/` the headless drives; `content/base/cars/buggy.json` the shipped spec.
@@ -253,7 +257,9 @@ brakes are on, white reversing, on the car, the ghost (not faded) and the replay
 track laid onto the road's end by Enter, the palette, the mouse, and **M5c**: Tab test-drives from the piece under the
 cursor and Tab comes back (`EditorSession` keeps the work), and **M5d**: tracks on a seed's ground (the bed caught up in
 squares, off the main thread), Ctrl+S to save with a name, circuits with laps. **M5 is built**; M5e, his play, passes it. His tuning comes after
-M5, and **the car profile** to tune with is planned (`docs/PROFILE-PLAN.md`, his idea, its seven decisions his).
+M5, and **the car profile** to tune with is planned (`docs/PROFILE-PLAN.md`, his idea, its seven decisions taken, the
+sweep of cautions from 50%) and under way: **P1, the meter and the sheet, is built** (Core's `Profiles/`; the
+`track` oracle measures with it, its line unchanged).
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by

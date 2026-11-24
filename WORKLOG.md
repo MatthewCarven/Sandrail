@@ -2,6 +2,38 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — P1: the profile's meter and sheet
+
+His decisions: *"2. yes but start at 50 some tracks the autodriver wont complete without this without crashing
+like the will become obvious as track times rise for later attempts at increasing aggression i believe"* and
+*"everything else as you put it please and thanks Claude"*. So the sweep runs from 50% to 100%.
+
+**Built:** `Sandrail.Core/Profiles/`. **`RunMeter`** is fed a tick at a time while the race clock runs (the route
+piece, laps done, speed, off the road or not, the slide where it's read, how far along). It counts the time and
+slowest speed on every piece, lap by lap; the top speed; time off the road piece by piece; the worst slide; spins;
+respawns. Its `RunSummary` gives the race's times, the laps and the best one, and the pieces on the best lap; it says
+**clean** when the run finished with under 0.5 s off the road, no spin and no respawn. **`CarSheet`** turns a summary
+into a CSV row under a header made from the track's route: who and what, the car's differences from stock in words,
+the run, then the time on each piece and the slowest speed on each. One file per track (`Shakedown 8a6323aa.csv`);
+`cars.csv` gets every number of each car once. It writes decimal points in any culture, UTF-8 with its mark so Excel
+reads it, and Windows line ends. A file whose header has changed is left alone and a new one started beside it.
+**`MeterRead`** (Game) is now the one rule for "off the road" and "a slide worth reading", and the `track` oracle's
+own copy of those rules has moved into it. The panel's names for the car's numbers ("Bump damping (N·s/m)") moved
+into Core as `Tunable.Words`, so the sheet uses the same words.
+
+**A spin is a slide past 30°**, the `lap` oracle's rule, not the 90° first written in the plan, so "clean up to
+85%" keeps the meaning it had on station 6.
+
+**Checks:** eleven tests (348 in all, passing). **The `track` oracle on the meter prints the same line, character
+for character**, and the seventeen oracles are identical to M5d's. A temporary probe (since removed) printed the
+row the sheet would get:
+- **The shakedown's pieces add up to 56.767 s against the clock's 56.756**. The 0.011 s is about a tick: whole
+  ticks at the start and finish, against a clock that splits the tick it crosses a gate in. The start piece shows
+  0.1 km/h (a standing start) and the worst slide 22°; the run is clean.
+- **Seed 4 (a circuit) at 70%**: laps 44.04, 41.41, 41.40, and the best lap's pieces add up to exactly 41.400.
+- **Seeds 2 and 6 at 70% don't finish** (stuck on a landing and on a banked corner, as before). Their rows read "no",
+  with the laps and the pieces never reached left blank, not 0, so a spreadsheet's average skips them.
+
 ## 2026-11-24 — The car profile, planned
 
 He's been saving tracks of his own (*"generated my own but can never get the heights to work out correctly like
