@@ -2,6 +2,15 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — He drives the circuits
+
+After M3g: *"Please and thanks Claude the up and down to the tracks is excellent you can really get a feel
+for the compression"*. The ups and downs are the levels stage's slopes, two tiles each, rising or falling a
+level (2.5 m) where the ground does, with their crests held under take-off speed. What he feels is the
+suspension loading and unloading over them. That's a lever kept as it is: the slope's shape, the levels'
+cut weight (1.5) and the crest share (0.8) all feed it, so any change to those should be checked against
+this verdict.
+
 ## 2026-11-24 — M3g: circuits
 
 *"Go on to M3g"*. Built as M3-PLAN's M3g. **First, seeds 1, 3, 5 and 7 were pinned as M3c made them**
