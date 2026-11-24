@@ -56,8 +56,18 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>Opens the editor on an empty grid on this seed's ground (M5d); null hides the button.</summary>
     public Action? NewOnGround { get; init; }
 
-    /// <summary>The garage (PROFILE-PLAN, P2): every car, each with what picking it does; null for the one being driven or one that can't be read.</summary>
-    public Func<IReadOnlyList<(string Label, Action? Pick)>>? Cars { get; init; }
+    /// <summary>The garage (PROFILE-PLAN, P2): every car, each with what picking it does and its lock.</summary>
+    public Func<IReadOnlyList<CarRow>>? Cars { get; init; }
+
+    /// <summary>
+    /// A car in the Change car list: its label; what picking it does (null for the one being driven or one that can't be
+    /// read); whether it's set inactive; and what its lock guards, Set inactive or Set active, which does it and says how
+    /// it went (null for the stock car, which has no lock).
+    /// </summary>
+    public sealed record CarRow(string Label, Action? Pick, bool Inactive, Func<string>? Toggle);
+
+    /// <summary>How long a car's lock stays open before it shuts by itself.</summary>
+    private const ulong UnlockedMs = 5000;
 
     /// <summary>The profile (P3): the car being driven, swept over this track; null where there's no race to profile on.</summary>
     public Action? Profile { get; init; }
@@ -73,6 +83,11 @@ public partial class SeedMenu : CanvasLayer
 
     /// <summary>Which list is open under its button: the tracks or the cars; null for none.</summary>
     private string? _listing;
+
+    /// <summary>The car lock that's open, the button it shows, and when it opened; one at a time.</summary>
+    private LockButton? _unlocked;
+    private Button? _unlockedButton;
+    private ulong _unlockedAtMs;
 
     private VBoxContainer _replays = null!;
     private ScrollContainer _trackList = null!;
@@ -264,6 +279,11 @@ public partial class SeedMenu : CanvasLayer
 
     public override void _Process(double delta)
     {
+        if (_unlocked is not null && Time.GetTicksMsec() - _unlockedAtMs > UnlockedMs)
+        {
+            Relock();
+        }
+
         if (Input.IsActionJustPressed(Controls.Menu))
         {
             if (Open)
@@ -283,49 +303,153 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>Opens the list of tracks to load, read afresh, or closes it.</summary>
     private void ToggleTracks()
     {
-        IReadOnlyList<(string Label, Action? Pick)> tracks = _listing == "tracks" ? [] : Tracks?.Invoke().Select(t => (t.Label, (Action?)t.Load)).ToList() ?? [];
-        ShowList("tracks", tracks, tracks.Count == 0 ? "No tracks to load." : $"{tracks.Count} tracks: the game's own, then the ones you've saved, newest first.");
+        if (CloseList("tracks"))
+        {
+            return;
+        }
+
+        IReadOnlyList<(string Label, Action Load)> tracks = Tracks?.Invoke() ?? [];
+        FillList("tracks", tracks.Select(t => (Control)RowButton(t.Label, t.Load)).ToList(),
+            tracks.Count == 0 ? "No tracks to load." : $"{tracks.Count} tracks: the game's own, then the ones you've saved, newest first.");
     }
 
     /// <summary>Opens the garage, read afresh, or closes it (P2).</summary>
     private void ToggleCars()
     {
-        IReadOnlyList<(string Label, Action? Pick)> cars = _listing == "cars" ? [] : Cars?.Invoke() ?? [];
-        ShowList("cars", cars, $"{cars.Count} cars: the stock car, then yours, newest first. F2's Save as a new car adds one.");
+        if (!CloseList("cars"))
+        {
+            ShowCars(null);
+        }
     }
 
     /// <summary>
-    /// The list under the buttons, filled with one kind of thing, or closed if that kind was open already: a button a
-    /// row, picking it unpausing the game first, as Generate does, since the scene starts again.
+    /// The garage's list, read afresh: a row a car, and beside each of his a lock (2026-11-25). Opening the lock shows Set
+    /// inactive (or Set active), which shuts again after five seconds; an inactive car is still driven when picked, but
+    /// Profile every car leaves it out.
     /// </summary>
-    private void ShowList(string kind, IReadOnlyList<(string Label, Action? Pick)> items, string note)
+    private void ShowCars(string? said)
     {
-        if (_listing == kind)
+        IReadOnlyList<CarRow> cars = Cars?.Invoke() ?? [];
+        var rows = new List<Control>();
+        foreach (CarRow car in cars)
         {
-            _listing = null;
-            _trackList.Visible = false;
+            var line = new HBoxContainer();
+            line.AddThemeConstantOverride("separation", 6);
+            // The name gives way when Set inactive shows, cut short with "...", so the row never widens: a wider row
+            // widens the menu, which slid the lock across and put Set inactive under the pointer that had just
+            // unlocked it, where a double click would press it (seen on the first try).
+            Button pick = RowButton(car.Label, car.Pick);
+            pick.ClipText = true;
+            pick.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+            pick.TooltipText = car.Label;
+            if (car.Inactive)
+            {
+                pick.Modulate = new Color(1.0f, 1.0f, 1.0f, 0.6f);
+            }
+
+            line.AddChild(pick);
+            if (car.Toggle is Func<string> toggle)
+            {
+                var guarded = new Button
+                {
+                    Text = car.Inactive ? "Set active" : "Set inactive",
+                    Visible = false,
+                    FocusMode = Control.FocusModeEnum.None,
+                };
+                guarded.AddThemeFontSizeOverride("font_size", 16);
+                guarded.AddThemeColorOverride("font_color", new Color(1.0f, 0.75f, 0.3f));
+                guarded.AddThemeColorOverride("font_hover_color", new Color(1.0f, 0.85f, 0.5f));
+                var padlock = new LockButton
+                {
+                    TooltipText = car.Inactive
+                        ? "Unlock to set this car active again: Profile every car drives it."
+                        : "Unlock to set this car inactive: Profile every car leaves it out.",
+                };
+                padlock.Pressed += () => ToggleLock(padlock, guarded);
+
+                // The list is filled again after the call has returned, not in it: this button is one of the rows.
+                guarded.Pressed += () =>
+                {
+                    Relock();
+                    string done = toggle();
+                    Callable.From(() => ShowCars(done)).CallDeferred();
+                };
+                line.AddChild(guarded);
+                line.AddChild(padlock);
+            }
+
+            rows.Add(line);
+        }
+
+        int inactive = cars.Count(c => c.Inactive);
+        FillList("cars", rows, said ?? $"{cars.Count} cars: the stock car, then yours, newest first{(inactive > 0 ? $", then {inactive} inactive" : string.Empty)}. "
+            + "F2's Save as a new car adds one. The lock beside a car unlocks Set inactive for five seconds: Profile every car leaves an inactive car out.");
+    }
+
+    /// <summary>
+    /// Opens a car's lock, showing what it guards and shutting any other, or shuts it if it was open. The note under the
+    /// menu is left as it is: a note of another length makes the menu another height, and the centred menu would move
+    /// the button just unlocked out from under the pointer (seen on the first try).
+    /// </summary>
+    private void ToggleLock(LockButton padlock, Button guarded)
+    {
+        bool opening = _unlocked != padlock;
+        Relock();
+        if (!opening)
+        {
             return;
         }
 
+        padlock.Open = true;
+        guarded.Visible = true;
+        _unlocked = padlock;
+        _unlockedButton = guarded;
+        _unlockedAtMs = Time.GetTicksMsec();
+    }
+
+    /// <summary>Shuts the open lock, if there is one, and hides what it guards.</summary>
+    private void Relock()
+    {
+        if (_unlocked is not null && IsInstanceValid(_unlocked))
+        {
+            _unlocked.Open = false;
+        }
+
+        if (_unlockedButton is not null && IsInstanceValid(_unlockedButton))
+        {
+            _unlockedButton.Visible = false;
+        }
+
+        _unlocked = null;
+        _unlockedButton = null;
+    }
+
+    /// <summary>Closes the list if it holds this kind already; true if it did.</summary>
+    private bool CloseList(string kind)
+    {
+        if (_listing != kind)
+        {
+            return false;
+        }
+
+        Relock();
+        _listing = null;
+        _trackList.Visible = false;
+        return true;
+    }
+
+    /// <summary>The list under the buttons, filled with one kind of thing: a row a thing.</summary>
+    private void FillList(string kind, IReadOnlyList<Control> rows, string note)
+    {
+        Relock();
         foreach (Node old in _trackRows.GetChildren())
         {
             _trackRows.RemoveChild(old);
             old.QueueFree();
         }
 
-        foreach ((string label, Action? pick) in items)
+        foreach (Control row in rows)
         {
-            Button row = Button(label, () =>
-            {
-                if (pick is not null)
-                {
-                    GetTree().Paused = false;
-                    pick();
-                }
-            });
-            row.Disabled = pick is null;
-            row.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-            row.AddThemeFontSizeOverride("font_size", 16);
             _trackRows.AddChild(row);
         }
 
@@ -335,7 +459,24 @@ public partial class SeedMenu : CanvasLayer
         // As tall as the window leaves room for, so the menu never runs off the screen; it scrolls for the rest.
         float room = GetViewport().GetVisibleRect().Size.Y - 520.0f;
         _trackList.CustomMinimumSize = new Vector2(0.0f, Math.Clamp(room, 90.0f, 300.0f));
-        _trackList.Visible = items.Count > 0;
+        _trackList.Visible = rows.Count > 0;
+    }
+
+    /// <summary>A row of a list: picking it unpauses the game first, as Generate does, since the scene starts again; greyed out with nothing to do.</summary>
+    private Button RowButton(string label, Action? pick)
+    {
+        Button row = Button(label, () =>
+        {
+            if (pick is not null)
+            {
+                GetTree().Paused = false;
+                pick();
+            }
+        });
+        row.Disabled = pick is null;
+        row.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        row.AddThemeFontSizeOverride("font_size", 16);
+        return row;
     }
 
     /// <summary>A button for each thing there is to watch now, the menu closing as it starts.</summary>
@@ -361,6 +502,7 @@ public partial class SeedMenu : CanvasLayer
 
     private void Close()
     {
+        Relock();
         _panel.Visible = false;
         GetTree().Paused = false;
     }

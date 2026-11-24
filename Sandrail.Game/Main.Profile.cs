@@ -134,7 +134,8 @@ public partial class Main
 
         ProfileCars.Clear();
         string driving = _tuning.SpecPath;
-        foreach (string car in every ? Garage.All().Where(c => c.Spec is not null).Select(c => c.Path) : [driving])
+        // Every car is every active one: a car set inactive in Change car is left out (2026-11-25).
+        foreach (string car in every ? Garage.All().Where(c => c.Spec is not null && !c.Inactive).Select(c => c.Path) : [driving])
         {
             ProfileCars.Enqueue(car);
         }

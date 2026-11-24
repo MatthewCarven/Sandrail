@@ -2,6 +2,56 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — Cars set inactive, behind a lock
+
+He found two identical cars in his garage (`matthew-2026-11-23` and `-2`: the same bytes), so every Profile every car
+drove that car twice, and asked for *"a delete car button somewhere behind a lock icon"*. The plan put to him: in
+Change car, a lock beside each of his cars; click it and a Delete appears; the file moved to a folder, not destroyed;
+the car being driven not deletable; no lock on the stock car. *"Yes, as recommended"*, then, mid-build: *"do not
+actually need delete just need inactive or do not use for further testing"*. So nothing is ever deleted.
+
+**What's built.**
+- **The lock.** In Change car, a padlock beside each of his cars, drawn in code (`Ui/LockButton.cs`, not an emoji a font
+  may lack). A click opens it, amber with the shackle up, and shows **Set inactive** (or **Set active**) to its left.
+  It shuts after five seconds, when the list or menu closes, or when another lock opens. Neither button takes keyboard
+  focus, so it's mouse only: a stray Enter or Space can't do it.
+- **Inactive.** The car's file is moved, unchanged, into `tunes/inactive/`. The car stays in the list, after the active
+  ones, dimmed, with ", inactive", and **can still be driven**. **Profile every car leaves it out.** Set active moves it
+  back. The garage lists only the files directly in `tunes/`, so the folder is invisible to everything that doesn't
+  ask for it, and it can be done by hand in Explorer too.
+- **The stock car has no lock**: it's what the others are measured against.
+- **The car being driven can be set either way.** F2's Save and the next start of the scene (which carries the car as
+  `--spec=`) follow its file to where it was moved. Had the file vanished, the next Load a track or Generate would
+  have refused it and quit, which is why the delete in the plan kept the driven car out of it.
+- **A name is unique across both folders**, so a car can always go back: Save as a new car checks `inactive/` too.
+
+**Two wobbles, found on the first try and fixed.** Both moved a button under the pointer just after the lock opened:
+- **The note under the menu changed on unlock**, which changed the menu's height, and the centred menu jumped 28 px.
+  Opening and shutting a lock now leaves the note alone; the amber lock and the button showing say enough.
+- **Set inactive made its row wider**, which widened the menu, slid the lock 21 px right, and put Set inactive where the
+  lock had been. A double click on the lock would have pressed it. The car's name now gives way, cut short with "…"
+  (the whole name on hover), so the row never changes width and the lock stays put.
+
+**Checks**, on a scratch copy of his garage (`--tunes=`, with `--ghosts=`, `--profiles=` and `--saved=` in scratch
+too):
+- **The headless pass**, on the shakedown.
+- **He did it himself**, in the window: four cars set inactive (both identical ones, `-late` and `-24`), then a change to
+  `matthew-2026-11-23-original`. Their files were in `inactive/`, with their sizes and times unchanged.
+- **`--profile=all`**: *"Profiling every car (2)"*, the stock car and `-original`, the four inactive cars left out. The
+  stock car was clean to 80%, 56.73, as before.
+- **Set active** on the car being driven. Its row read *"a054172a, driving now"*, without "inactive". That label only
+  shows when the panel's file is the car's new place, so Save follows it.
+- **His real garage**, hashed before and after: the same five files, the same bytes.
+
+**Seen in passing, not changed:**
+- **The five seconds have a cost.** A click that comes after the lock has shut lands on the car's name, which changes
+  to that car. Claude's own slow click did it once, driving `-2` from `inactive/`, which at least proved that works.
+- **The Esc menu reopens with the car list still open**, so the menu's buttons sit lower than when it first opens.
+- **In the default window the menu is taller than the window**: SANDRAIL is cut off at the top.
+- **F2's buttons and sliders took no clicks** in the small window under Claude's mouse (Save, Save as a new car, the
+  Mass slider), while the Esc menu took them. He saved a car with Save as a new car tonight (`-2` is that name), so it
+  works for him; not looked into further.
+
 ## 2026-11-25 — A viewer for the profile's sheets
 
 The answer to "sort easily": a program of its own, `tools/profile-viewer/`, compiled to `SandrailProfiles.exe`. He

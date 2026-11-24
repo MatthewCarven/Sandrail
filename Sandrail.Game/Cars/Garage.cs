@@ -12,7 +12,14 @@ namespace Sandrail.Game.Cars;
 /// new one.
 /// </summary>
 /// <remarks>
+/// <para>
 /// <c>--tunes=</c> points it at another folder, which the checks use so they never touch his cars.
+/// </para>
+/// <para>
+/// <b>A car set inactive</b> is moved into <c>inactive/</c> inside the garage, its file unchanged: still listed and still
+/// driven when picked, but Profile every car leaves it out (2026-11-25, his ask: "do not use for further testing"). A
+/// car's name is unique across both folders, so it can always go back.
+/// </para>
 /// </remarks>
 public static class Garage
 {
@@ -24,26 +31,39 @@ public static class Garage
     /// <summary>Where his cars are kept: <c>user://tunes</c> unless <c>--tunes=</c> says otherwise.</summary>
     public static string TunesPath { get; set; } = "user://tunes";
 
-    /// <summary>A car in the garage: its name, its file, and its numbers, or why its file couldn't be read.</summary>
-    public sealed record Car(string Name, string Path, CarSpec? Spec, string? Problem);
+    /// <summary>Where cars set inactive are kept: a folder inside the garage, which Profile every car doesn't drive.</summary>
+    public static string InactivePath => $"{TunesPath}/inactive";
+
+    /// <summary>A car in the garage: its name, its file, its numbers or why its file couldn't be read, and whether it's set inactive.</summary>
+    public sealed record Car(string Name, string Path, CarSpec? Spec, string? Problem, bool Inactive);
 
     public static bool IsStock(string path) => path == StockPath;
+
+    /// <summary>Whether a car's file is among the inactive ones.</summary>
+    public static bool IsInactive(string path) => path.GetBaseDir() == InactivePath;
 
     /// <summary>A car's name: "stock" for the stock car, else its file's name without <c>.json</c>.</summary>
     public static string NameOf(string path) => IsStock(path) ? StockName : System.IO.Path.GetFileNameWithoutExtension(path);
 
-    /// <summary>The stock car first, then his, the newest first, as the Load list has saved tracks.</summary>
+    /// <summary>The stock car first, then his, the newest first, as the Load list has saved tracks, then the inactive ones the same way.</summary>
     public static IReadOnlyList<Car> All()
     {
         var cars = new List<Car> { Read(StockPath) };
-        string[] files = DirAccess.DirExistsAbsolute(TunesPath) ? DirAccess.GetFilesAt(TunesPath) : [];
-        cars.AddRange(files
+        cars.AddRange(CarsIn(TunesPath));
+        cars.AddRange(CarsIn(InactivePath));
+        return cars;
+    }
+
+    /// <summary>The cars whose files are in a folder (not its folders inside), the newest first.</summary>
+    private static IEnumerable<Car> CarsIn(string folder)
+    {
+        string[] files = DirAccess.DirExistsAbsolute(folder) ? DirAccess.GetFilesAt(folder) : [];
+        return files
             .Where(f => f.EndsWith(".json", System.StringComparison.OrdinalIgnoreCase))
-            .Select(f => $"{TunesPath}/{f}")
+            .Select(f => $"{folder}/{f}")
             .OrderByDescending(FileAccess.GetModifiedTime)
             .ThenBy(p => p, System.StringComparer.Ordinal)
-            .Select(Read));
-        return cars;
+            .Select(Read);
     }
 
     /// <summary>A car's file read, or why it couldn't be.</summary>
@@ -51,12 +71,46 @@ public static class Garage
     {
         try
         {
-            return new Car(NameOf(path), path, CarSpec.Parse(FileAccess.GetFileAsString(path)), null);
+            return new Car(NameOf(path), path, CarSpec.Parse(FileAccess.GetFileAsString(path)), null, IsInactive(path));
         }
         catch (System.IO.InvalidDataException e)
         {
-            return new Car(NameOf(path), path, null, e.Message);
+            return new Car(NameOf(path), path, null, e.Message, IsInactive(path));
         }
+    }
+
+    /// <summary>
+    /// Sets a car inactive, moving its file into <see cref="InactivePath"/>, or active again, moving it back: where its
+    /// file is now, or why it couldn't be moved. The file itself is never changed. Refuses the stock car, which is what
+    /// every other car is measured against.
+    /// </summary>
+    public static (string? Path, string? Problem) SetInactive(string path, bool inactive)
+    {
+        if (IsStock(path))
+        {
+            return (null, "the stock car stays in: it's what the others are measured against");
+        }
+
+        if (IsInactive(path) == inactive)
+        {
+            return (path, null);
+        }
+
+        if (!FileAccess.FileExists(path))
+        {
+            return (null, "its file isn't there any more");
+        }
+
+        string folder = inactive ? InactivePath : TunesPath;
+        string to = $"{folder}/{path.GetFile()}";
+        if (FileAccess.FileExists(to))
+        {
+            return (null, $"there's a car called {NameOf(path)} there already");
+        }
+
+        DirAccess.MakeDirRecursiveAbsolute(folder);
+        Error moved = DirAccess.RenameAbsolute(path, to);
+        return moved == Error.Ok ? (to, null) : (null, moved.ToString());
     }
 
     /// <summary>A typed name as a file name: lower case, letters and digits, a dash for the rest, as saved tracks are.</summary>
@@ -69,14 +123,18 @@ public static class Garage
     /// <summary>Where a car of this name is kept.</summary>
     public static string PathFor(string name) => $"{TunesPath}/{Slug(name)}.json";
 
-    /// <summary>A name no car has yet, from a start: <c>my-car</c>, then <c>my-car-2</c> and on.</summary>
+    /// <summary>Whether a car of this name is in the garage, active or not.</summary>
+    public static bool Taken(string name) =>
+        FileAccess.FileExists(PathFor(name)) || FileAccess.FileExists($"{InactivePath}/{Slug(name)}.json");
+
+    /// <summary>A name no car has yet, active or not, from a start: <c>my-car</c>, then <c>my-car-2</c> and on.</summary>
     public static string FreeName(string start)
     {
         string stem = Slug(start);
         for (int n = 1; ; n++)
         {
             string name = n == 1 ? stem : $"{stem}-{n}";
-            if (!FileAccess.FileExists(PathFor(name)))
+            if (!Taken(name))
             {
                 return name;
             }

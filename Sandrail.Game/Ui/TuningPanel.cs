@@ -361,9 +361,9 @@ public partial class TuningPanel : PanelContainer
     {
         string name = Garage.Slug(typed);
         string path = Garage.PathFor(name);
-        if (FileAccess.FileExists(path))
+        if (Garage.Taken(name))
         {
-            _note.Text = $"There's a car called {name} already: pick another name (or change to it in the Esc menu, and Save writes it).";
+            _note.Text = $"There's a car called {name} already, active or inactive: pick another name (or change to it in the Esc menu, and Save writes it).";
             return;
         }
 

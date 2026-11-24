@@ -192,6 +192,11 @@ oracle did.
 than swapping it in place, so nothing built from the old car is left over (the racing line, the autodriver's plan,
 F2's file), at the cost of a track's reload.
 
+**Cars set inactive, 2026-11-25**, at his ask (a delete behind a lock, which became *"just need inactive or do not use
+for further testing"*): a padlock beside each of his cars in the Cars list opens Set inactive (or Set active). An
+inactive car's file moves, unchanged, into `tunes/inactive/`; it stays in the list and can be driven, and **Profile
+every car leaves it out**. Names stay unique across both folders. The worklog has the details.
+
 The Cars list in the Esc menu, the car changed in place (F2 already swaps a car's numbers mid-drive); **Save as
 a new car** in F2; the stock car never written. **His working car saved into `tunes/` under his name for it
 before anything else**, and the repo's `buggy.json` put back only at his word. Checks: switching cars on a
