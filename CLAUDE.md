@@ -20,7 +20,7 @@ free of Godot. Its generator's `Hash64` and `GradientNoise` are ported here unch
 | [docs/M1-PLAN.md](docs/M1-PLAN.md) | **M1, the buggy**: six facts, the car's model written down with its starting numbers, six decisions (all taken 2026-10-31), slices M1a–M1e with their checks, and the named levers. Read "The car's model" before touching `Buggy` or `CarSpec`. |
 | [docs/M2-PLAN.md](docs/M2-PLAN.md) | **M2, pieces and the track file**: eight facts (corner radii on a grid, connectors, crests, the loop on the grid, checkpoints, gap jumps), the model written down (grid, piece, placement, track, validation), six decisions (his, written 2026-11-23), slices M2a–M2e. Read "The model" before touching pieces or tracks. |
 | [docs/M3-PLAN.md](docs/M3-PLAN.md) | **M3, the generator**: eight facts (the noise's reach, how fast the road can climb, how steep the car can, why the route is walked in pieces, why a stunt can only replace its own footprint, the height field, painted ground, terrain in the track file), the model (settings, a seed per stage, terrain, route, stunts, the bed), ten decisions (his, all taken: six on 2026-11-23, four on circuits on 2026-11-24), slices M3a–M3f and M3g, circuits (walked out and walked home, 3 laps of 0.8–1.5 km, half the seeds; built after M3c). **Passed 2026-11-24.** |
-| [docs/M4-PLAN.md](docs/M4-PLAN.md) | **M4, ghosts, replays and track codes**: nine facts (record what happened, not inputs; 30 snapshots a second misses a curve by millimetres; a ghost belongs to one track, named by a fingerprint of what's driven; a seed is a track for one generator version), the model (the generator version, codes like `5v1`, the track fingerprint, the snapshot, the ghost file, `CarLooks`, replay cameras from the laid track), seven decisions (his, not yet taken), slices M4a–M4e. |
+| [docs/M4-PLAN.md](docs/M4-PLAN.md) | **M4, ghosts, replays and track codes**: nine facts (record what happened, not inputs; 30 snapshots a second misses a curve by millimetres; a ghost belongs to one track, named by a fingerprint of what's driven; a seed is a track for one generator version), the model (the generator version, codes like `5v1`, the track fingerprint, the snapshot, the ghost file, `CarLooks`, replay cameras from the laid track), seven decisions (his, all taken as recommended 2026-11-24), slices M4a–M4e. |
 | [WORKLOG.md](WORKLOG.md) | What happened and why, newest first. Findings worth keeping live here. |
 
 ## Non-negotiables
@@ -80,7 +80,8 @@ must be none**. It reports time, length, pieces, attempts, backtracks, slopes, b
 the ground, and stunts by kind with the ones the speed estimate turned down and why, and checkpoints;
 `--first=` starts elsewhere, `--turniness=`, `--stunts=` (density, 0 to 1) and `--checkpoints=` (metres
 apart, 0 for none) and `--circuits=` (the share of circuits, 0 to 1) try the dials, sprints and circuits
-are reported apart, and five seeds or fewer print each.
+are reported apart, and five seeds or fewer print each with its code and fingerprint (M4a); it times the
+fingerprint, and `--save=<folder>` writes each track's file (how `gen-5v1.json` was made).
 
 Headless check, which catches scene and script errors (`--quit-after` counts **frames**):
 
@@ -119,7 +120,8 @@ it on two specs and read the flying lap, the corner speeds and where it left the
 whether a car (or a track) can be finished at all.
 
 Game flags, after `--` (or passed to `start.cmd`): `--seed=<n>` (a generated track on its own ground,
-M3b, with stunts and checkpoints since M3c: the timer, P and `--oracle=track` all work on it; the
+M3b, with stunts and checkpoints since M3c; since M4a a code too, `--seed=5v1`, and a code from another
+version of the generator drives its file if the game has one, or says why not: the timer, P and `--oracle=track` all work on it; the
 autodriver finishes all five test sprints and three of the five test circuits at `--caution=0.7`; since
 M3g the even seeds among 1-10 are circuits of 3 laps; `--stunts=` and `--checkpoints=` set the stunt
 stage's dials, and `--stunts=0 --checkpoints=0` is the route as it was before M3c),
@@ -162,7 +164,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   `StuntPlanner` (`Stunts.cs`, M3c: jumps and loops swapped in where the route already has their footprint,
   each approved by `Driving/SpeedEstimate` for a stock car pinned in code; checkpoints every 400 m), and
   circuits (M3g: `IsCircuit` by `GenStage.Kind`, `RouteWalker.WalkCircuit` out and home with a closing
-  search, levels that come back round, banks on a flying lap).
+  search, levels that come back round, banks on a flying lap), and `TrackCode` (M4a: a seed and the
+  generator's version, `5v1`; `TrackGenerator.Version`, held to its output by a test that pins seeds 1-10).
   `Cars/` holds `CarSpec`, `Surfaces`, the `Wings` (parts, by ID) and `WheelModel`, the car's laws as
   plain functions. `Pieces/` is
   the road: `Frame`, the centrelines (line, pitch, banked turn, loop), `Chain`, `Profile`, the `Sweep`
@@ -178,7 +181,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   its route, start to finish, or on a circuit, format 3 with `laps`, from its start-finish line round to
   it), the `RaceTimer` (gates passed through their arches, in order, with
   splits) and `TrackRacing` (a laid track's gates, and its route as one racing line, stunts down the
-  middle at their speed hints). `Pads/` is `PadProfile`. The generator and its formats land beside them.
+  middle at their speed hints), and `TrackFingerprint` (M4a: eight hex digits over what's driven, the
+  placements, the pieces' shapes, the bedded heights and the rocks; ghosts are filed under it). `Pads/` is `PadProfile`. The generator and its formats land beside them.
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
@@ -214,7 +218,10 @@ seed 5 his favourite, are byte for byte the sprints they were), and rocks off th
 random seed, save this track; `--track=user://tracks/gen-<seed>.json` drives a saved one on its own ground)
 is built too. **M3 passed on his word, 2026-11-24** ("It all looks and feels good to me so far Claude lets
 continue"). **M4 (ghosts, replays and track codes) is planned** (`docs/M4-PLAN.md`), its seven decisions
-put to him and not yet taken; nothing of it is built. **The stock car has his
+taken as recommended, and under way: **M4a, codes and fingerprints, is built** (the generator is version 1;
+codes like `5v1` in the menu and on `--seed=`; generated IDs `gen:5v1`; the track fingerprint; seed 5 ships as
+`content/base/tracks/gen-5v1.json`, `--track=gen:5v1`, so a later generator can't take it from him). Next:
+M4b, the snapshot stream and the `ghost` oracle. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles

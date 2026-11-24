@@ -114,6 +114,17 @@ public sealed record Generated(Track Track, Terrain Terrain, GenStats Stats)
 /// </remarks>
 public static class TrackGenerator
 {
+    /// <summary>
+    /// The generator's version (M4-PLAN, M4a): it goes up whenever a seed's track changes, so a code says
+    /// exactly which track it means. <c>TheGeneratorVersionPinsItsTracks</c> holds it to that: it pins seeds 1
+    /// to 10 under each version, and fails when the output changes and this doesn't.
+    /// </summary>
+    /// <remarks>Version 1 is the generator as M3 passed, 2026-11-24.</remarks>
+    public const int Version = 1;
+
+    /// <summary>What a generated track's ID ends with when it was made with other dials, and so has no code.</summary>
+    public const string OwnDialsSuffix = "-dials";
+
     public static Generated Generate(ulong seed, GenSettings settings, PieceCatalogue catalogue, Terrain? terrain = null)
     {
         IReadOnlyList<string> problems = [.. settings.Route.Problems(), .. settings.Stunts.Problems(), .. settings.Rocks.Problems()];
@@ -134,10 +145,15 @@ public static class TrackGenerator
         // Stunts and checkpoints (M3c), swapped in where the route already has their footprint, from their own seed.
         var ground = new TrackGround { Seed = seed, Terrain = settings.Terrain };
         int laps = circuit ? settings.Route.Laps : 0;
+
+        // Its code (M4a): gen:5v1. A track made with other dials has no code, so its ID says so.
+        bool ownDials = settings != new GenSettings();
+        string id = TrackCode.Of(seed).TrackId + (ownDials ? OwnDialsSuffix : string.Empty);
+        string name = $"Seed {seed}" + (ownDials ? " (own dials)" : string.Empty);
         Track Build(List<Placement> pieces) => new()
         {
-            Id = $"gen:{seed}",
-            Name = $"Seed {seed}",
+            Id = id,
+            Name = name,
             Ground = ground,
             Laps = laps,
             Pieces = pieces.Select(TrackPiece.Of).ToArray(),

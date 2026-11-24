@@ -167,6 +167,7 @@ public partial class Main : Node3D
         // A generated track from a seed (M3b): its ground and its route.
         string? seedFlag = Flag(args, "--seed=") ?? (oracle is not null && Oracle.NeedsSeed(oracle) ? "1" : null);
         ulong genSeed = 0;
+        string? codeFile = null;
         if (seedFlag is not null)
         {
             if (Flag(args, "--track=") is not null || Flag(args, "--terrain=") is not null || Flag(args, "--ground=") is not null)
@@ -175,14 +176,28 @@ public partial class Main : Node3D
                 return;
             }
 
-            if (!ulong.TryParse(seedFlag, out genSeed))
+            // A seed or a code (M4a): 5 or 5v1. A code from another version drives its file, if the game has it.
+            if (!TrackCode.TryParse(seedFlag, out TrackCode code, out string problem))
             {
-                Refuse($"--seed={seedFlag}: a seed is a whole number, 0 or more.");
+                Refuse($"--seed={seedFlag}: {problem}");
                 return;
+            }
+
+            genSeed = code.Seed;
+            if (!code.Current)
+            {
+                codeFile = TrackView.FindCodeFile(code);
+                if (codeFile is null)
+                {
+                    Refuse(TrackView.NoFileFor(code));
+                    return;
+                }
+
+                seedFlag = null;
             }
         }
 
-        string? trackName = Flag(args, "--track=") ?? (trackOracle && seedFlag is null ? "base:shakedown" : null);
+        string? trackName = codeFile ?? Flag(args, "--track=") ?? (trackOracle && seedFlag is null ? "base:shakedown" : null);
 
         // Generated ground from a seed on its own (M3a); --seed= lays a track on it.
         string? terrainFlag = Flag(args, "--terrain=");
@@ -343,9 +358,10 @@ public partial class Main : Node3D
             _terrain = made.Terrain;
             _generated = made;
             BuildGround(_terrain, genSeed, made.Rocks);
+            _trackPrint = TrackFingerprint.Of(made.Track, catalogue, made.Terrain, made.Rocks);
             GenStats s = made.Stats;
             StuntStats st = s.Stunts;
-            GD.Print($"Seed {genSeed}: {(s.Circuit ? $"a circuit, {made.Track.Laps} laps of " : "a sprint, ")}{s.LengthM / 1000.0f:F2} km, {_track.Placed.Count} pieces, {s.Slopes} slopes, {s.Banked} banked corners, "
+            GD.Print($"{TrackLabel(made.Track)}, fingerprint {_trackPrint}: {(s.Circuit ? $"a circuit, {made.Track.Laps} laps of " : "a sprint, ")}{s.LengthM / 1000.0f:F2} km, {_track.Placed.Count} pieces, {s.Slopes} slopes, {s.Banked} banked corners, "
                 + $"worst fill {s.WorstFillM:F1} m and cut {s.WorstCutM:F1} m; {st.ShortJumps} short jumps, {st.LongJumps} long, {st.Loops} loops "
                 + $"({st.TooSlow + st.MustBrake} turned down), {st.Checkpoints} checkpoints; generated in {generated:F0} ms, built in {clock.Elapsed.TotalMilliseconds - generated:F0} ms");
         }
@@ -353,9 +369,11 @@ public partial class Main : Node3D
         {
             // A track from its file (M2-PLAN, M2c): its pieces on the plain, the car at the start gate.
             var clock = System.Diagnostics.Stopwatch.StartNew();
+            PieceCatalogue catalogue;
             try
             {
-                _track = TrackView.LoadTrack(trackName, TrackView.LoadCatalogue());
+                catalogue = TrackView.LoadCatalogue();
+                _track = TrackView.LoadTrack(trackName, catalogue);
             }
             catch (System.IO.InvalidDataException e)
             {
@@ -369,15 +387,18 @@ public partial class Main : Node3D
                 // A generated track saved with its ground (M3e): the terrain made again from its seed and dials,
                 // and the bed and the rocks laid again from the track, as the generator laid them.
                 _terrain = Bed.Lay(new Terrain(saved.Seed, saved.Terrain), _track);
-                BuildGround(_terrain, saved.Seed, Rocks.Scatter(saved.Seed, new RockSettings(), _track, _terrain));
+                IReadOnlyList<Rock> rocks = Rocks.Scatter(saved.Seed, new RockSettings(), _track, _terrain);
+                BuildGround(_terrain, saved.Seed, rocks);
+                _trackPrint = TrackFingerprint.Of(_track.Track, catalogue, _terrain, rocks);
             }
             else
             {
                 TrackView.Build(this, _track.Placed);
+                _trackPrint = TrackFingerprint.Of(_track.Track, catalogue);
             }
 
             float length = _track.LengthM;
-            GD.Print($"Built {_track.Track.Id} ({_track.Track.Name}): {_track.Placed.Count} pieces, {length / 1000.0f:F2} km of road, "
+            GD.Print($"Built {_track.Track.Id} ({TrackLabel(_track.Track)}), fingerprint {_trackPrint}: {_track.Placed.Count} pieces, {length / 1000.0f:F2} km of road, "
                 + $"loaded in {loaded:F0} ms and built in {clock.Elapsed.TotalMilliseconds - loaded:F0} ms");
         }
 
@@ -439,15 +460,18 @@ public partial class Main : Node3D
         // The Esc menu (M3e), for play: not for an oracle or a screenshot, which quit on their own.
         if (oracle is null && _screenshot is null)
         {
+            TrackCode? code = _track is not null ? TrackCode.FromId(_track.Track.Id) : null;
             string driving = _generated is Generated g
-                ? $"Seed {genSeed}: {(g.Stats.Circuit ? $"a circuit, {g.Track.Laps} laps of {g.Stats.LengthM / 1000.0f:F1} km" : $"a sprint of {g.Stats.LengthM / 1000.0f:F1} km")}"
-                : _track is not null ? $"{_track.Track.Name} ({_track.Track.Id})" : "The test ground";
+                ? $"{TrackLabel(g.Track)}: {(g.Stats.Circuit ? $"a circuit, {g.Track.Laps} laps of {g.Stats.LengthM / 1000.0f:F1} km" : $"a sprint of {g.Stats.LengthM / 1000.0f:F1} km")}"
+                : _track is not null ? (code is not null ? $"{TrackLabel(_track.Track)}, from its file" : $"{_track.Track.Name} ({_track.Track.Id})")
+                : "The test ground";
             AddChild(new SeedMenu
             {
                 Where = driving,
-                Seed = _generated is not null ? genSeed.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty,
-                Generate = seed => GenerateInPlace(args, seed),
-                Save = _generated is not null ? () => SaveGenerated(genSeed) : null,
+                Detail = _trackPrint is null ? string.Empty : $"Track fingerprint {_trackPrint}",
+                Seed = code?.ToString() ?? (_generated is not null ? genSeed.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty),
+                Generate = c => GoToCode(args, c),
+                Save = _generated is not null ? SaveGenerated : null,
             });
         }
         _telemetry = new TelemetryOverlay { Car = _car, Visible = panels.Contains("telemetry") };
@@ -500,7 +524,7 @@ public partial class Main : Node3D
             string what = _track.Track.Circuit
                 ? $"{_track.Track.Laps} laps of {km:F1} km, {_track.GatesPerLap() - 1} checkpoints a lap"
                 : $"{km:F1} km and {_race!.Checkpoints} checkpoints";
-            _hud.Flash($"{_track.Track.Name}: {what}. The clock starts on the throttle; "
+            _hud.Flash($"{TrackLabel(_track.Track)}: {what}. The clock starts on the throttle; "
                 + "R puts you back at the last checkpoint; hold R, or press Backspace, to start again.", 10.0);
         }
         else if (_stations is not null && oracle is null && _screenshot is null)
@@ -523,25 +547,58 @@ public partial class Main : Node3D
     private static readonly string[] PlaceFlags =
         ["--seed=", "--track=", "--terrain=", "--ground=", "--station=", "--checkpoint=", "--screenshot=", "--oracle=", "--camera=", "--drive="];
 
-    /// <summary>The Esc menu's "generate": the scene started again on a seed's track, the player's other flags kept.</summary>
-    private void GenerateInPlace(string[] args, ulong seed)
+    /// <summary>
+    /// The Esc menu's "generate" (M3e), with codes (M4a): this version's code builds its seed's track; another
+    /// version's drives its file if the game has it. Returns why it can't, or null as the scene starts again.
+    /// </summary>
+    private string? GoToCode(string[] args, TrackCode code)
+    {
+        if (code.Current)
+        {
+            StartAgainOn(args, $"--seed={code.Seed.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+            return null;
+        }
+
+        string? file = TrackView.FindCodeFile(code);
+        if (file is null)
+        {
+            return TrackView.NoFileFor(code);
+        }
+
+        StartAgainOn(args, $"--track={file}");
+        return null;
+    }
+
+    /// <summary>The scene started again somewhere else, the player's other flags kept.</summary>
+    private void StartAgainOn(string[] args, string place)
     {
         NextArgs = args.Where(a => !PlaceFlags.Any(p => a.StartsWith(p, StringComparison.Ordinal)) && a != "--autodrive")
-            .Append($"--seed={seed.ToString(System.Globalization.CultureInfo.InvariantCulture)}")
+            .Append(place)
             .ToArray();
-        GD.Print($"Generating seed {seed}: {string.Join(' ', NextArgs)}");
+        GD.Print($"Starting again: {string.Join(' ', NextArgs)}");
         GetTree().ReloadCurrentScene();
     }
 
     /// <summary>
-    /// The Esc menu's "save": the generated track being driven written as its file (format 2, or 3 for a
-    /// circuit), its ground in it, to <c>user://tracks/gen-&lt;seed&gt;.json</c>; <c>--track=</c> drives it again.
+    /// A track in words, for the menu, the opening flash and the log: "Seed 5, code 5v1" for a generated track
+    /// with a code (M4a), its name otherwise.
     /// </summary>
-    private string SaveGenerated(ulong seed)
+    private static string TrackLabel(Track track) =>
+        TrackCode.FromId(track.Id) is TrackCode code ? $"{track.Name}, code {code}" : track.Name;
+
+    /// <summary>The track's fingerprint (M4a): what its ghosts are filed under. Null off a track.</summary>
+    private string? _trackPrint;
+
+    /// <summary>
+    /// The Esc menu's "save": the generated track being driven written as its file (format 2, or 3 for a
+    /// circuit), its ground in it, to <c>user://tracks/</c>, named for its ID (<c>gen-5v1.json</c>);
+    /// <c>--track=</c> drives it again, and so does its code once the generator has moved on.
+    /// </summary>
+    private string SaveGenerated()
     {
-        const string Folder = "user://tracks";
+        const string Folder = TrackView.SavedPath;
         DirAccess.MakeDirRecursiveAbsolute(Folder);
-        string path = $"{Folder}/gen-{seed.ToString(System.Globalization.CultureInfo.InvariantCulture)}.json";
+        string path = $"{Folder}/{_generated!.Track.Id.Replace(':', '-')}.json";
         using (FileAccess? file = FileAccess.Open(path, FileAccess.ModeFlags.Write))
         {
             if (file is null)
@@ -552,7 +609,7 @@ public partial class Main : Node3D
             file.StoreString(_generated!.Track.Save());
         }
 
-        GD.Print($"Saved seed {seed} to {ProjectSettings.GlobalizePath(path)}");
+        GD.Print($"Saved {_generated.Track.Id} to {ProjectSettings.GlobalizePath(path)}");
         return $"{ProjectSettings.GlobalizePath(path)}. Drive it again with start.cmd --track={path}";
     }
 

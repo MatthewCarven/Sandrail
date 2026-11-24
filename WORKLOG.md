@@ -2,6 +2,39 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M4a: track codes and fingerprints
+
+M4's seven decisions taken as recommended: *"Yes, as recommended"*. M4a built as M4-PLAN has it.
+
+**The generator has a version**, `TrackGenerator.Version`, 1 today: the generator as M3 passed.
+**`TheGeneratorVersionPinsItsTracks`** pins seeds 1 to 10 under it as fingerprints, and a change that moves
+any of them fails until the version goes up and the new ones are pinned beside the old. A change to the
+terrain, the bed or the rocks fails it too. That's on purpose: those reach tracks kept as files as well.
+
+**A code is the seed and the version**, `5v1` (`TrackCode`). The menu's box, now "Code", and `--seed=` take
+a code or a bare seed, which means this version. A generated track's ID is `gen:5v1` and its name is still
+"Seed 5"; the menu, the opening flash and the log say "Seed 5, code 5v1". A file saved before codes (`gen:5`)
+counts as version 1. A track made with other dials (`--stunts=` and the like) has no code: `gen:5v1-dials`,
+"Seed 5 (own dials)". **A code from another version** drives its file if the game has one, among its own
+tracks and then `user://tracks/`, or says why it can't: *"3v1 was made by generator version 1; this build
+makes version 2, where seed 3 is a different track (3v2). Drive that, or ask for 3v1's file."* Tried with the
+version set to 2 for a moment: `5v1` drove the shipped seed 5, `7v1` drove his own saved `gen-7.json` (the
+same fingerprint as version 1's seed 7), `3v1` said the above.
+
+**The track fingerprint** (`TrackFingerprint`): eight hex digits over the placements (not the ID or name),
+the pieces' shapes, and on generated ground the bedded heights to the centimetre and the rocks to the
+millimetre. 4.5 ms a track (the bench). Seed 5 is `0070ecd8`, seed 8 `605be908`, the shakedown `8a6323aa`.
+The menu shows it under its top line; M4c files ghosts under it.
+
+**Seed 5 ships as `content/base/tracks/gen-5v1.json`** (decision 3): `--track=gen:5v1` drives it, its
+fingerprint is the generated one's, and a test holds it to version 1's pin, so it stays his whatever the
+generator does next. That's what frees the cure for jumps straight after corners, whenever he wants it.
+
+The two older pins (`TodaysRoutesStayPut`, `TheSprintsHeDroveStayPut`) stay as they were, comparing each
+file under its old ID, which shows codes renamed the tracks and changed nothing else. Tests 308. All sixteen
+oracles as before on the committed car (4f918acd), the shakedown 56.76 at 80%; seed 5 at 70% still finishes in
+1:25.19, the same splits. The bench's `--generate` gained `--save=<folder>`, each track's file.
+
 ## 2026-11-24 — M3 passes; M4 planned
 
 His word, after the rocks: *"It all looks and feels good to me so far Claude lets continue"*. **M3 passes on

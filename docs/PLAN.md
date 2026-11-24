@@ -218,8 +218,8 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
 ## Decisions that are his
 
 1. ~~**The name**, or a codename, before M0.~~ **Codename Tumbleweed, 2026-10-31; named Sandrail, 2026-11-17.**
-2. **Ghosts before the editor** (M4 before M5)? Recommended, because he named ghosts as "better" and they
-   make generated tracks worth replaying before there's an editor. Put to him again as M4-PLAN decision 1.
+2. ~~**Ghosts before the editor** (M4 before M5)?~~ **Yes, 2026-11-24** (M4-PLAN decision 1, taken as
+   recommended): ghosts make generated tracks worth replaying before there's an editor.
 3. **Where Godot lives:** share MinerCraft's `Godot_v4.7.1-stable_mono_win64\`, or copy it into this
    folder, gitignored. Recommended: copy, so the two projects can move to different Godot versions apart.
    **Taken as recommended at M0**; `start.cmd` falls back to MinerCraft's copy.

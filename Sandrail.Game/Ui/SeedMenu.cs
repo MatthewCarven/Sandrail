@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using Sandrail.Core.Generation;
 
 namespace Sandrail.Game.Ui;
 
@@ -17,11 +18,17 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>What's being driven, in words, for the top of the menu.</summary>
     public required string Where { get; init; }
 
-    /// <summary>The seed in the box when it opens: the one being driven, if it's generated.</summary>
+    /// <summary>A smaller line under it: the track's fingerprint, which its ghosts are filed under (M4a).</summary>
+    public string Detail { get; init; } = string.Empty;
+
+    /// <summary>The code in the box when it opens: the one being driven, if it has one (M4a).</summary>
     public string Seed { get; init; } = string.Empty;
 
-    /// <summary>Builds a seed's track in place of this one.</summary>
-    public required Action<ulong> Generate { get; init; }
+    /// <summary>
+    /// Goes to a code's track in place of this one: this version's is generated, another version's driven from
+    /// its file. Returns why it can't, or null.
+    /// </summary>
+    public required Func<TrackCode, string?> Generate { get; init; }
 
     /// <summary>Saves the generated track being driven and says where; null when there's no generated track to save.</summary>
     public Func<string>? Save { get; init; }
@@ -62,14 +69,20 @@ public partial class SeedMenu : CanvasLayer
 
         rows.AddChild(Text("SANDRAIL", 30));
         rows.AddChild(Text(Where, 18));
+        if (Detail.Length > 0)
+        {
+            Label detail = Text(Detail, 14);
+            detail.Modulate = new Color(1.0f, 1.0f, 1.0f, 0.6f);
+            rows.AddChild(detail);
+        }
 
         var seedRow = new HBoxContainer();
         seedRow.AddThemeConstantOverride("separation", 8);
-        seedRow.AddChild(Text("Seed", 18));
+        seedRow.AddChild(Text("Code", 18));
         _seed = new LineEdit
         {
             Text = Seed,
-            PlaceholderText = "a whole number",
+            PlaceholderText = "a seed like 5, or a code like 5v1",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         _seed.AddThemeFontSizeOverride("font_size", 18);
@@ -80,8 +93,8 @@ public partial class SeedMenu : CanvasLayer
 
         rows.AddChild(Button("New random seed", () =>
         {
-            ulong seed = (Sandrail.Core.Generation.Hash64.Mix((ulong)DateTime.UtcNow.Ticks) % 999_999UL) + 1UL;
-            Go(seed);
+            ulong seed = (Hash64.Mix((ulong)DateTime.UtcNow.Ticks) % 999_999UL) + 1UL;
+            Go(TrackCode.Of(seed));
         }));
 
         if (Save is not null)
@@ -132,20 +145,26 @@ public partial class SeedMenu : CanvasLayer
 
     private void GenerateTyped()
     {
-        if (ulong.TryParse(_seed.Text.Trim(), out ulong seed))
+        if (TrackCode.TryParse(_seed.Text, out TrackCode code, out string problem))
         {
-            Go(seed);
+            Go(code);
         }
         else
         {
-            _note.Text = $"\"{_seed.Text}\" isn't a seed: a seed is a whole number, 0 or more.";
+            _note.Text = problem;
         }
     }
 
-    private void Go(ulong seed)
+    private void Go(TrackCode code)
     {
+        // The scene starts again at the end of the frame; if it can't, the menu stays up and says why.
+        if (Generate(code) is string cannot)
+        {
+            _note.Text = cannot;
+            return;
+        }
+
         GetTree().Paused = false;
-        Generate(seed);
     }
 
     private static Label Text(string text, int size)

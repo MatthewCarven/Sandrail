@@ -65,6 +65,52 @@ public static class TrackView
         throw new System.IO.InvalidDataException($"There's no track called {idOrPath}. Known: {string.Join(", ", known)}.");
     }
 
+    /// <summary>Where generated tracks are saved from the Esc menu (M3e).</summary>
+    public const string SavedPath = "user://tracks";
+
+    /// <summary>
+    /// The file of the track a code names (M4a), if the game has one: among its own tracks first, then the ones
+    /// saved from the menu, a track saved before codes as <c>gen:5</c> counting as version 1's. Null if neither
+    /// has it. This is how an old code still drives its track after the generator has moved on.
+    /// </summary>
+    public static string? FindCodeFile(Sandrail.Core.Generation.TrackCode code)
+    {
+        foreach (string folder in new[] { TracksPath, SavedPath })
+        {
+            if (!DirAccess.DirExistsAbsolute(folder))
+            {
+                continue;
+            }
+
+            foreach (string file in DirAccess.GetFilesAt(folder).Where(f => f.EndsWith(".json", System.StringComparison.Ordinal)).Order())
+            {
+                string path = $"{folder}/{file}";
+                try
+                {
+                    if (Sandrail.Core.Generation.TrackCode.FromId(Track.Parse(FileAccess.GetFileAsString(path)).Id) == code)
+                    {
+                        return path;
+                    }
+                }
+                catch (System.IO.InvalidDataException)
+                {
+                    // Not a track this build reads: it can't be the one.
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// What to say when a code is from another version of the generator and the game hasn't its file (M4a): the
+    /// code isn't quietly made into this version's track.
+    /// </summary>
+    public static string NoFileFor(Sandrail.Core.Generation.TrackCode code) =>
+        $"{code} was made by {(code.Version > Sandrail.Core.Generation.TrackGenerator.Version ? "a newer Sandrail's generator, " : "generator ")}version {code.Version}; "
+        + $"this build makes version {Sandrail.Core.Generation.TrackGenerator.Version}, where seed {code.Seed} is a different track "
+        + $"({Sandrail.Core.Generation.TrackCode.Of(code.Seed)}). Drive that, or ask for {code}'s file.";
+
     /// <summary>
     /// Each placed piece as a body of its own, named for the piece and its tile, and an arch over each gate;
     /// on generated ground, each slab deep enough to meet it.

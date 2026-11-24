@@ -192,6 +192,8 @@ public static class Program
         var stunts = new List<StuntStats>();
         var laps = new List<float>();
         var rocks = new List<float>();
+        var printTimes = new List<double>();
+        string? saveTo = args.FirstOrDefault(a => a.StartsWith("--save=", StringComparison.Ordinal))?["--save=".Length..];
         string? firstRefusal = null;
 
         for (ulong seed = first; seed < first + (ulong)seeds; seed++)
@@ -210,6 +212,17 @@ public static class Program
             }
 
             times.Add(clock.Elapsed.TotalMilliseconds);
+
+            // Its fingerprint (M4a), timed apart: what a ghost names the track by.
+            var printClock = Stopwatch.StartNew();
+            string print = Sandrail.Core.Tracks.TrackFingerprint.Of(g.Track, catalogue, g.Terrain, g.Rocks);
+            printTimes.Add(printClock.Elapsed.TotalMilliseconds);
+            if (saveTo is not null)
+            {
+                Directory.CreateDirectory(saveTo);
+                File.WriteAllText(Path.Combine(saveTo, g.Track.Id.Replace(':', '-') + ".json"), g.Track.Save());
+            }
+
             Sandrail.Core.Tracks.LaidTrack laid = g.Track.Lay(catalogue);
             if (laid.Problems.Count > 0)
             {
@@ -236,7 +249,7 @@ public static class Program
             if (seeds <= 5)
             {
                 StuntStats s = g.Stats.Stunts;
-                Console.WriteLine($"  seed {seed}: {(g.Stats.Circuit ? $"circuit, {g.Track.Laps} laps of" : "sprint,")} {g.Stats.LengthM:F0} m, {g.Track.Pieces.Length} pieces, {g.Stats.Slopes} slopes, {g.Stats.Banked} banked, "
+                Console.WriteLine($"  seed {seed}, code {Sandrail.Core.Generation.TrackCode.Of(seed)}, fingerprint {print}: {(g.Stats.Circuit ? $"circuit, {g.Track.Laps} laps of" : "sprint,")} {g.Stats.LengthM:F0} m, {g.Track.Pieces.Length} pieces, {g.Stats.Slopes} slopes, {g.Stats.Banked} banked, "
                     + $"attempt {g.Stats.Attempts}, {g.Stats.Backtracks} backtracks, worst fill {g.Stats.WorstFillM:F1} m, worst cut {g.Stats.WorstCutM:F1} m; "
                     + $"stunts {s.ShortJumps} short, {s.LongJumps} long, {s.Loops} loops ({s.TooSlow} too slow, {s.MustBrake} must brake), {s.Checkpoints} checkpoints");
             }
@@ -248,9 +261,14 @@ public static class Program
             return v.Length == 0 ? "-" : $"min {v[0]:F1}  p10 {Percentile(v, 0.1):F1}  p50 {Percentile(v, 0.5):F1}  p90 {Percentile(v, 0.9):F1}  max {v[^1]:F1}";
         }
 
-        Console.WriteLine($"generate  seeds {first} to {first + (ulong)seeds - 1}  turniness {settings.Route.Turniness}  circuit share {settings.Route.CircuitShare}  stunt density {settings.Stunts.Density}  checkpoints every {settings.Stunts.CheckpointEveryM} m");
+        Console.WriteLine($"generate  version {TrackGenerator.Version}  seeds {first} to {first + (ulong)seeds - 1}  turniness {settings.Route.Turniness}  circuit share {settings.Route.CircuitShare}  stunt density {settings.Stunts.Density}  checkpoints every {settings.Stunts.CheckpointEveryM} m");
         Console.WriteLine($"  refused by Lay: {refused} (must be 0)   no route found: {failed}{(firstRefusal is null ? string.Empty : $"   first: {firstRefusal}")}");
         Console.WriteLine($"  time a track, ms:   {Spread(times.Select(t => (float)t))}");
+        Console.WriteLine($"  fingerprint, ms:    {Spread(printTimes.Select(t => (float)t))}");
+        if (saveTo is not null)
+        {
+            Console.WriteLine($"  saved to:           {Path.GetFullPath(saveTo)}");
+        }
         Console.WriteLine($"  sprints {lengths.Count}, circuits {laps.Count} ({(laps.Count + lengths.Count == 0 ? 0 : 100.0 * laps.Count / (laps.Count + lengths.Count)):F0}%)");
         Console.WriteLine($"  sprint length, m:   {Spread(lengths)}");
         Console.WriteLine($"  circuit lap, m:     {Spread(laps)}");

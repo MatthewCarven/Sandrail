@@ -133,7 +133,8 @@ and `auto.ghost`, so a track's ghosts sit together and a changed track's are sim
 
 ## Decisions
 
-Numbered so they can be answered by number; the recommendation is first.
+Numbered so they can be answered by number; the recommendation is first. **All seven taken as
+recommended, 2026-11-24**: *"Yes, as recommended"*.
 
 1. **M4 now, before the editor** (PLAN's open decision 2). Ghosts make generated tracks worth driving
    again, and they'll be the way to compare tunes when he tunes after the editor. His "lets continue" was
@@ -161,6 +162,16 @@ Numbered so they can be answered by number; the recommendation is first.
 ---
 
 ## M4a — track codes and fingerprints
+
+**Built 2026-11-24**, as below; 21 tests, worklog that date. Departures: **the two older pins stay as they
+were**, comparing each track's file under its old ID (`gen:5`), which shows codes changed what a track is
+called and nothing else; **a track made with other dials has no code**: its ID is `gen:5v1-dials` and its
+name "Seed 5 (own dials)"; **`--seed=` takes a code too**, and an old one drives its file as the menu does;
+the menu's box is "Code", with the track's fingerprint under its top line; the bench's `--generate` times
+the fingerprint (4.5 ms a track) and `--save=` writes each track's file. **Seed 5 ships as
+`content/base/tracks/gen-5v1.json`**, fingerprint `0070ecd8`, the same as generated. Tried with the version
+set to 2 for a moment: `5v1` drove the shipped file, `7v1` drove his own saved `gen-7.json` (version 1's seed
+7, the same fingerprint), and `3v1` said why it couldn't.
 
 - **Core:** `TrackGenerator.Version` (1), `TrackCode` (parse and write `5v1`; a bare seed), generated IDs
   `gen:5v1` (an old `gen:5` read as version 1), `TrackFingerprint`.

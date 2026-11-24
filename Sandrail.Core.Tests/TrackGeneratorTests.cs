@@ -40,7 +40,7 @@ public class TrackGeneratorTests
     {
         string pinned = "1:e8e484038f421dc9 2:0eb05112beb14551 3:ab98f857e9efacf5 4:005be927f200bf5c 5:7145f3135182f092 6:03151ca73ad0feed 7:8ee39dc43cbd38fc 8:dca607145e5308fa";
         string now = string.Join(" ", Enumerable.Range(1, 8).Select(s =>
-            $"{s}:{Fnv(TrackGenerator.Generate((ulong)s, Bare, Catalogue.Value).Track.Save()):x16}"));
+            $"{s}:{Fnv(AsBefore(TrackGenerator.Generate((ulong)s, Bare, Catalogue.Value).Track, s)):x16}"));
         Assert.True(pinned == now, now);
     }
 
@@ -54,9 +54,15 @@ public class TrackGeneratorTests
     {
         string pinned = "1:de2b073f250145a9 3:290e5a5e5f98d178 5:7e770c4ce25cb77f 7:40feabfbc80e87f2";
         string now = string.Join(" ", new[] { 1, 3, 5, 7 }.Select(s =>
-            $"{s}:{Fnv(TrackGenerator.Generate((ulong)s, new GenSettings(), Catalogue.Value).Track.Save()):x16}"));
+            $"{s}:{Fnv(AsBefore(TrackGenerator.Generate((ulong)s, new GenSettings(), Catalogue.Value).Track, s)):x16}"));
         Assert.True(pinned == now, now);
     }
+
+    /// <summary>
+    /// A track's file with the ID and name it had when these were pinned (<c>gen:5</c>, "Seed 5"): codes (M4a)
+    /// changed what a generated track is called, and nothing else about it.
+    /// </summary>
+    private static string AsBefore(Track track, int seed) => (track with { Id = $"gen:{seed}", Name = $"Seed {seed}" }).Save();
 
     private static ulong Fnv(string text)
         {

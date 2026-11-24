@@ -90,7 +90,9 @@ public class RocksTests
 
         Generated none = TrackGenerator.Generate(5UL, new GenSettings { Rocks = new RockSettings { PerKm = 0.0f } }, Catalogue.Value);
         Assert.Empty(none.Rocks);
-        Assert.Equal(a.Track.Save(), none.Track.Save());
+
+        // The same pieces; only its ID and name say it was made with other dials, and so has no code (M4a).
+        Assert.Equal(a.Track.Save(), (none.Track with { Id = a.Track.Id, Name = a.Track.Name }).Save());
 
         LaidTrack laid = a.Track.Lay(Catalogue.Value);
         Assert.Equal(a.Rocks, Rocks.Scatter(5UL, new RockSettings(), laid, a.Terrain));
