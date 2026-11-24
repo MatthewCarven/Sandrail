@@ -32,26 +32,20 @@ public sealed record SheetShape(IReadOnlyList<string> Pieces, int Checkpoints, i
 /// <param name="Version">The game's version, since a change to the car's physics changes every figure (PROFILE-PLAN fact 1).</param>
 /// <param name="Driver"><c>auto</c> for the autodriver, <c>you</c> for him.</param>
 /// <param name="Car">The car's name: its file's, in practice (fact 7).</param>
-/// <param name="CarPrint">The car's fingerprint: eight hex digits over all its numbers.</param>
+/// <param name="CarPrint">The car's fingerprint, which <c>cars.csv</c> traces to every one of its numbers.</param>
 /// <param name="Caution">The autodriver's caution; null for his runs.</param>
 /// <param name="Differences">The car against the stock car, in words (<see cref="CarSheet.Differences"/>).</param>
 /// <param name="Run">What the run came to.</param>
-/// <param name="Spec">The car's numbers, every one of them on the row, so the runs sort by any of them.</param>
-public sealed record SheetRow(DateTime When, string Version, string Driver, string Car, string CarPrint, float? Caution, string Differences, RunSummary Run, CarSpec Spec);
+public sealed record SheetRow(DateTime When, string Version, string Driver, string Car, string CarPrint, float? Caution, string Differences, RunSummary Run);
 
 /// <summary>
 /// The profile sheet (PROFILE-PLAN, P1, decision 3): runs as rows of plain numbers and words in a CSV a spreadsheet
-/// opens as it is, one file per track, each row ending in every one of its car's numbers.
+/// opens as it is, one file per track, and every profiled car's numbers in <c>cars.csv</c>.
 /// </summary>
 /// <remarks>
 /// <para>
 /// <b>No formulas, decimal points whatever the machine's culture, UTF-8 with its mark</b> so Excel reads the units'
 /// symbols, and Windows line ends. A row's cells always line up with the header made from the same track's shape.
-/// </para>
-/// <para>
-/// <b>The car's numbers are on every row</b>, at its end, the wing and then each number in the panel's words (his
-/// ask, 2026-11-25: <i>"can cars.csv just go into the other file as duplicated rows so you can sort easily?"</i>).
-/// They were a <c>cars.csv</c> of their own at first, one row a car.
 /// </para>
 /// <para>
 /// <b>A file whose header no longer matches is left alone</b>, and a new one started beside it (<c>name (2).csv</c>),
@@ -60,6 +54,9 @@ public sealed record SheetRow(DateTime When, string Version, string Driver, stri
 /// </remarks>
 public static class CarSheet
 {
+    /// <summary>The file every profiled car's numbers go in.</summary>
+    public const string CarsFile = "cars.csv";
+
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
     /// <summary>A track's file: its name and fingerprint, <c>Shakedown 8a6323aa.csv</c>, with nothing a file name can't hold.</summary>
@@ -88,13 +85,8 @@ public static class CarSheet
         cells.AddRange(["top km/h", "off road s", "worst slide deg", "spins", "respawns", "furthest m"]);
         cells.AddRange(shape.Pieces.Select(p => $"{p} s"));
         cells.AddRange(shape.Pieces.Select(p => $"{p} km/h"));
-        cells.AddRange(CarColumns());
         return cells;
     }
-
-    /// <summary>The car's columns at a row's end: the wing, then every number in the panel's words.</summary>
-    public static IReadOnlyList<string> CarColumns() =>
-        new[] { "wing" }.Concat(CarSpec.Tunables.Select(t => t.Words)).ToArray();
 
     /// <summary>A run's cells, lined up with <see cref="Header"/> for the same shape.</summary>
     public static IReadOnlyList<string> Cells(SheetShape shape, SheetRow row)
@@ -140,13 +132,8 @@ public static class CarSheet
         // A piece the run never reached is blank, not 0, so a spreadsheet's average skips it.
         cells.AddRange(run.Pieces.Select(p => float.IsNaN(p.SlowestMps) ? string.Empty : Seconds(p.Seconds)));
         cells.AddRange(run.Pieces.Select(p => float.IsNaN(p.SlowestMps) ? string.Empty : (p.SlowestMps * 3.6f).ToString("0.0", Inv)));
-        cells.AddRange(CarValues(row.Spec));
         return cells;
     }
-
-    /// <summary>A car's values under <see cref="CarColumns"/>: its wing, then every number to the last digit it has.</summary>
-    public static IReadOnlyList<string> CarValues(CarSpec car) =>
-        new[] { car.WingId }.Concat(CarSpec.Tunables.Select(t => t.Get(car).ToString(Inv))).ToArray();
 
     /// <summary>Cells as one CSV line: a cell with a comma, a quote or a line end is quoted, its quotes doubled.</summary>
     public static string Line(IEnumerable<string> cells) =>
@@ -258,6 +245,31 @@ public static class CarSheet
         }
 
         return differences.Count == 0 ? "the stock car" : string.Join("; ", differences);
+    }
+
+    /// <summary>The header of <c>cars.csv</c>: the car's name, fingerprint and wing, then every number in the panel's words.</summary>
+    public static IReadOnlyList<string> CarHeader() =>
+        new[] { "car", "fingerprint", "wing" }.Concat(CarSpec.Tunables.Select(t => t.Words)).ToArray();
+
+    /// <summary>A car's row in <c>cars.csv</c>: every number, to the last digit it has.</summary>
+    public static IReadOnlyList<string> CarCells(string name, CarSpec car) =>
+        new[] { name, car.Fingerprint(), car.WingId }.Concat(CarSpec.Tunables.Select(t => t.Get(car).ToString(Inv))).ToArray();
+
+    /// <summary>
+    /// Writes a car into <c>cars.csv</c> the first time its fingerprint is seen there; says which file, or null if
+    /// it was there already.
+    /// </summary>
+    public static string? AddCar(string folder, string name, CarSpec car)
+    {
+        string header = Line(CarHeader());
+        string print = car.Fingerprint();
+        string path = Target(folder, CarsFile, header);
+        if (File.Exists(path) && File.ReadLines(path).Skip(1).Any(l => Fields(l) is { Count: > 1 } f && f[1] == print))
+        {
+            return null;
+        }
+
+        return Append(folder, CarsFile, header, Line(CarCells(name, car)));
     }
 
     private static string Seconds(double? seconds) => seconds is double s ? s.ToString("0.00", Inv) : string.Empty;

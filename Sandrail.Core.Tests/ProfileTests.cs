@@ -120,11 +120,10 @@ public class ProfileTests
         Assert.Equal(2, shape.Checkpoints);
         Assert.Equal(0, shape.Laps);
         Assert.StartsWith("01 ", shape.Pieces[0], StringComparison.Ordinal);
-        Assert.Equal(10 + 2 + 6 + (2 * track.Route.Count) + 1 + CarSpec.Tunables.Count, header.Count);
+        Assert.Equal(10 + 2 + 6 + (2 * track.Route.Count), header.Count);
         Assert.Contains("split 2 s", header);
         Assert.DoesNotContain("best lap s", header);
-        Assert.Equal($"{shape.Pieces[^1]} km/h", header[header.Count - CarSheet.CarColumns().Count - 1]);
-        Assert.Equal(CarSheet.CarColumns(), header.TakeLast(CarSheet.CarColumns().Count));
+        Assert.Equal($"{shape.Pieces[^1]} km/h", header[^1]);
         Assert.Equal("Shakedown 8a6323aa.csv", CarSheet.FileName(track.Track.Name, "8a6323aa"));
     }
 
@@ -146,7 +145,7 @@ public class ProfileTests
         Drive(meter, 0, 150, 20.0f, 30.0f);
         Drive(meter, 1, 90, 18.0f, 18.0f);
         RunSummary run = meter.Summary(false, [1.75]);
-        var row = new SheetRow(new DateTime(2026, 11, 24, 23, 5, 0), "0.0.1+abc", "auto", "stock", "4f918acd", 0.5f, "the stock car", run, new CarSpec());
+        var row = new SheetRow(new DateTime(2026, 11, 24, 23, 5, 0), "0.0.1+abc", "auto", "stock", "4f918acd", 0.5f, "the stock car", run);
 
         CultureInfo was = CultureInfo.CurrentCulture;
         try
@@ -167,7 +166,6 @@ public class ProfileTests
             Assert.Equal("64.8", Cell("02 corner-30 km/h"));
             Assert.Equal(string.Empty, Cell("03 straight s"));
             Assert.Equal(string.Empty, Cell("03 straight km/h"));
-            Assert.Equal("1.1", Cell("Grip"));
         }
         finally
         {
@@ -227,24 +225,27 @@ public class ProfileTests
     }
 
     [Fact]
-    public void EveryRowEndsInEveryOneOfItsCarsNumbersSoTheRunsSortByThem()
+    public void ACarGoesIntoCarsCsvOnceWithEveryNumber()
     {
-        var shape = new SheetShape(["01 straight"], 0, 0);
-        var meter = new RunMeter(1, Tps);
-        Drive(meter, 0, 120, 20.0f, 20.0f);
-        RunSummary run = meter.Summary(true, [1.0]);
-        CarSpec heavier = new CarSpec().WithValue(nameof(CarSpec.MassKg), 974.0f) with { WingId = Wings.TwinPlane.Id };
-        var row = new SheetRow(DateTime.Now, "v", "auto", "heavy, isn't it", heavier.Fingerprint(), 0.8f, "x", run, heavier);
+        string folder = Path.Combine(Path.GetTempPath(), "sandrail-cars-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var stock = new CarSpec();
+            CarSpec heavier = stock.WithValue(nameof(CarSpec.MassKg), 974.0f);
+            Assert.NotNull(CarSheet.AddCar(folder, "stock", stock));
+            Assert.Null(CarSheet.AddCar(folder, "stock again", stock));
+            Assert.NotNull(CarSheet.AddCar(folder, "heavy, isn't it", heavier));
 
-        IReadOnlyList<string> header = CarSheet.Header(shape);
-        IReadOnlyList<string> cells = CarSheet.Fields(CarSheet.Line(CarSheet.Cells(shape, row)));
-        Assert.Equal(header.Count, cells.Count);
-        string Cell(string column) => cells[header.ToList().IndexOf(column)];
-
-        Assert.Equal("heavy, isn't it", Cell("car"));
-        Assert.Equal(Wings.TwinPlane.Id, Cell("wing"));
-        Assert.Equal("974", Cell("Mass (kg)"));
-        Assert.Equal(1 + CarSpec.Tunables.Count, CarSheet.CarValues(heavier).Count);
-        Assert.Equal(CarSpec.Tunables.Select(t => t.Get(heavier)), CarSheet.CarValues(heavier).Skip(1).Select(v => float.Parse(v, CultureInfo.InvariantCulture)));
+            string[] lines = File.ReadAllLines(Path.Combine(folder, CarSheet.CarsFile));
+            Assert.Equal(3, lines.Length);
+            Assert.Equal(3 + CarSpec.Tunables.Count, CarSheet.Fields(lines[0]).Count);
+            IReadOnlyList<string> row = CarSheet.Fields(lines[2]);
+            Assert.Equal(["heavy, isn't it", heavier.Fingerprint(), Wings.None.Id], row.Take(3));
+            Assert.Equal("974", row[3 + CarSpec.Tunables.ToList().FindIndex(t => t.Name == nameof(CarSpec.MassKg))]);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
     }
 }

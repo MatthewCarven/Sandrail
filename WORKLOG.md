@@ -2,24 +2,23 @@
 
 Newest first. What happened and why; findings worth keeping.
 
-## 2026-11-25 — The car's numbers on every row
+## 2026-11-25 — The car's numbers on every row: tried, and taken back
 
-He tried profiling first (*"I'll try it first"*): a Profile this car and a Profile every car on his own track "4"
-(30 pieces, 0.99 km), 14 rows. The stock car was clean up to 85% (1:45.55), and his three tunes were not clean past
-55%. Then: *"can cars.csv just go into the other file as duplicated rows so you can sort easily?"* That was
-decision 3's alternative, so it changed:
+He tried profiling first, a Profile this car and a Profile every car on his own track "4" (14 rows: the stock car clean
+up to 85%, 1:45.55; his three tunes not clean past 55%). Then he asked for `cars.csv` to go into the track's sheet,
+each row carrying its car's numbers, *"so you can sort easily"*. That went in as 02ad877, and his sheet was converted
+to 130 columns, with the originals backed up. Having seen it in LibreOffice, he took it back: *"ok now i see why you
+separated them the data for the cars is different per car and some fields seem to be left out uh :-{D Do you want to
+revert that change ... now that i see its benefit i understand why it was setup like that"*.
 
-- **Each row ends in its car's wing and every one of its numbers** in the panel's words ("Mass (kg)", "Grip", ...),
-  50 columns.
-- **`cars.csv` is gone.** The rows were a file apart only to keep the sheet narrow, and he'd rather sort.
-- **His existing sheet was converted rather than split**, since a new header would have started
-  `4 847ed7b9 (2).csv` beside it. Both files were backed up first, to
-  `profiles\before-car-columns-2026-11-25\`. Then each row got its car's numbers from `cars.csv`, matched by
-  fingerprint (all 14 found), and `cars.csv` was removed: 130 columns a row.
-- **Checked**: a profile of the stock car on his track 4, into a scratch copy of the converted sheet, landed in the
-  same file (the header matched) with 130 columns. Its times repeated his own profile's to the hundredth, from
-  2:00.05 at 50% to 1:45.55 at 85% and 2:10.39 at 90%: the same run on another day. The tests have the car's columns
-  and drop the `cars.csv` one; 348 pass.
+**So the layout is as P1 built it again**: one sheet per track, and `cars.csv` with each car's numbers once, joined on
+the fingerprint. 02ad877 is reverted, and his two original files are back in place of the converted one. **A viewer
+that sorts and joins the two is the answer to "sort easily"**: a session of its own, built from Python spreadsheet and
+database code of his that he'll connect to it, held until he says go.
+
+**Seen in passing: he uses LibreOffice**, which marks an open file with `.~lock.<name>#` beside it rather than (as
+Excel does) holding it shut. So the game's rows go in while the sheet is open there; LibreOffice shows them on
+reloading, and saving from LibreOffice would write over any added since it was opened.
 
 ## 2026-11-25 — P3: profiling in the game
 
