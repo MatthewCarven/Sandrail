@@ -2,6 +2,21 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M4 passes
+
+His word, after the brake lights: *"Looks great to me Claude lets continue"*. **M4 passes on it** (M4e: "M4
+passes on his word"): codes, fingerprints, ghosts, replays, and the brake lights besides. He asked in the same
+breath when the load button comes (*"like i know i can do it via the command line but am very very lazy"*).
+The plan had "save and load" in M5, the editor, but there was no need to wait.
+
+**Load a track**, in the Esc menu: a button that opens a list of every track there is, the game's own (seed
+5, the shakedown) and then every one saved from the menu, newest first, each labelled as the board does
+("Seed 7, code 7v1, saved"). One click loads it, unpaused first, as Generate is since the camera fix. The
+list scrolls, as tall as the window leaves room for, so the menu never runs off a small window (it did, in
+the first picture). Checked with a temporary probe (since removed) that pressed Esc, Load a track and his own
+saved seed 7 by the menu's buttons: it loaded `user://tracks/gen-7.json`, fingerprint `08cb7713`, unpaused,
+the camera 6.9 m behind the car at the middle of the screen.
+
 ## 2026-11-24 — M4e begins: "the replay works"; brake lights
 
 His word on the replays, after the menu offered *"Watch the last run (1:20.67)"* on a random seed: *"the

@@ -40,7 +40,15 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>Whether Esc belongs to something else just now: a replay, which it leaves.</summary>
     public Func<bool>? EscTaken { get; init; }
 
+    /// <summary>
+    /// The tracks there are to load (his ask, 2026-11-24: "i know i can do it via the command line but am very
+    /// very lazy"), each with what starts it. Asked each time the list opens.
+    /// </summary>
+    public Func<IReadOnlyList<(string Label, Action Load)>>? Tracks { get; init; }
+
     private VBoxContainer _replays = null!;
+    private ScrollContainer _trackList = null!;
+    private VBoxContainer _trackRows = null!;
     private PanelContainer _panel = null!;
     private LineEdit _seed = null!;
     private Label _note = null!;
@@ -120,6 +128,23 @@ public partial class SeedMenu : CanvasLayer
             }));
         }
 
+        // Load a track: a list that opens under the button, the game's own tracks and every saved one.
+        if (Tracks is not null)
+        {
+            rows.AddChild(Button("Load a track", ToggleTracks));
+            _trackRows = new VBoxContainer();
+            _trackRows.AddThemeConstantOverride("separation", 6);
+            _trackRows.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            _trackList = new ScrollContainer
+            {
+                Visible = false,
+                CustomMinimumSize = new Vector2(0.0f, 220.0f),
+                HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            };
+            _trackList.AddChild(_trackRows);
+            rows.AddChild(_trackList);
+        }
+
         _replays = new VBoxContainer();
         _replays.AddThemeConstantOverride("separation", 10);
         rows.AddChild(_replays);
@@ -148,6 +173,43 @@ public partial class SeedMenu : CanvasLayer
                 _seed.GrabFocus();
             }
         }
+    }
+
+    /// <summary>Opens the list of tracks to load, read afresh, or closes it.</summary>
+    private void ToggleTracks()
+    {
+        if (_trackList.Visible)
+        {
+            _trackList.Visible = false;
+            return;
+        }
+
+        foreach (Node old in _trackRows.GetChildren())
+        {
+            _trackRows.RemoveChild(old);
+            old.QueueFree();
+        }
+
+        IReadOnlyList<(string Label, Action Load)> tracks = Tracks?.Invoke() ?? [];
+        foreach ((string label, Action load) in tracks)
+        {
+            Button row = Button(label, () =>
+            {
+                // Unpaused first, as Generate is: the scene leaves the tree as the track loads.
+                GetTree().Paused = false;
+                load();
+            });
+            row.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            row.AddThemeFontSizeOverride("font_size", 16);
+            _trackRows.AddChild(row);
+        }
+
+        _note.Text = tracks.Count == 0 ? "No tracks to load." : $"{tracks.Count} tracks: the game's own, then the ones you've saved, newest first.";
+
+        // As tall as the window leaves room for, so the menu never runs off the screen; it scrolls for the rest.
+        float room = GetViewport().GetVisibleRect().Size.Y - 520.0f;
+        _trackList.CustomMinimumSize = new Vector2(0.0f, Math.Clamp(room, 90.0f, 300.0f));
+        _trackList.Visible = tracks.Count > 0;
     }
 
     /// <summary>A button for each thing there is to watch now, the menu closing as it starts.</summary>

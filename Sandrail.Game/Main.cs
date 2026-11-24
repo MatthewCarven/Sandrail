@@ -481,6 +481,9 @@ public partial class Main : Node3D
                 Save = _generated is not null ? SaveGenerated : null,
                 Replays = ReplaysOnOffer,
                 EscTaken = EscTakenByReplay,
+                Tracks = () => TrackView.AllTracks()
+                    .Select(t => ($"{TrackLabel(t.Track)}{(t.Saved ? ", saved" : string.Empty)}", (Action)(() => StartAgainOn(args, $"--track={t.Path}"))))
+                    .ToList(),
             });
         }
         _telemetry = new TelemetryOverlay { Car = _car, Visible = panels.Contains("telemetry") };

@@ -69,6 +69,42 @@ public static class TrackView
     public const string SavedPath = "user://tracks";
 
     /// <summary>
+    /// Every track there is to load, for the Esc menu's list: the game's own, then the ones saved from the menu,
+    /// each by its path, newest saved first. A file this build can't read is left off.
+    /// </summary>
+    public static IReadOnlyList<(string Path, Track Track, bool Saved)> AllTracks()
+    {
+        var all = new List<(string, Track, bool)>();
+        foreach (string folder in new[] { TracksPath, SavedPath })
+        {
+            if (!DirAccess.DirExistsAbsolute(folder))
+            {
+                continue;
+            }
+
+            bool saved = folder == SavedPath;
+            IEnumerable<string> files = DirAccess.GetFilesAt(folder).Where(f => f.EndsWith(".json", System.StringComparison.Ordinal));
+            files = saved
+                ? files.OrderByDescending(f => FileAccess.GetModifiedTime($"{folder}/{f}"))
+                : files.Order(System.StringComparer.Ordinal);
+            foreach (string file in files)
+            {
+                string path = $"{folder}/{file}";
+                try
+                {
+                    all.Add((path, Track.Parse(FileAccess.GetFileAsString(path)), saved));
+                }
+                catch (System.IO.InvalidDataException)
+                {
+                    // Not a track this build reads.
+                }
+            }
+        }
+
+        return all;
+    }
+
+    /// <summary>
     /// The file of the track a code names (M4a), if the game has one: among its own tracks first, then the ones
     /// saved from the menu, a track saved before codes as <c>gen:5</c> counting as version 1's. Null if neither
     /// has it. This is how an old code still drives its track after the generator has moved on.

@@ -178,7 +178,7 @@ Each one gets its own plan doc before it's built, the Overburden way, and ends i
   terrain you can drive on, and since 2026-11-24 circuits for about half the seeds (M3g). **Planned
   2026-11-23**: [M3-PLAN.md](M3-PLAN.md), its decisions his. **Built and passed 2026-11-24.**
 - **M4, ghosts, replays and track codes.** **Planned 2026-11-24**: [M4-PLAN.md](M4-PLAN.md), its
-  decisions his.
+  decisions his. **Built and passed 2026-11-24**, with brake lights besides (his idea).
 - **M5, the editor.** Grid cursor, piece palette, rotate, raise and lower, place and erase; generate
   from a code and then edit; test-drive from the cursor; validate; save and load.
 - **M6, closed circuits.** Circuits in the editor. The loop generator and laps moved into M3 (M3g) at

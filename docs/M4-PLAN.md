@@ -248,6 +248,10 @@ a script (C, Space, the arrows, Esc); the menu's Watch buttons, Enter, and a rep
 His: **whether racing his ghost makes him want another run**, and whether the replays show the bits worth
 seeing. Each verdict goes into the worklog verbatim. M4 passes on his word.
 
+**Passed 2026-11-24**: *"Looks great to me Claude lets continue"*, after *"the replay works"* and the brake
+lights (his idea, added in M4e: red when the brakes are on, white reversing, a ghost's not faded). On the way,
+the ghost's look: *"happy as is"*.
+
 ---
 
 ## Order and why

@@ -229,7 +229,8 @@ the even ones among 1-10, are circuits of 3 laps of 0.8–1.5 km, walked out fro
 home again; format 3 carries `laps`; the board counts laps and keeps a best lap; seeds 1, 3, 5 and 7,
 seed 5 his favourite, are byte for byte the sprints they were), and rocks off the road (M3d's last piece,
 `Rocks`: grey boxes 12-70 m out from the road's edge, never on the bed). M3e (the Esc menu: the seed, generate, a new
-random seed, save this track; `--track=user://tracks/gen-<seed>.json` drives a saved one on its own ground)
+random seed, save this track, and since M4 **Load a track**, a list of the game's tracks and every saved one;
+`--track=user://tracks/gen-<code>.json` drives a saved one on its own ground too)
 is built too. **M3 passed on his word, 2026-11-24** ("It all looks and feels good to me so far Claude lets
 continue"). **M4 (ghosts, replays and track codes) is planned** (`docs/M4-PLAN.md`), its seven decisions
 taken as recommended, and under way: **M4a, codes and fingerprints, is built** (the generator is version 1;
@@ -240,7 +241,7 @@ codes like `5v1` in the menu and on `--seed=`; generated IDs `gen:5v1`; the trac
 best or the autodriver's, see-through beside him on the race clock, G to choose; each driver's best saved
 under the track's fingerprint, so bests last between sessions), and **M4d, replays, is built** (the last run
 or a best, from the Esc menu or Enter; cameras beside the track, chase or free; pause, skip, ¼ to 2x). M4 is
-built; M4e, his play, passes it ("the replay works" so far). **Brake lights** too, at his word: red when the
+built and **passed on his word, 2026-11-24** ("Looks great to me Claude lets continue"). **Brake lights** too, at his word: red when the
 brakes are on, white reversing, on the car, the ghost (not faded) and the replay. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
