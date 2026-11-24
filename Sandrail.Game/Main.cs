@@ -347,7 +347,7 @@ public partial class Main : Node3D
             TrackView.Build(this, _track.Placed, _terrain);
             GenStats s = made.Stats;
             StuntStats st = s.Stunts;
-            GD.Print($"Seed {genSeed}: {_track.Placed.Count} pieces, {s.LengthM / 1000.0f:F2} km, {s.Slopes} slopes, {s.Banked} banked corners, "
+            GD.Print($"Seed {genSeed}: {(s.Circuit ? $"a circuit, {made.Track.Laps} laps of " : "a sprint, ")}{s.LengthM / 1000.0f:F2} km, {_track.Placed.Count} pieces, {s.Slopes} slopes, {s.Banked} banked corners, "
                 + $"worst fill {s.WorstFillM:F1} m and cut {s.WorstCutM:F1} m; {st.ShortJumps} short jumps, {st.LongJumps} long, {st.Loops} loops "
                 + $"({st.TooSlow + st.MustBrake} turned down), {st.Checkpoints} checkpoints; generated in {generated:F0} ms, built in {clock.Elapsed.TotalMilliseconds - generated:F0} ms");
         }
@@ -473,7 +473,10 @@ public partial class Main : Node3D
         if (_track is not null && oracle is null && _screenshot is null)
         {
             float km = _track.LengthM / 1000.0f;
-            _hud.Flash($"{_track.Track.Name}: {km:F1} km and {_race!.Checkpoints} checkpoints. The clock starts on the throttle; "
+            string what = _track.Track.Circuit
+                ? $"{_track.Track.Laps} laps of {km:F1} km, {_track.GatesPerLap() - 1} checkpoints a lap"
+                : $"{km:F1} km and {_race!.Checkpoints} checkpoints";
+            _hud.Flash($"{_track.Track.Name}: {what}. The clock starts on the throttle; "
                 + "R puts you back at the last checkpoint; hold R, or press Backspace, to start again.", 10.0);
         }
         else if (_stations is not null && oracle is null && _screenshot is null)
@@ -484,7 +487,12 @@ public partial class Main : Node3D
     }
 
     /// <summary>Where a car starts on a track: on the start gate's road, a few metres short of its arch.</summary>
-    private static Frame TrackStart(LaidTrack track) => track.Route[0].Road().Pieces[0].FrameAt(4.0f);
+    /// <summary>
+    /// Where the car starts on a track: just inside its start gate, behind the arch; on a circuit just past
+    /// its line (M3g), since crossing it is the end of a lap, and doing so at the start would read as a lap
+    /// line passed out of order.
+    /// </summary>
+    private static Frame TrackStart(LaidTrack track) => track.Route[0].Road().Pieces[0].FrameAt(track.Track.Circuit ? 14.0f : 4.0f);
 
     /// <summary>Where the car goes to start from a frame on the road: resting on its wheels, facing along it.</summary>
     private static Transform3D SpawnAt(Frame start, CarSpec spec)

@@ -164,7 +164,11 @@ public static class Program
                 .Select(f => (Path.GetFileName(f), File.ReadAllText(f))));
         var settings = new GenSettings
         {
-            Route = new RouteSettings { Turniness = ParseFloat(args, "--turniness=", 1.0f) },
+            Route = new RouteSettings
+            {
+                Turniness = ParseFloat(args, "--turniness=", 1.0f),
+                CircuitShare = ParseFloat(args, "--circuits=", new RouteSettings().CircuitShare),
+            },
             Stunts = new StuntSettings
             {
                 Density = ParseFloat(args, "--stunts=", new StuntSettings().Density),
@@ -185,6 +189,7 @@ public static class Program
         var kinds = new Dictionary<string, int>();
         var times = new List<double>();
         var stunts = new List<StuntStats>();
+        var laps = new List<float>();
         string? firstRefusal = null;
 
         for (ulong seed = first; seed < first + (ulong)seeds; seed++)
@@ -210,7 +215,7 @@ public static class Program
                 firstRefusal ??= $"seed {seed}: {string.Join("; ", laid.Problems.Take(3))}";
             }
 
-            lengths.Add(g.Stats.LengthM);
+            (g.Stats.Circuit ? laps : lengths).Add(g.Stats.LengthM);
             attempts.Add(g.Stats.Attempts);
             backtracks.Add(g.Stats.Backtracks);
             pieceCounts.Add(g.Track.Pieces.Length);
@@ -228,7 +233,7 @@ public static class Program
             if (seeds <= 5)
             {
                 StuntStats s = g.Stats.Stunts;
-                Console.WriteLine($"  seed {seed}: {g.Stats.LengthM:F0} m, {g.Track.Pieces.Length} pieces, {g.Stats.Slopes} slopes, {g.Stats.Banked} banked, "
+                Console.WriteLine($"  seed {seed}: {(g.Stats.Circuit ? $"circuit, {g.Track.Laps} laps of" : "sprint,")} {g.Stats.LengthM:F0} m, {g.Track.Pieces.Length} pieces, {g.Stats.Slopes} slopes, {g.Stats.Banked} banked, "
                     + $"attempt {g.Stats.Attempts}, {g.Stats.Backtracks} backtracks, worst fill {g.Stats.WorstFillM:F1} m, worst cut {g.Stats.WorstCutM:F1} m; "
                     + $"stunts {s.ShortJumps} short, {s.LongJumps} long, {s.Loops} loops ({s.TooSlow} too slow, {s.MustBrake} must brake), {s.Checkpoints} checkpoints");
             }
@@ -240,10 +245,12 @@ public static class Program
             return v.Length == 0 ? "-" : $"min {v[0]:F1}  p10 {Percentile(v, 0.1):F1}  p50 {Percentile(v, 0.5):F1}  p90 {Percentile(v, 0.9):F1}  max {v[^1]:F1}";
         }
 
-        Console.WriteLine($"generate  seeds {first} to {first + (ulong)seeds - 1}  turniness {settings.Route.Turniness}  stunt density {settings.Stunts.Density}  checkpoints every {settings.Stunts.CheckpointEveryM} m");
+        Console.WriteLine($"generate  seeds {first} to {first + (ulong)seeds - 1}  turniness {settings.Route.Turniness}  circuit share {settings.Route.CircuitShare}  stunt density {settings.Stunts.Density}  checkpoints every {settings.Stunts.CheckpointEveryM} m");
         Console.WriteLine($"  refused by Lay: {refused} (must be 0)   no route found: {failed}{(firstRefusal is null ? string.Empty : $"   first: {firstRefusal}")}");
         Console.WriteLine($"  time a track, ms:   {Spread(times.Select(t => (float)t))}");
-        Console.WriteLine($"  length, m:          {Spread(lengths)}");
+        Console.WriteLine($"  sprints {lengths.Count}, circuits {laps.Count} ({(laps.Count + lengths.Count == 0 ? 0 : 100.0 * laps.Count / (laps.Count + lengths.Count)):F0}%)");
+        Console.WriteLine($"  sprint length, m:   {Spread(lengths)}");
+        Console.WriteLine($"  circuit lap, m:     {Spread(laps)}");
         Console.WriteLine($"  pieces:             {Spread(pieceCounts.Select(c => (float)c))}");
         Console.WriteLine($"  attempts:           {Spread(attempts.Select(c => (float)c))}");
         Console.WriteLine($"  backtracks:         {Spread(backtracks.Select(c => (float)c))}");

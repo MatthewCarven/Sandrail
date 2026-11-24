@@ -2,6 +2,61 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M3g: circuits
+
+*"Go on to M3g"*. Built as M3-PLAN's M3g. **First, seeds 1, 3, 5 and 7 were pinned as M3c made them**
+(`TheSprintsHeDroveStayPut`, a hash of each track file with its jumps and checkpoints). They must stay
+sprints, and they're unchanged to the last byte; seed 5 is the one he called the most fun he's had in a
+driving game.
+
+**The kind** comes from `GenStage.Kind`: a circuit when the draw is at least 1 less `CircuitShare` (0.5).
+Seeds 2, 4, 6, 8 and 10 are circuits. A sprint is walked exactly as before: the kind's draw never touches
+the route's seed.
+
+**The walk** (`RouteWalker.WalkCircuit`): a start-finish line (`base:start-finish`, a straight with a white
+arch, open both ends) at least 8 tiles in from every edge, and a straight after it. The tile behind the line
+is held back for the way home. The walk goes out with a gentle push away for the first 45% of the shortest
+lap, then home: gently while road is still owed, hard once it runs long. A step that leaves home out of reach
+over free tiles is refused. From every place the walk reaches, once home is close enough and the lap long
+enough, **a search tries every run of up to four pieces**, straights first, for one that ends behind the
+line facing along it with the lap 0.8 to 1.5 km. None, and the walk carries on, backing out of dead ends as a
+sprint's does. **Levels** come back round: the level search runs once from each starting level, held to
+end there, and keeps the cheapest lap (its earth is worked out once; sprints get the same numbers as before).
+**Banks** are judged on a flying lap: the estimate goes round once, then decides with the speed it came
+round at. **Checkpoints** go a fifth of a lap apart at most (a quarter gave a median of two; it's still
+two, since plain straights are scarce on a lap). Stunts are judged from a standing start on the first lap,
+with a closed speed plan, so a loop near the line brakes for the next lap's first corner.
+
+**The file**: `"laps": 3` makes a track a circuit, in **format 3**, so a build that has never heard of laps
+refuses it. `Lay` finds the route from the line round and back into it, which must be every piece. A sprint
+with a start-finish line, or a circuit with a start or finish gate, is refused, saying so.
+
+**Racing it**: the timer's gates are the line (as its start), each lap's checkpoints and the line again
+(as a checkpoint, the last time as the finish), so `RaceTimer` didn't change. The car starts 4 m past the
+line: crossing it at the start read as the end of a lap passed out of order. The board says the lap ("LAP 2
+of 3", the last lap's time) and keeps a best run and a best lap, his and the autodriver's apart. Crossing
+the line flashes the lap's time against the best lap. The `track` oracle counts progress round the closed
+line lap by lap and prints each lap's time.
+
+**The bench, a thousand seeds**: 485 circuits and 515 sprints, none refused, none that failed to close.
+Laps 801 to 1500 m, median 1037. 56 ms a track at p50. All circuits at once (200 seeds at `--circuits=1`):
+every one closed, 48 ms each at p50, a median of 1 stunt (none on 95) and 2 checkpoints a lap.
+
+**The autodriver on the five test circuits, stock car**:
+
+| Seed | 70% | 60% / 80% |
+|---|---|---|
+| 4 | 2:06.85 (44.04, 41.41, 41.40) | |
+| 8 | 2:04.08 (42.74, 40.67, 40.67), its jump every lap on the down-ramp | |
+| 10 | 3:26.85 (1:10.19, 1:08.33, 1:08.33), a loop and a jump every lap | |
+| 2 | spins on the straight before its jump and drops into the gap at 33 km/h | 60%: 2:06.19 clean; 80%: as at 70% |
+| 6 | spins on the banked 50 m left at (13, 10) | 60%: 2:36.20, 80%: 3:01.13, spinning there every lap |
+
+The misses are the autodriver, not the circuits. Seed 2's jump comes straight after a corner, so the racing
+line has to swing to the road's middle for the launch in a few metres, and at 70% that spins the car. A
+jump needing a few straights before it would cure that, but it would move seed 5's jumps, so it waits for
+his word. Seed 6 is the banked-corner spin seeds 1 and 9 showed in M3c.
+
 ## 2026-11-24 — He drives seed 5 with its jumps
 
 After M3c, on seed 5 with its two new short jumps and three checkpoints: *"Claude this is the most fun i've

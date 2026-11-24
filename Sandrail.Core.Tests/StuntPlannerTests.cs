@@ -119,6 +119,9 @@ public class StuntPlannerTests
         foreach ((Generated made, LaidTrack laid, _) in Sweep.Value)
         {
             float total = laid.Route.Sum(p => p.Road().Pieces.Sum(c => c.Length));
+
+            // A circuit's are closer, a fifth of its lap at most (M3g fact 6); the lap as walked, its jumps' gaps included.
+            float every = made.Stats.Circuit ? MathF.Min(400.0f, made.Stats.LengthM / 5.0f) : 400.0f;
             float along = 0.0f;
             float lastGate = 0.0f;
             int count = 0;
@@ -126,8 +129,8 @@ public class StuntPlannerTests
             {
                 if (p.Def.Gate == GateKind.Checkpoint)
                 {
-                    Assert.True(along - lastGate >= 400.0f - 1.0f, $"{laid.Track.Id}: checkpoints {along - lastGate:F0} m apart");
-                    Assert.True(total - along >= 200.0f, $"{laid.Track.Id}: a checkpoint {total - along:F0} m from the finish");
+                    Assert.True(along - lastGate >= every - 1.0f, $"{laid.Track.Id}: checkpoints {along - lastGate:F0} m apart");
+                    Assert.True(total - along >= every / 2.0f, $"{laid.Track.Id}: a checkpoint {total - along:F0} m from the finish");
                     lastGate = along;
                     count++;
                 }
@@ -136,7 +139,7 @@ public class StuntPlannerTests
             }
 
             Assert.Equal(made.Stats.Stunts.Checkpoints, count);
-            Assert.Equal(count, laid.Gates().Count - 2);
+            Assert.Equal(count, laid.GatesPerLap() - (made.Stats.Circuit ? 1 : 2));
         }
     }
 

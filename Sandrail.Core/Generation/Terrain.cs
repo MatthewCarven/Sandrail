@@ -13,6 +13,9 @@ public static class GenStage
     public const ulong Stunts = 0x7E44A1_0003UL;
     public const ulong Ground = 0x7E44A1_0004UL;
 
+    /// <summary>Whether a seed is a sprint or a circuit (M3g); fact 7's seeds were worked out with this one.</summary>
+    public const ulong Kind = 0x7E44A1_0005UL;
+
     /// <summary>The seed a stage works from, from the track's seed.</summary>
     public static ulong Seed(ulong seed, ulong stage) => Hash64.Mix(seed ^ stage);
 }

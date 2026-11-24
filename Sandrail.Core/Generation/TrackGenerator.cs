@@ -15,12 +15,41 @@ public sealed record RouteSettings
     /// <summary>How much more often than the shipped weights it turns: 1 is as shipped, 2 twice as twisty.</summary>
     public float Turniness { get; init; } = 1.0f;
 
+    /// <summary>
+    /// The share of seeds that are circuits (M3g, decision 10): a seed is one when its own draw is at least
+    /// 1 less this, which keeps seed 5 a sprint. 0 makes every seed a sprint, 1 every seed a circuit.
+    /// </summary>
+    public float CircuitShare { get; init; } = 0.5f;
+
+    /// <summary>A circuit's lap, metres of road (decision 9: 0.8 to 1.5 km).</summary>
+    public float MinLapM { get; init; } = 800.0f;
+
+    public float MaxLapM { get; init; } = 1500.0f;
+
+    /// <summary>The laps in a run on a circuit (decision 8).</summary>
+    public int Laps { get; init; } = 3;
+
     public IReadOnlyList<string> Problems()
     {
         var problems = new List<string>();
         if (!(MinLengthM >= 200.0f && MaxLengthM >= MinLengthM + 200.0f && MaxLengthM <= 10_000.0f))
         {
             problems.Add($"lengths are {MinLengthM} to {MaxLengthM} m, and need 200 m at least, a 200 m window and at most 10 km");
+        }
+
+        if (!(CircuitShare >= 0.0f && CircuitShare <= 1.0f))
+        {
+            problems.Add($"the circuit share is {CircuitShare}, and must be 0 to 1");
+        }
+
+        if (!(MinLapM >= 400.0f && MaxLapM >= MinLapM + 200.0f && MaxLapM <= 2400.0f))
+        {
+            problems.Add($"laps are {MinLapM} to {MaxLapM} m, and need 400 m at least, a 200 m window and at most 2.4 km, which the grid has room for");
+        }
+
+        if (Laps is < 1 or > Track.MaxLaps)
+        {
+            problems.Add($"a circuit is {Laps} laps, and must be 1 to {Track.MaxLaps}");
         }
 
         if (!(Turniness > 0.0f && Turniness <= 10.0f))
@@ -42,8 +71,11 @@ public sealed record GenSettings
     public StuntSettings Stunts { get; init; } = new();
 }
 
-/// <summary>What making a track took, for the bench: tries, how often it backed out, how long it came out, how the road met the ground, and its stunts.</summary>
-public sealed record GenStats(int Attempts, int Backtracks, int Placements, float LengthM, int Slopes, int Banked, float WorstFillM, float WorstCutM, StuntStats Stunts);
+/// <summary>
+/// What making a track took, for the bench: tries, how often it backed out, how long it came out (a lap, on
+/// a circuit), how the road met the ground, its stunts, and whether it's a circuit.
+/// </summary>
+public sealed record GenStats(int Attempts, int Backtracks, int Placements, float LengthM, int Slopes, int Banked, float WorstFillM, float WorstCutM, StuntStats Stunts, bool Circuit = false);
 
 /// <summary>A generated track, the ground under it, and what making it took.</summary>
 public sealed record Generated(Track Track, Terrain Terrain, GenStats Stats);
@@ -85,35 +117,56 @@ public static class TrackGenerator
         }
 
         terrain ??= new Terrain(seed, settings.Terrain);
+
+        // Sprint or circuit (M3g), from a stage seed of its own, so the route's own draws are a sprint's as before.
+        bool circuit = IsCircuit(seed, settings.Route);
         var walker = new RouteWalker(GenStage.Seed(seed, GenStage.Route), settings.Route, terrain, catalogue);
-        (List<Placement> plan, int attempts, int backtracks, int placements) = walker.Walk();
-        (List<Placement> levelled, int slopes, float fill, float cut) = Levels.Choose(plan, terrain, catalogue);
-        (List<Placement> banked, int banks) = Banks.Choose(levelled, catalogue);
+        (List<Placement> plan, int attempts, int backtracks, int placements) = circuit ? walker.WalkCircuit() : walker.Walk();
+        (List<Placement> levelled, int slopes, float fill, float cut) = Levels.Choose(plan, terrain, catalogue, circuit);
+        (List<Placement> banked, int banks) = Banks.Choose(levelled, catalogue, circuit);
 
         // Stunts and checkpoints (M3c), swapped in where the route already has their footprint, from their own seed.
         var ground = new TrackGround { Seed = seed, Terrain = settings.Terrain };
+        int laps = circuit ? settings.Route.Laps : 0;
         Track Build(List<Placement> pieces) => new()
         {
             Id = $"gen:{seed}",
             Name = $"Seed {seed}",
             Ground = ground,
+            Laps = laps,
             Pieces = pieces.Select(TrackPiece.Of).ToArray(),
         };
 
+        // The route's length as walked (a lap, on a circuit): a jump's gap is distance driven too, through the air.
+        float length = banked.Sum(p => RoadLength(catalogue, p));
+
+        // A circuit has checkpoints a fifth of a lap apart at most, three or more a lap where its straights allow
+        // (M3g fact 6): its middle invites a shortcut. A quarter apart gave a median of two.
+        float every = settings.Stunts.CheckpointEveryM;
+        if (circuit && every > 0.0f)
+        {
+            every = MathF.Min(every, length / 5.0f);
+        }
+
         (List<Placement> stunted, StuntStats stunts) = StuntPlanner.Choose(
             GenStage.Seed(seed, GenStage.Stunts), settings.Stunts, banked, catalogue, pieces => Build(pieces).Lay(catalogue));
-        (List<Placement> gated, int checkpoints) = StuntPlanner.Checkpoints(stunted, settings.Stunts.CheckpointEveryM, catalogue);
+        (List<Placement> gated, int checkpoints) = StuntPlanner.Checkpoints(stunted, every, catalogue);
         Track track = Build(gated);
 
         // The road's bed (M3d): the ground set under it, with 25° banks and cuttings either side.
         LaidTrack laid = track.Lay(catalogue);
         Terrain bedded = laid.Problems.Count == 0 ? Bed.Lay(terrain, laid) : terrain;
 
-        // The route's length as walked: a jump's gap is distance driven too, through the air.
-        float length = banked.Sum(p => RoadLength(catalogue, p));
         return new Generated(track, bedded,
-            new GenStats(attempts, backtracks, placements, length, slopes, banks, fill, cut, stunts with { Checkpoints = checkpoints }));
+            new GenStats(attempts, backtracks, placements, length, slopes, banks, fill, cut, stunts with { Checkpoints = checkpoints }, circuit));
     }
+
+    /// <summary>
+    /// Whether a seed makes a circuit (M3g, decision 10): its draw from <see cref="GenStage.Kind"/> at least 1
+    /// less the share. Of the two halves at 0.5, this one keeps seed 5 a sprint (fact 7).
+    /// </summary>
+    public static bool IsCircuit(ulong seed, RouteSettings route) =>
+        route.CircuitShare > 0.0f && Hash64.ToUnitFloat(GenStage.Seed(seed, GenStage.Kind)) >= 1.0f - route.CircuitShare;
 
     internal static float RoadLength(PieceCatalogue catalogue, Placement p) =>
         new PlacedPiece(catalogue.Find(p.Piece)!, p).Road().Pieces.Sum(c => c.Length);
@@ -173,7 +226,25 @@ internal sealed class RouteWalker(ulong seed, RouteSettings settings, Terrain te
         public List<Move> Order { get; set; } = [];
 
         public int Next { get; set; }
+
+        /// <summary>On a circuit, whether the search for the way home has been tried from here.</summary>
+        public bool CloseTried { get; set; }
     }
+
+    /// <summary>A circuit's line stands at least this many tiles in from every edge, so the lap has room all round.</summary>
+    private const int Inset = 8;
+
+    /// <summary>The most pieces the search for the way home tries (M3g, "the close").</summary>
+    private const int CloseDepth = 4;
+
+    /// <summary>The furthest one move takes the cursor, tiles: what lets the search give up early.</summary>
+    private const int MoveReach = 3;
+
+    // A circuit (M3g): its start-finish line, the tile behind it the lap comes home through, and the way it faces.
+    private bool _circuit;
+    private Tile _line;
+    private Tile _home;
+    private Compass _lineHeading;
 
     private readonly bool[] _taken = new bool[Size * Size];
     private readonly Dictionary<string, float> _lengths = new();
@@ -258,6 +329,168 @@ internal sealed class RouteWalker(ulong seed, RouteSettings settings, Terrain te
         throw new InvalidOperationException($"No route found in {Attempts} attempts ({placements} placements, {backtracks} backtracks).");
     }
 
+    /// <summary>
+    /// A circuit (M3g): a start-finish line well inside the grid, the walk out from its front as a sprint's
+    /// is, turning for home about halfway round its lap, and, from every place it reaches near home, a search
+    /// over the last few pieces for a run that comes in behind the line facing along it, the lap's length
+    /// right. None, and the walk carries on, backing out of dead ends as a sprint's does.
+    /// </summary>
+    public (List<Placement> Plan, int Attempts, int Backtracks, int Placements) WalkCircuit()
+    {
+        _circuit = true;
+        int backtracks = 0;
+        int placements = 0;
+        for (int attempt = 1; attempt <= Attempts; attempt++)
+        {
+            Array.Clear(_taken);
+            _lineHeading = (Compass)(Next() % 4);
+            _line = new Tile(Inset + (int)(Next() % (Size - (2 * Inset))), Inset + (int)(Next() % (Size - (2 * Inset))));
+            _home = _line.Step(TrackGrid.Opposite(_lineHeading));
+
+            var opening = new List<Placement>
+            {
+                new("base:start-finish", _line, 0, (int)_lineHeading, false),
+                new("base:straight", _line.Step(_lineHeading), 0, (int)_lineHeading, false),
+            };
+            foreach (Placement p in opening)
+            {
+                Take(p, true);
+            }
+
+            // The tile behind the line is held for the way home: only the close may lay road on it.
+            _taken[Index(_home)] = true;
+
+            var stack = new List<Frame>
+            {
+                new() { Cursor = _line.Step(_lineHeading, 2), Heading = _lineHeading, Length = 40.0f, Laid = [] },
+            };
+            stack[0].Order = Options(stack[0]);
+            int tried = 0;
+
+            while (stack.Count > 0 && tried < PlacementsPerAttempt)
+            {
+                Frame here = stack[^1];
+                if (!here.CloseTried)
+                {
+                    here.CloseTried = true;
+                    if (Close(here) is List<Placement> closing)
+                    {
+                        var plan = new List<Placement>(opening);
+                        plan.AddRange(stack.SelectMany(f => f.Laid));
+                        plan.AddRange(closing);
+                        return (plan, attempt, backtracks, placements);
+                    }
+                }
+
+                if (here.Next >= here.Order.Count)
+                {
+                    foreach (Placement p in here.Laid)
+                    {
+                        Take(p, false);
+                    }
+
+                    stack.RemoveAt(stack.Count - 1);
+                    backtracks++;
+                    continue;
+                }
+
+                Move move = here.Order[here.Next++];
+                List<Placement> laid = Lay(move, here.Cursor, here.Heading);
+                foreach (Placement p in laid)
+                {
+                    Take(p, true);
+                }
+
+                (Tile cursor, Compass heading) = After(laid[^1]);
+                var next = new Frame
+                {
+                    Cursor = cursor,
+                    Heading = heading,
+                    Length = here.Length + laid.Sum(Length),
+                    Laid = laid,
+                };
+                next.Order = Options(next);
+                stack.Add(next);
+                tried++;
+                placements++;
+            }
+        }
+
+        throw new InvalidOperationException($"No circuit found in {Attempts} attempts ({placements} placements, {backtracks} backtracks).");
+    }
+
+    /// <summary>
+    /// The way home from a place on a circuit's walk: up to <see cref="CloseDepth"/> pieces on free tiles (the
+    /// one behind the line included) that come in behind the line facing along it, the lap's length in its
+    /// window. Moves are tried in a fixed order, straights first; null if none fits.
+    /// </summary>
+    private List<Placement>? Close(Frame f)
+    {
+        int reach = Manhattan(f.Cursor, _line);
+        if (reach > MoveReach * CloseDepth || f.Length + (reach * TrackGrid.TileM) > settings.MaxLapM
+            || f.Length + (CloseDepth * 110.0f) < settings.MinLapM)
+        {
+            return null;
+        }
+
+        var path = new List<Placement>();
+        var tiles = new HashSet<Tile>();
+        return Search(f.Cursor, f.Heading, f.Length, 0);
+
+        List<Placement>? Search(Tile cursor, Compass heading, float length, int depth)
+        {
+            if (cursor == _line && heading == _lineHeading)
+            {
+                return length >= settings.MinLapM && length <= settings.MaxLapM ? new List<Placement>(path) : null;
+            }
+
+            if (depth == CloseDepth || Manhattan(cursor, _line) > MoveReach * (CloseDepth - depth))
+            {
+                return null;
+            }
+
+            foreach (Move move in Moves)
+            {
+                List<Placement> laid = Lay(move, cursor, heading);
+                var added = new List<Tile>();
+                bool fits = true;
+                foreach (Placement p in laid)
+                {
+                    foreach (Tile t in Placed(p).Tiles)
+                    {
+                        if (!TrackGrid.Contains(t) || !(Free(t) || t == _home) || tiles.Contains(t) || added.Contains(t))
+                        {
+                            fits = false;
+                        }
+
+                        added.Add(t);
+                    }
+                }
+
+                float total = length + laid.Sum(Length);
+                if (!fits || total > settings.MaxLapM)
+                {
+                    continue;
+                }
+
+                (Tile next, Compass nextHeading) = After(laid[^1]);
+                path.AddRange(laid);
+                tiles.UnionWith(added);
+                if (Search(next, nextHeading, total, depth + 1) is List<Placement> found)
+                {
+                    return found;
+                }
+
+                path.RemoveRange(path.Count - laid.Count, laid.Count);
+                tiles.ExceptWith(added);
+            }
+
+            return null;
+        }
+    }
+
+    private static int Manhattan(Tile a, Tile b) => Math.Abs(a.Column - b.Column) + Math.Abs(a.Row - b.Row);
+
     /// <summary>At the finish edge, heading out of the grid, long enough, on a free tile: the finish gate can go here.</summary>
     private bool CanFinish(Frame f) =>
         Distance(f.Cursor) == 0 && f.Heading == _finish && f.Length >= settings.MinLengthM && Free(f.Cursor);
@@ -266,7 +499,7 @@ internal sealed class RouteWalker(ulong seed, RouteSettings settings, Terrain te
     private List<Move> Options(Frame f)
     {
         var weighted = new List<(Move Move, float Weight)>();
-        if (f.Length > settings.MaxLengthM || !Free(f.Cursor))
+        if (f.Length > (_circuit ? settings.MaxLapM : settings.MaxLengthM) || !Free(f.Cursor))
         {
             return [];
         }
@@ -327,6 +560,24 @@ internal sealed class RouteWalker(ulong seed, RouteSettings settings, Terrain te
     /// </summary>
     private float Pull(Frame f)
     {
+        if (_circuit)
+        {
+            // Out from the line with a gentle push away for the first half of a lap, then home: gently while
+            // road is still owed, hard once the lap is running long.
+            float back = (Distance(f.Cursor) + 1) * TrackGrid.TileM;
+            if (f.Length < settings.MinLapM * 0.45f)
+            {
+                return -0.15f;
+            }
+
+            if (back < (settings.MinLapM - f.Length) * 0.8f)
+            {
+                return -0.05f;
+            }
+
+            return f.Length + (back * 1.6f) > settings.MaxLapM ? 0.8f : 0.3f;
+        }
+
         float home = (Distance(f.Cursor) + 1) * TrackGrid.TileM;
         float owed = settings.MinLengthM - f.Length;
         if (home < owed * 0.8f)
@@ -397,7 +648,9 @@ internal sealed class RouteWalker(ulong seed, RouteSettings settings, Terrain te
         while (queue.Count > 0)
         {
             Tile t = queue.Dequeue();
-            if (Distance(t) == 0)
+
+            // A sprint's finish edge; a circuit's way home, the held tile behind its line, next door.
+            if (_circuit ? Manhattan(t, _home) <= 1 : Distance(t) == 0)
             {
                 return true;
             }
@@ -447,8 +700,8 @@ internal sealed class RouteWalker(ulong seed, RouteSettings settings, Terrain te
 
     private static int Index(Tile t) => (t.Row * Size) + t.Column;
 
-    /// <summary>Tiles from here to the finish edge, along the way out.</summary>
-    private int Distance(Tile t) => _finish switch
+    /// <summary>Tiles from here to the finish edge, along the way out; on a circuit, to the tile behind its line.</summary>
+    private int Distance(Tile t) => _circuit ? Manhattan(t, _home) : _finish switch
     {
         Compass.North => t.Row,
         Compass.South => Size - 1 - t.Row,
@@ -500,17 +753,10 @@ internal static class Levels
         Down,
     }
 
-    public static (List<Placement> Plan, int Slopes, float WorstFillM, float WorstCutM) Choose(List<Placement> plan, Terrain terrain, PieceCatalogue catalogue)
+    public static (List<Placement> Plan, int Slopes, float WorstFillM, float WorstCutM) Choose(
+        List<Placement> plan, Terrain terrain, PieceCatalogue catalogue, bool circuit = false)
     {
         int n = plan.Count;
-        var cost = new float[(n + 1) * Count];
-        var from = new int[(n + 1) * Count];
-        var choice = new Choice[(n + 1) * Count];
-        Array.Fill(cost, float.PositiveInfinity);
-        for (int l = 0; l < Count; l++)
-        {
-            cost[l] = 0.0f;
-        }
 
         // The road at level 0, sampled, for each piece as it stands and for each pair of straights as a slope.
         var samples = plan.Select(p => Samples(new PlacedPiece(catalogue.Find(p.Piece)!, p))).ToList();
@@ -523,36 +769,58 @@ internal static class Levels
             down.Add(pair ? Samples(new PlacedPiece(catalogue.Find("base:slope-down")!, plan[k] with { Piece = "base:slope-down" })) : null);
         }
 
+        // The earth each piece moves at each level, as it stands and as either slope: worked out once, since a
+        // circuit runs the search once for every level it might start at.
+        var same = new float[n * Count];
+        var rise = new float[n * Count];
+        var fall = new float[n * Count];
         for (int k = 0; k < n; k++)
         {
             for (int l = 0; l < Count; l++)
             {
-                float here = cost[(k * Count) + l];
-                if (float.IsPositiveInfinity(here))
-                {
-                    continue;
-                }
-
                 int level = l + Lowest;
-                Relax(k + 1, l, here + Earth(samples[k], level, terrain), k, l, Choice.Same);
-                if (up[k] is { } u && l + 1 < Count)
-                {
-                    Relax(k + 2, l + 1, here + Earth(u, level, terrain), k, l, Choice.Up);
-                }
-
-                if (down[k] is { } d && l > 0)
-                {
-                    Relax(k + 2, l - 1, here + Earth(d, level, terrain), k, l, Choice.Down);
-                }
+                same[(k * Count) + l] = Earth(samples[k], level, terrain);
+                rise[(k * Count) + l] = up[k] is { } u && l + 1 < Count ? Earth(u, level, terrain) : float.NaN;
+                fall[(k * Count) + l] = down[k] is { } d && l > 0 ? Earth(d, level, terrain) : float.NaN;
             }
         }
 
-        // Back from the cheapest end, rebuilding the plan with its levels and slopes.
-        int best = 0;
-        for (int l = 1; l < Count; l++)
+        // A sprint starts at whatever level is cheapest and ends at whatever level is cheapest. A circuit
+        // (M3g) must come back round to the level its line is at: the search is run from each starting level,
+        // held to end there, and the cheapest lap kept.
+        float[] cost;
+        int[] from;
+        Choice[] choice;
+        int best;
+        if (!circuit)
         {
-            best = cost[(n * Count) + l] < cost[(n * Count) + best] ? l : best;
+            (cost, from, choice) = Search(-1);
+            best = 0;
+            for (int l = 1; l < Count; l++)
+            {
+                best = cost[(n * Count) + l] < cost[(n * Count) + best] ? l : best;
+            }
         }
+        else
+        {
+            (cost, from, choice) = Search(0);
+            best = 0;
+            for (int l = 1; l < Count; l++)
+            {
+                (float[] c, int[] f, Choice[] h) = Search(l);
+                if (c[(n * Count) + l] < cost[(n * Count) + best])
+                {
+                    (cost, from, choice, best) = (c, f, h, l);
+                }
+            }
+
+            if (float.IsPositiveInfinity(cost[(n * Count) + best]))
+            {
+                throw new InvalidOperationException("No levels bring the circuit back round to its line's level.");
+            }
+        }
+
+        // Back from the chosen end, rebuilding the plan with its levels and slopes.
 
         var steps = new List<(int K, int L, Choice C)>();
         for (int k = n, l = best; k > 0;)
@@ -591,14 +859,55 @@ internal static class Levels
 
         return (result, slopes, worstFill, worstCut);
 
-        void Relax(int k, int l, float total, int pk, int pl, Choice c)
+        // The cheapest way to every (piece, level), from one starting level, or from any (-1).
+        (float[] Cost, int[] From, Choice[] Choice) Search(int start)
         {
-            int at = (k * Count) + l;
-            if (total < cost[at])
+            var c = new float[(n + 1) * Count];
+            var f = new int[(n + 1) * Count];
+            var h = new Choice[(n + 1) * Count];
+            Array.Fill(c, float.PositiveInfinity);
+            for (int l = 0; l < Count; l++)
             {
-                cost[at] = total;
-                from[at] = (pk * Count) + pl;
-                choice[at] = c;
+                if (start < 0 || l == start)
+                {
+                    c[l] = 0.0f;
+                }
+            }
+
+            for (int k = 0; k < n; k++)
+            {
+                for (int l = 0; l < Count; l++)
+                {
+                    float here = c[(k * Count) + l];
+                    if (float.IsPositiveInfinity(here))
+                    {
+                        continue;
+                    }
+
+                    Relax(k + 1, l, here + same[(k * Count) + l], k, l, Choice.Same);
+                    if (!float.IsNaN(rise[(k * Count) + l]))
+                    {
+                        Relax(k + 2, l + 1, here + rise[(k * Count) + l], k, l, Choice.Up);
+                    }
+
+                    if (!float.IsNaN(fall[(k * Count) + l]))
+                    {
+                        Relax(k + 2, l - 1, here + fall[(k * Count) + l], k, l, Choice.Down);
+                    }
+                }
+            }
+
+            return (c, f, h);
+
+            void Relax(int k, int l, float total, int pk, int pl, Choice choice)
+            {
+                int at = (k * Count) + l;
+                if (total < c[at])
+                {
+                    c[at] = total;
+                    f[at] = (pk * Count) + pl;
+                    h[at] = choice;
+                }
             }
         }
     }
@@ -654,11 +963,20 @@ internal static class Banks
     /// <summary>Over its flat speed by this much, a corner is banked.</summary>
     private const float Margin = 1.3f;
 
-    public static (List<Placement> Plan, int Banked) Choose(List<Placement> plan, PieceCatalogue catalogue)
+    public static (List<Placement> Plan, int Banked) Choose(List<Placement> plan, PieceCatalogue catalogue, bool circuit = false)
+    {
+        // A circuit's corners are judged on a flying lap (M3g): the speed it comes round to the line with.
+        float flying = circuit ? Pass(plan, catalogue, 0.0f).Speed : 0.0f;
+        (List<Placement> result, int banked, _) = Pass(plan, catalogue, flying);
+        return (result, banked);
+    }
+
+    /// <summary>Once along the plan from a speed: each corner banked or not, and the speed at the end.</summary>
+    private static (List<Placement> Plan, int Banked, float Speed) Pass(List<Placement> plan, PieceCatalogue catalogue, float start)
     {
         var result = new List<Placement>();
         int banked = 0;
-        float v = 0.0f;
+        float v = start;
         foreach (Placement p in plan)
         {
             float length = TrackGenerator.RoadLength(catalogue, p);
@@ -697,7 +1015,7 @@ internal static class Banks
             v = MathF.Min(MathF.Min(Top, MathF.Sqrt((v * v) + (2.0f * Accel * length))), limit);
         }
 
-        return (result, banked);
+        return (result, banked, v);
     }
 
     /// <summary>The banked-curve formula, at the autodriver's share of the stock car's grip.</summary>

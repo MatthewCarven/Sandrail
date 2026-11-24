@@ -10,11 +10,39 @@ namespace Sandrail.Core.Tracks;
 /// </summary>
 public static class TrackRacing
 {
-    /// <summary>The route's gates in the order they're driven: the start, the checkpoints, the finish.</summary>
-    public static IReadOnlyList<RaceGate> Gates(this LaidTrack track) => track.Route
-        .Where(p => p.Def.Gate is not null)
-        .Select(p => new RaceGate(p.Def.Gate!.Value, p.GateFrame!.Value, p.GateHalfWidthM))
-        .ToList();
+    /// <summary>
+    /// The route's gates in the order they're driven: the start, the checkpoints, the finish. On a circuit
+    /// (M3g) the line, then each lap's checkpoints and the line again, once a lap, so the race timer runs a
+    /// circuit as it runs a sprint and each lap's time is the split at the line.
+    /// </summary>
+    public static IReadOnlyList<RaceGate> Gates(this LaidTrack track)
+    {
+        var once = track.Route
+            .Where(p => p.Def.Gate is not null)
+            .Select(p => new RaceGate(p.Def.Gate!.Value, p.GateFrame!.Value, p.GateHalfWidthM))
+            .ToList();
+        if (!track.Track.Circuit || once.Count == 0)
+        {
+            return once;
+        }
+
+        // The line is the timer's start, a checkpoint at the end of every lap but the last, and the finish.
+        RaceGate line = once[0];
+        var gates = new List<RaceGate> { line with { Kind = GateKind.Start } };
+        for (int lap = 1; lap <= track.Track.Laps; lap++)
+        {
+            gates.AddRange(once.Skip(1));
+            gates.Add(line with { Kind = lap == track.Track.Laps ? GateKind.Finish : GateKind.Checkpoint });
+        }
+
+        return gates;
+    }
+
+    /// <summary>On a circuit, the gates a lap passes: its checkpoints and the line. Gate g (from 1) ends a lap when it divides by this.</summary>
+    public static int GatesPerLap(this LaidTrack track) => track.Route.Count(p => p.Def.Gate is not null);
+
+    /// <summary>On a circuit, which lap gate g (from 1) is in, from 1.</summary>
+    public static int LapOf(this LaidTrack track, int gate) => ((gate - 1) / Math.Max(1, track.GatesPerLap())) + 1;
 
     /// <summary>The route's road as centrelines in order, and for each, which piece of the route it belongs to.</summary>
     public static (IReadOnlyList<ICentreline> Road, IReadOnlyList<int> Owner) RouteRoad(this LaidTrack track)
@@ -64,7 +92,10 @@ public static class TrackRacing
     private static RacingLine Line(LaidTrack track, CarSpec spec, float marginM, bool minimumCurvature, float stepM)
     {
         (IReadOnlyList<ICentreline> road, IReadOnlyList<int> owner) = track.RouteRoad();
-        var centre = new RacingLine(road, closed: false, stepM);
+
+        // A circuit's line goes round (M3g): the plan brakes for the first corner of the next lap, and the
+        // autodriver laps it as it laps station 6.
+        var centre = new RacingLine(road, closed: track.Track.Circuit, stepM);
         float carHalf = (spec.TrackM / 2.0f) + 0.15f;
 
         PlacedPiece PieceOf(int sample) => track.Route[owner[centre.PieceAt(sample)]];

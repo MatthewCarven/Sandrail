@@ -42,8 +42,23 @@ public class TrackGeneratorTests
         string now = string.Join(" ", Enumerable.Range(1, 8).Select(s =>
             $"{s}:{Fnv(TrackGenerator.Generate((ulong)s, Bare, Catalogue.Value).Track.Save()):x16}"));
         Assert.True(pinned == now, now);
+    }
 
-        static ulong Fnv(string text)
+    /// <summary>
+    /// Seeds 1, 3, 5 and 7 as M3c made them, stunts and checkpoints and all, pinned before M3g (2026-11-24):
+    /// they stay sprints when circuits come (M3g fact 7), and seed 5 is the one he called "the most fun i've
+    /// had in a driving game for a long time".
+    /// </summary>
+    [Fact]
+    public void TheSprintsHeDroveStayPut()
+    {
+        string pinned = "1:de2b073f250145a9 3:290e5a5e5f98d178 5:7e770c4ce25cb77f 7:40feabfbc80e87f2";
+        string now = string.Join(" ", new[] { 1, 3, 5, 7 }.Select(s =>
+            $"{s}:{Fnv(TrackGenerator.Generate((ulong)s, new GenSettings(), Catalogue.Value).Track.Save()):x16}"));
+        Assert.True(pinned == now, now);
+    }
+
+    private static ulong Fnv(string text)
         {
             ulong h = 14695981039346656037UL;
             foreach (char c in text)
@@ -53,10 +68,13 @@ public class TrackGeneratorTests
 
             return h;
         }
-    }
 
     /// <summary>The generator with nothing after the route's own stages: no stunts, no checkpoints.</summary>
-    private static readonly GenSettings Bare = new() { Stunts = new StuntSettings { Density = 0.0f, CheckpointEveryM = 0.0f } };
+    private static readonly GenSettings Bare = new()
+    {
+        Route = new RouteSettings { CircuitShare = 0.0f },
+        Stunts = new StuntSettings { Density = 0.0f, CheckpointEveryM = 0.0f },
+    };
 
     [Fact]
     public void AnotherSeedMakesAnotherTrack()
@@ -64,19 +82,21 @@ public class TrackGeneratorTests
         Assert.Equal(Sweep.Value.Length, Sweep.Value.Select(g => g.Track.Save()).Distinct().Count());
     }
 
-    /// <summary>Decision 4: 1 to 2 km. The last piece may carry it a little over the top.</summary>
+    /// <summary>Decision 4: a sprint is 1 to 2 km. The last piece may carry it a little over the top; a jump's gap isn't road.</summary>
     [Fact]
     public void RoutesAreOneToTwoKilometres()
     {
-        Assert.All(Sweep.Value, g => Assert.InRange(g.Stats.LengthM, 1000.0f, 2200.0f));
-        Assert.All(Sweep.Value, g => Assert.InRange(g.Track.Lay(Catalogue.Value).LengthM, 1000.0f, 2200.0f));
+        Generated[] sprints = Sweep.Value.Where(g => !g.Stats.Circuit).ToArray();
+        Assert.NotEmpty(sprints);
+        Assert.All(sprints, g => Assert.InRange(g.Stats.LengthM, 1000.0f, 2200.0f));
+        Assert.All(sprints, g => Assert.InRange(g.Track.Lay(Catalogue.Value).LengthM, 900.0f, 2200.0f));
     }
 
-    /// <summary>A start on one edge heading in, a finish on the opposite edge heading out.</summary>
+    /// <summary>A sprint: a start on one edge heading in, a finish on the opposite edge heading out.</summary>
     [Fact]
     public void RoutesCrossTheGridFromEdgeToEdge()
     {
-        foreach (Generated g in Sweep.Value)
+        foreach (Generated g in Sweep.Value.Where(g => !g.Stats.Circuit))
         {
             TrackPiece start = g.Track.Pieces[0];
             TrackPiece finish = g.Track.Pieces[^1];

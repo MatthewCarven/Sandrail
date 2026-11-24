@@ -35,6 +35,9 @@ public enum GateKind
     Start,
     Checkpoint,
     Finish,
+
+    /// <summary>A circuit's line (M3g): where it starts, where each lap ends and where the last one finishes.</summary>
+    StartFinish,
 }
 
 /// <summary>A piece's way out, in its own terms.</summary>

@@ -233,6 +233,14 @@ it, after a spin on seed 1 took it 300 m on, a shortcut the new checkpoints caug
 **Planned 2026-11-24, to be built after M3c** (decisions 7-10). The letter comes after the others so
 that older references to M3d, M3e and M3f still mean what they did; the order is M3c, M3g, then the rest.
 
+**Built 2026-11-24**, as below; 11 tests, worklog that date. Departures: **checkpoints a fifth of a lap
+apart** at most, not a quarter, which gave a median of two (still two: plain straights are scarce on a
+lap); **a circuit's car starts just past its line**, since crossing it at the start read as a lap line
+passed out of order; the race timer's line is its start, a checkpoint at each lap's end and the finish, so
+the timer itself is unchanged. Over a thousand seeds 485 are circuits, every one closed and laid clean, laps
+0.80 to 1.50 km (median 1.04); seeds 1, 3, 5 and 7 are unchanged to the last byte. The autodriver finishes
+three of the five test circuits at 70% and all five at 60%; the misses are spins.
+
 **Seven facts that shape it:**
 
 1. **Closing a loop on the grid is a fitting problem.** The walk has to come back to the start-finish

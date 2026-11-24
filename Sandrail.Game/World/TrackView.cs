@@ -88,7 +88,7 @@ public static class TrackView
 
     /// <summary>
     /// A grey-box arch across a gate piece's middle: two posts clear of the road and a beam 5 m up, green
-    /// for the start, blue for a checkpoint, red for the finish. No collider: it marks the line, it doesn't
+    /// for the start, blue for a checkpoint, red for the finish, white for a circuit's line. No collider: it marks the line, it doesn't
     /// stop a car that goes wide.
     /// </summary>
     private static Node3D Arch(PlacedPiece piece, GateKind gate)
@@ -99,6 +99,7 @@ public static class TrackView
         {
             GateKind.Start => new Color(0.2f, 0.75f, 0.3f),
             GateKind.Checkpoint => new Color(0.25f, 0.5f, 0.95f),
+            GateKind.StartFinish => new Color(0.95f, 0.95f, 0.9f),
             _ => new Color(0.9f, 0.2f, 0.2f),
         };
 

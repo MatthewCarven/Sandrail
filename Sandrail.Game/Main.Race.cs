@@ -41,7 +41,15 @@ public partial class Main
     private RaceRun? _bestRunAuto;
     private RaceRun? _lastRun;
 
+    // A circuit's laps (M3g): the last one's time this run, and the best lap of the session, his and the autodriver's.
+    private double? _lastLapTime;
+    private double? _bestLapYou;
+    private double? _bestLapAuto;
+
     private sealed record RaceRun(double Seconds, IReadOnlyList<double> Splits, bool Auto);
+
+    /// <summary>Whether the track being raced is a circuit, run in laps.</summary>
+    private bool OnACircuit => _track?.Track.Circuit == true;
 
     /// <summary>The line the autodriver drives and L shows: the track's route, or the test ground's corner lap.</summary>
     private RacingLine? DrivenLine => _routeLine ?? _lapLine;
@@ -62,6 +70,7 @@ public partial class Main
     {
         _raceArmIn = 2;
         _lastRun = null;
+        _lastLapTime = null;
     }
 
     /// <summary>Where the car is put back on a track: the last gate passed while a run is on, the start otherwise.</summary>
@@ -191,16 +200,62 @@ public partial class Main
         _autoThisRun |= _autodriver is not null && _race.Running;
         switch (e.Kind)
         {
+            case RaceEventKind.Checkpoint when OnACircuit && e.Gate % _track!.GatesPerLap() == 0:
+                _hud.Flash(LapDone(e.Gate) + SplitAgainstBest(e.Gate - 1, e.Seconds), 4.0);
+                break;
             case RaceEventKind.Checkpoint:
-                _hud.Flash($"Checkpoint {e.Gate} of {_race.Checkpoints}: {LapTime(e.Seconds)}{SplitAgainstBest(e.Gate - 1, e.Seconds)}", 4.0);
+                _hud.Flash($"Checkpoint {CheckpointName(e.Gate)}: {LapTime(e.Seconds)}{SplitAgainstBest(e.Gate - 1, e.Seconds)}", 4.0);
                 break;
             case RaceEventKind.OutOfOrder:
-                _hud.Flash($"You missed checkpoint {e.Gate}: go back through it, or it won't count.", 4.0);
+                _hud.Flash($"You missed checkpoint {CheckpointName(e.Gate)}: go back through it, or it won't count.", 4.0);
                 break;
             case RaceEventKind.Finished:
-                FileRun(e.Seconds);
+                FileRun(e.Seconds, OnACircuit ? LapDone(_race.Passed) + ".  " : string.Empty);
                 break;
         }
+    }
+
+    /// <summary>
+    /// A checkpoint in words: "2 of 5" on a sprint; on a circuit, which of the lap's and which lap, since its
+    /// gates come round again (M3g).
+    /// </summary>
+    private string CheckpointName(int gate)
+    {
+        if (!OnACircuit)
+        {
+            return $"{gate} of {_race!.Checkpoints}";
+        }
+
+        int perLap = _track!.GatesPerLap();
+        int inLap = ((gate - 1) % perLap) + 1;
+        return inLap == perLap ? $"the line, lap {_track.LapOf(gate)}" : $"{inLap} of {perLap - 1}, lap {_track.LapOf(gate)}";
+    }
+
+    /// <summary>A circuit's lap ended at a gate: its time, kept as the last lap and the best if it is, in words.</summary>
+    private string LapDone(int gate)
+    {
+        IReadOnlyList<double> splits = _race!.Splits;
+        int perLap = _track!.GatesPerLap();
+        int lap = gate / perLap;
+        double time = splits[gate - 1] - (lap > 1 ? splits[gate - perLap - 1] : 0.0);
+        _lastLapTime = time;
+        double? best = _autoThisRun ? _bestLapAuto : _bestLapYou;
+        string verdict = best is not double b ? string.Empty
+            : time < b ? $", a new best lap by {b - time:F2} s"
+            : $", +{time - b:F2} s on the best lap";
+        if (best is not double old || time < old)
+        {
+            if (_autoThisRun)
+            {
+                _bestLapAuto = time;
+            }
+            else
+            {
+                _bestLapYou = time;
+            }
+        }
+
+        return $"Lap {lap} of {_track.Track.Laps}: {LapTime(time)}{verdict}";
     }
 
     /// <summary>A split against the same driver's best run at that gate: " (-1.20)", or nothing before there's a best.</summary>
@@ -216,7 +271,8 @@ public partial class Main
         return $"  ({(delta < 0.0 ? "-" : "+")}{System.Math.Abs(delta):F2} on {(_autoThisRun ? "its" : "your")} best)";
     }
 
-    private void FileRun(double seconds)
+    /// <param name="lastLap">On a circuit, the last lap in words, to go before the run's time.</param>
+    private void FileRun(double seconds, string lastLap = "")
     {
         var run = new RaceRun(seconds, _race!.Splits.ToList(), _autoThisRun);
         _lastRun = run;
@@ -237,11 +293,24 @@ public partial class Main
             }
         }
 
-        GD.Print($"{(run.Auto ? "Autodriver's run" : "Run")} on {_track!.Track.Id}: {LapTime(seconds)} (splits {string.Join(", ", run.Splits.SkipLast(1).Select(LapTime))})");
-        _hud!.Flash($"{who}: {LapTime(seconds)}{verdict}  Backspace to go again.", 8.0);
+        GD.Print($"{(run.Auto ? "Autodriver's run" : "Run")} on {_track!.Track.Id}: {LapTime(seconds)} (splits {string.Join(", ", run.Splits.SkipLast(1).Select(LapTime))})"
+            + (OnACircuit ? $"; laps {string.Join(", ", LapTimes(run.Splits).Select(LapTime))}" : string.Empty));
+        _hud!.Flash($"{lastLap}{who}: {LapTime(seconds)}{verdict}  Backspace to go again.", 8.0);
     }
 
-    /// <summary>The run board for the HUD: the clock, the gates passed, the bests.</summary>
+    /// <summary>A circuit run's lap times, from its splits: the time at each line less the one before.</summary>
+    private IEnumerable<double> LapTimes(IReadOnlyList<double> splits)
+    {
+        int perLap = _track!.GatesPerLap();
+        double before = 0.0;
+        for (int g = perLap; g <= splits.Count; g += perLap)
+        {
+            yield return splits[g - 1] - before;
+            before = splits[g - 1];
+        }
+    }
+
+    /// <summary>The run board for the HUD: the clock, the gates passed, the bests; and on a circuit, the lap.</summary>
     private string RaceBoard()
     {
         RaceTimer race = _race!;
@@ -249,6 +318,21 @@ public partial class Main
         string clock = race.Running ? LapTime(race.Elapsed(now))
             : race.Finished ? $"{LapTime(race.Elapsed(now))}  finished"
             : $"{LapTime(0.0)}  ready";
+        if (OnACircuit)
+        {
+            int perLap = _track!.GatesPerLap();
+            int laps = _track.Track.Laps;
+            int lap = System.Math.Min(laps, (race.Passed / perLap) + 1);
+            int inLap = race.Passed % perLap;
+            string next = race.Finished ? "all passed"
+                : inLap == perLap - 1 ? (lap == laps ? "next: the line, to finish" : "next: the line")
+                : $"next: checkpoint {inLap + 1} of {perLap - 1}";
+            string last = _lastLapTime is double l ? $"   last {LapTime(l)}" : string.Empty;
+            string runs = $"you {(_bestRunYou is RaceRun ry ? LapTime(ry.Seconds) : "-")}   auto {(_bestRunAuto is RaceRun ra ? LapTime(ra.Seconds) : "-")}";
+            string laps2 = $"you {(_bestLapYou is double ly ? LapTime(ly) : "-")}   auto {(_bestLapAuto is double la ? LapTime(la) : "-")}";
+            return $"RUN   {clock}\nLAP   {lap} of {laps}{last}\nGATES {next}\nBEST  run {runs}\n      lap {laps2}";
+        }
+
         string gates = race.Finished ? "all passed"
             : race.Checkpoints == 0 ? "next: the finish"
             : race.Passed == 0 ? $"next: checkpoint 1 of {race.Checkpoints}"

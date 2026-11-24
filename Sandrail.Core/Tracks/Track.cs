@@ -62,10 +62,14 @@ public sealed record Track
 {
     /// <summary>
     /// The newest format this build reads. A file says which it's written in: 1 for a track on the plain,
-    /// 2 for one that carries its own ground (M3-PLAN fact 8). <see cref="Save"/> writes the older of the
-    /// two whenever it can, so a track on the plain reads in any build that reads tracks at all.
+    /// 2 for one that carries its own ground (M3-PLAN fact 8), 3 for a circuit (M3g). <see cref="Save"/>
+    /// writes the oldest it can, so a track on the plain reads in any build that reads tracks at all, and a
+    /// build that has never heard of laps refuses a circuit rather than laying it wrongly.
     /// </summary>
-    public const int CurrentFormat = 2;
+    public const int CurrentFormat = 3;
+
+    /// <summary>The most laps a circuit may be run over.</summary>
+    public const int MaxLaps = 99;
 
     /// <summary>How high a piece may be placed, in levels: 50 m, far above anything the plain needs.</summary>
     public const int MaxLevel = 20;
@@ -98,8 +102,17 @@ public sealed record Track
     /// </summary>
     public TrackGround? Ground { get; init; }
 
-    /// <summary>The format a file of this track is written in: 2 if it carries ground, 1 if it doesn't.</summary>
-    public int FormatNeeded => Ground is null ? 1 : 2;
+    /// <summary>
+    /// How many laps a run is: 0 for a sprint, start gate to finish; more for a circuit (M3g, decision 8),
+    /// whose route comes back round to its start-finish line.
+    /// </summary>
+    public int Laps { get; init; }
+
+    /// <summary>Whether it's a circuit: run in laps, round to where it started.</summary>
+    public bool Circuit => Laps > 0;
+
+    /// <summary>The format a file of this track is written in: 3 for a circuit, 2 if it carries ground, 1 if neither.</summary>
+    public int FormatNeeded => Circuit ? 3 : Ground is null ? 1 : 2;
 
     /// <summary>Reads a track file, refusing what isn't one: not JSON, another format, or an unknown field or value.</summary>
     /// <remarks>Whether its pieces fit together is <see cref="Lay"/>'s question, which needs the catalogue.</remarks>
@@ -181,6 +194,12 @@ public sealed record Track
         {
             text.Append(CultureInfo.InvariantCulture, $"  \"ground\": {JsonSerializer.Serialize(ground, GroundOptions)},\n");
         }
+
+        if (Circuit)
+        {
+            text.Append(CultureInfo.InvariantCulture, $"  \"laps\": {Laps},\n");
+        }
+
         if (Pieces.Length == 0)
         {
             text.Append("  \"pieces\": []\n");
@@ -289,6 +308,15 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
         else if (track.Format == 1 && track.Ground is not null)
         {
             _problems.Add("a format 1 track has no ground; ground came with format 2");
+        }
+        else if (track.Format < 3 && track.Laps != 0)
+        {
+            _problems.Add($"a format {track.Format} track has no laps; laps came with format 3");
+        }
+
+        if (track.Laps is < 0 or > Track.MaxLaps)
+        {
+            _problems.Add($"laps is {track.Laps}, and must be 0 for a sprint or 1 to {Track.MaxLaps} for a circuit");
         }
 
         if (track.Ground is TrackGround ground)
@@ -516,6 +544,17 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
     /// </summary>
     private List<PlacedPiece> Route()
     {
+        if (track.Circuit)
+        {
+            return Lap();
+        }
+
+        List<int> lines = Gates(GateKind.StartFinish);
+        if (lines.Count > 0)
+        {
+            _problems.Add($"{Label(lines[0])} is a start-finish line, which is for a circuit: a track with laps");
+        }
+
         List<int> starts = Gates(GateKind.Start);
         List<int> finishes = Gates(GateKind.Finish);
         GateCount(starts, "start gate");
@@ -558,6 +597,65 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
             return [];
         }
 
+        return Whole(route, seen, "from the start to the finish");
+    }
+
+    /// <summary>
+    /// A circuit's route (M3g): one start-finish line, no start or finish gate, and the chain of pieces from
+    /// the line round and back into it, which must be every piece. The route begins at the line and ends at
+    /// the piece that leads back into it.
+    /// </summary>
+    private List<PlacedPiece> Lap()
+    {
+        foreach ((GateKind gate, string what) in new[] { (GateKind.Start, "start gate"), (GateKind.Finish, "finish gate") })
+        {
+            List<int> found = Gates(gate);
+            if (found.Count > 0)
+            {
+                _problems.Add($"{Label(found[0])} is a {what}, and a circuit starts and finishes at its start-finish line");
+            }
+        }
+
+        List<int> lines = Gates(GateKind.StartFinish);
+        GateCount(lines, "start-finish line");
+        if (lines.Count != 1)
+        {
+            return [];
+        }
+
+        var route = new List<int>();
+        var seen = new HashSet<int>();
+        int at = lines[0];
+        while (true)
+        {
+            route.Add(at);
+            seen.Add(at);
+            if (!_next.TryGetValue(at, out int next))
+            {
+                _problems.Add($"the circuit doesn't come back round to its start-finish line: it stops after {Label(at)}");
+                return [];
+            }
+
+            if (next == lines[0])
+            {
+                break;
+            }
+
+            if (seen.Contains(next))
+            {
+                _problems.Add($"the circuit comes back round to {Label(next)} and never reaches its start-finish line");
+                return [];
+            }
+
+            at = next;
+        }
+
+        return Whole(route, seen, "round the circuit");
+    }
+
+    /// <summary>The route if it's every piece and nothing else is wrong; what's off it said either way.</summary>
+    private List<PlacedPiece> Whole(List<int> route, HashSet<int> seen, string where)
+    {
         var off = Enumerable.Range(0, _placed.Count).Where(k => !seen.Contains(k)).ToList();
         foreach (int k in off.Where(k => _placed[k].Def.Gate == GateKind.Checkpoint))
         {
@@ -568,7 +666,7 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
         if (others.Count > 0)
         {
             string listed = string.Join(", ", others.Take(5).Select(Label)) + (others.Count > 5 ? $" and {others.Count - 5} more" : string.Empty);
-            _problems.Add($"{others.Count} piece{(others.Count == 1 ? " isn't" : "s aren't")} on the route from the start to the finish: {listed}");
+            _problems.Add($"{others.Count} piece{(others.Count == 1 ? " isn't" : "s aren't")} on the route {where}: {listed}");
         }
 
         return _problems.Count == 0 ? route.Select(k => _placed[k]).ToList() : [];

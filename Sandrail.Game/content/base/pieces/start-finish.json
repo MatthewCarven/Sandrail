@@ -1,0 +1,8 @@
+{
+  "id": "base:start-finish",
+  "name": "Start-finish line",
+  "tiles": [[0, 0]],
+  "out": { "tile": [0, 0], "side": "front" },
+  "path": [{ "line": 20 }],
+  "gate": "startFinish"
+}
