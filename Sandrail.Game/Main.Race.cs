@@ -47,7 +47,8 @@ public partial class Main
     private double? _bestLapYou;
     private double? _bestLapAuto;
 
-    private sealed record RaceRun(double Seconds, IReadOnlyList<double> Splits, bool Auto);
+    /// <param name="Car">The fingerprint of the car it was driven on (M4c, decision 6: a best counts whatever the car, and the board says when it's another).</param>
+    private sealed record RaceRun(double Seconds, IReadOnlyList<double> Splits, bool Auto, string Car);
 
     // The run as a ghost (M4b): recorded from the clock's start, every 4th tick, and the last finished run kept.
     private GhostRecorder? _ghostRecorder;
@@ -79,6 +80,11 @@ public partial class Main
         _lastRun = null;
         _lastLapTime = null;
         _ghostRecorder?.Stop();
+
+        // The ghost back on the line, and a best filed since the last run racing from now (M4c).
+        _raceGoTick = -1;
+        _saveGhostAs = null;
+        _ghostCar?.Play(ChosenGhost);
     }
 
     /// <summary>Where the car is put back on a track: the last gate passed while a run is on, the start otherwise.</summary>
@@ -204,6 +210,8 @@ public partial class Main
             _autoThisRun = _autodriver is not null;
             _ghostRecorder?.Go();
             _teleportsSeen = _car.Teleports;
+            _raceGoTick = _ticks;
+            _ghostGap = 0.0f;
         }
 
         RaceEvent e = _race.Update(_car.GlobalPosition.ToCore(), now);
@@ -245,7 +253,9 @@ public partial class Main
             recorder.Cut();
         }
 
-        recorder.Tick(_car.Snapshot(), _race.Finished);
+        Snapshot now = _car.Snapshot();
+        MeasureGhostGap(now);
+        recorder.Tick(now, _race.Finished);
         if (!recorder.Done)
         {
             return;
@@ -264,6 +274,7 @@ public partial class Main
             When = System.DateTimeOffset.Now,
         }, _car.Spec);
         GD.Print($"The run as a ghost: {_lastGhost.Snapshots.Count} snapshots over {_lastGhost.Duration:F2} s, {_lastGhost.Save().Length / 1024.0:F1} KB as a file");
+        GhostFiled(_lastGhost);
     }
 
     /// <summary>
@@ -325,15 +336,17 @@ public partial class Main
     /// <param name="lastLap">On a circuit, the last lap in words, to go before the run's time.</param>
     private void FileRun(double seconds, string lastLap = "")
     {
-        var run = new RaceRun(seconds, _race!.Splits.ToList(), _autoThisRun);
+        var run = new RaceRun(seconds, _race!.Splits.ToList(), _autoThisRun, CarPrint);
         _lastRun = run;
         RaceRun? best = run.Auto ? _bestRunAuto : _bestRunYou;
         string who = run.Auto ? "The autodriver finishes" : "Finish";
-        string verdict = best is null ? "."
-            : seconds < best.Seconds ? $", a new best by {best.Seconds - seconds:F2} s."
+        string verdict = best is null ? ". Saved as the ghost."
+            : seconds < best.Seconds ? $", a new best by {best.Seconds - seconds:F2} s. Saved as the ghost."
             : $", +{seconds - best.Seconds:F2} s on the best.";
         if (best is null || seconds < best.Seconds)
         {
+            // Its ghost is saved a tick or three from now, once the snapshot past the line is in (M4c).
+            _saveGhostAs = run.Auto ? GhostDriver.Autodriver : GhostDriver.You;
             if (run.Auto)
             {
                 _bestRunAuto = run;
@@ -379,9 +392,9 @@ public partial class Main
                 : inLap == perLap - 1 ? (lap == laps ? "next: the line, to finish" : "next: the line")
                 : $"next: checkpoint {inLap + 1} of {perLap - 1}";
             string last = _lastLapTime is double l ? $"   last {LapTime(l)}" : string.Empty;
-            string runs = $"you {(_bestRunYou is RaceRun ry ? LapTime(ry.Seconds) : "-")}   auto {(_bestRunAuto is RaceRun ra ? LapTime(ra.Seconds) : "-")}";
+            string runs = $"you {Best(_bestRunYou)}   auto {Best(_bestRunAuto)}";
             string laps2 = $"you {(_bestLapYou is double ly ? LapTime(ly) : "-")}   auto {(_bestLapAuto is double la ? LapTime(la) : "-")}";
-            return $"RUN   {clock}\nLAP   {lap} of {laps}{last}\nGATES {next}\nBEST  run {runs}\n      lap {laps2}";
+            return $"RUN   {clock}\nLAP   {lap} of {laps}{last}\nGATES {next}\nBEST  run {runs}\n      lap {laps2}{GhostLine()}";
         }
 
         string gates = race.Finished ? "all passed"
@@ -389,7 +402,14 @@ public partial class Main
             : race.Passed == 0 ? $"next: checkpoint 1 of {race.Checkpoints}"
             : race.Passed < race.Checkpoints ? $"{race.Passed} of {race.Checkpoints} passed, next {race.Passed + 1}"
             : $"{race.Checkpoints} of {race.Checkpoints} passed, next the finish";
-        string best = $"you {(_bestRunYou is RaceRun y ? LapTime(y.Seconds) : "-")}   auto {(_bestRunAuto is RaceRun a ? LapTime(a.Seconds) : "-")}";
-        return $"RUN   {clock}\nGATES {gates}\nBEST  {best}";
+        string best = $"you {Best(_bestRunYou)}   auto {Best(_bestRunAuto)}";
+        return $"RUN   {clock}\nGATES {gates}\nBEST  {best}{GhostLine()}";
     }
+
+    /// <summary>A best run's time, marked when it was set on another car than the one being driven (M4c, decision 6).</summary>
+    private string Best(RaceRun? run) =>
+        run is null ? "-" : run.Car == CarPrint ? LapTime(run.Seconds) : $"{LapTime(run.Seconds)} (another car)";
+
+    /// <summary>The board's ghost line, when there's a ghost car to speak of (M4c).</summary>
+    private string GhostLine() => _ghostCar is null ? string.Empty : $"\nGHOST {GhostWords()}  (G)";
 }

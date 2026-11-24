@@ -50,6 +50,7 @@ public static class Controls
     public const string Calmer = "autodrive_calmer";
     public const string ShowLine = "show_line";
     public const string Menu = "menu";
+    public const string ChooseGhost = "choose_ghost";
 
     public static void Register()
     {
@@ -88,6 +89,9 @@ public static class Controls
 
         // The Esc menu (M3e): keyboard only, since a pad's Start button may be a layout's, as his is.
         Add(Menu, Key.Escape);
+
+        // Whose ghost (M4c): his best, the autodriver's, none. Keyboard only, as the menu is.
+        Add(ChooseGhost, Key.G);
 
         // On a track, the run from the start again (M2d); pad layouts don't rebind it.
         Add(Restart, Key.Backspace, JoyButton.Start);

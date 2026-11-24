@@ -457,6 +457,12 @@ public partial class Main : Node3D
         _hud = new Hud { Car = _car, Recorder = _recorder, OnATrack = _track is not null };
         AddChild(_hud);
 
+        // Ghosts and bests from their files (M4c), for play and screenshots: an oracle reads no one's ghosts.
+        if (_track is not null && oracle is null && !SetUpGhosts(args))
+        {
+            return;
+        }
+
         // The Esc menu (M3e), for play: not for an oracle or a screenshot, which quit on their own.
         if (oracle is null && _screenshot is null)
         {
@@ -899,6 +905,13 @@ public partial class Main : Node3D
         {
             _lineView.Visible = !_lineView.Visible;
         }
+
+        if (Input.IsActionJustPressed(Controls.ChooseGhost))
+        {
+            ChooseGhost();
+        }
+
+        PoseGhost(delta);
 
         if (_hud is not null)
         {

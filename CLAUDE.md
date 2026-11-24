@@ -139,6 +139,9 @@ again), and holding R for a second or pressing Backspace starts again, clock and
 `--record` (starts a run at start), `--autodrive` (the autodriver from the start; with `--station=6`),
 `--caution=` (the autodriver's aggression, the share of grip it plans for, 0.5 to 1, 0.8 by default:
 for the game and the `lap` oracle alike; in the game - and + change it),
+`--ghost=you|auto|none` (whose ghost shows on a track, M4c; G changes it in the game) and
+`--ghosts=<folder>` (where ghosts and bests are kept, `user://ghosts` unless told: **point checks at a
+scratch folder**, so his bests are never touched),
 and `--screenshot=<path.png>`, which saves a frame at rest and one driving, then quits; with it,
 `--drive=throttle,steer` sets how it drives and `--camera=x,y,z:x,y,z` looks at the ground from a fixed
 point instead of following the car. It opens a window for a few seconds, and it is how Claude sees
@@ -192,7 +195,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
   physics interpolation. `Cars/` is the `Buggy`, its `CarLooks` (the grey boxes and wing, a node a ghost
-  can wear too), its `ChaseCamera`, `CarReadout` and the `RunRecorder`;
+  can wear too), the `GhostCar` (a best run see-through beside you, on the race clock), its `ChaseCamera`,
+  `CarReadout` and the `RunRecorder`; `Main.Ghosts.cs` loads and saves each track's bests as ghosts;
   `Ui/` the `Hud`, `TelemetryOverlay` and `TuningPanel`; `World/` builds the test ground's meshes and
   colliders; `Oracles/` the headless drives; `content/base/cars/buggy.json` the shipped spec.
 - `tools/godot-sln/` — the solution Godot's editor builds from (`project/solution_directory`).
@@ -228,8 +232,9 @@ taken as recommended, and under way: **M4a, codes and fingerprints, is built** (
 codes like `5v1` in the menu and on `--seed=`; generated IDs `gen:5v1`; the track fingerprint; seed 5 ships as
 `content/base/tracks/gen-5v1.json`, `--track=gen:5v1`, so a later generator can't take it from him), and
 **M4b, the snapshot stream, is built** (every run recorded at 30 a second, about 0.4 KB a second; the
-`ghost` oracle; `CarLooks` out of `Buggy`, nothing changed on screen). Next: M4c, ghosts beside you,
-saved per track, bests kept between sessions. **The stock car has his
+`ghost` oracle; `CarLooks` out of `Buggy`, nothing changed on screen), and **M4c, ghosts, is built** (his
+best or the autodriver's, see-through beside him on the race clock, G to choose; each driver's best saved
+under the track's fingerprint, so bests last between sessions). Next: M4d, replays. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles

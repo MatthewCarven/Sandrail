@@ -2,6 +2,43 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M4c: ghosts
+
+*"Go on to M4c"*. Built as M4-PLAN has it.
+
+**The ghost** (`GhostCar`): a `CarLooks` at 40% opacity with no shadow, no body and no collider, wearing
+the run's own car, posed every frame from `Ghost.At` at the race clock's time, between the last two physics
+ticks as the car is drawn. Before the clock starts it waits on the line; R back to a checkpoint leaves it
+where its run was; a restart puts it back; a second after its own finish it has faded out. It fades as it
+comes within 7 m of the camera and is gone at 3 m, so a ghost behind you never blocks the road.
+
+**Bests are kept between sessions** (`Main.Ghosts`): on the finish, a best's ghost is saved to
+`user://ghosts/<track fingerprint>/you.ghost` or `auto.ghost` (written beside it and moved, so a crash can't
+lose the old one), and when a track is built both are read back. The board's bests come from them, his and
+the autodriver's apart, a best set on another car marked "(another car)" (decision 6). A circuit's ghost is
+the whole run (decision 5), and its best lap between sessions is the best run's best lap. The flash after a
+best says "Saved as the ghost." The new best races from the next run; the one being raced plays on to its
+finish.
+
+**G** chooses the ghost (decision 4): his best, the autodriver's, none. It's on the board's new last line
+(`GHOST your best, 1:25.17  (G)`), and kept when the Esc menu starts a new track. `--ghost=you|auto|none`
+sets it from the command line and `--ghosts=<folder>` moves the folder, which is how every check here kept
+clear of his. The keys at the bottom are three lines now: two ran off a 1152-wide window once G joined them.
+
+**Checks**, on the committed car (4f918acd), into a scratch folder:
+
+- The autodriver drove seed 5 at 70%: *"Saved as the autodriver's ghost"*, 37 KB.
+- It drove again with that ghost showing: *"The car was at most 0.013 m from the ghost it raced"* over the
+  whole 1:25.17, which is the oracle's miss. So saving, loading, the clock and playback line up. A tie
+  isn't a best, and the file wasn't touched.
+- A fresh launch read the best back: the board said `auto 1:25.17` before anything was driven.
+- A frame from the game: the ghost pulling away up seed 5's first straight from a slower car.
+- All seventeen oracles exactly as after M4b.
+
+**Not driven**: R to a checkpoint, starting again, and finishing behind the ghost. They follow from its
+clock, the race clock's ticks since the start, which R doesn't touch and a restart sets back. His play will
+say.
+
 ## 2026-11-24 — M4b: the snapshot stream
 
 *"Go on to M4b"*. Built as M4-PLAN has it.

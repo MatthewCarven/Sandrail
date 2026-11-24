@@ -83,14 +83,15 @@ public partial class Hud : CanvasLayer
         AddChild(_alert);
 
         _message = new Label { LabelSettings = Settings(18), Visible = false };
-        Pin(_message, 0.0f, 1.0f, new Vector2(24.0f, -74.0f), growUp: true);
+        Pin(_message, 0.0f, 1.0f, new Vector2(24.0f, -98.0f), growUp: true);
         AddChild(_message);
 
         var keys = new Label
         {
-            Text = "W/S: throttle, brake, reverse  ·  A/D: steer (Shift: wide lock)  ·  Space: handbrake  ·  "
-                + (OnATrack ? "R: last checkpoint (hold: start again)  ·  Backspace: start again" : "R: respawn  ·  1-9, [ ]: stations") + "  ·  C: camera\n"
-                + "In the air: W/S nose up and down, A/D turn  ·  P: autodriver (-/+: its aggression)  ·  L: racing line  ·  F2: tuning  ·  F3: telemetry  ·  F4: record  ·  Esc: menu",
+            // Three lines, since two ran off a 1152-wide window once the ghost's key came (M4c).
+            Text = "W/S: throttle, brake, reverse  ·  A/D: steer (Shift: wide lock)  ·  Space: handbrake  ·  C: camera\n"
+                + (OnATrack ? "R: last checkpoint (hold: start again)  ·  Backspace: start again  ·  G: ghost" : "R: respawn  ·  1-9, [ ]: stations") + "  ·  Esc: menu\n"
+                + "In the air: W/S nose up and down, A/D turn  ·  P: autodriver (-/+: its aggression)  ·  L: racing line  ·  F2: tuning  ·  F3: telemetry  ·  F4: record",
             LabelSettings = Settings(16),
         };
         Pin(keys, 0.0f, 1.0f, new Vector2(24.0f, -16.0f), growUp: true);

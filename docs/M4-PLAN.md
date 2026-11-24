@@ -209,6 +209,15 @@ which is how a recorder knows the next snapshot is a cut.
 
 ## M4c — ghosts
 
+**Built 2026-11-24**, as below; worklog that date. Departures: **a new best becomes the ghost from the next
+run**, so the one being raced plays on to its own finish; **a circuit's best lap between sessions is the best
+run's best lap** (a best lap set in a slower run lasts the session, there being no second store, fact 8);
+**`--ghost=you|auto|none` and `--ghosts=<folder>`** set the choice and the folder, which is how the checks
+kept clear of his; the keys at the bottom went to three lines, since two ran off a 1152-wide window. The
+autodriver raced its own saved ghost on seed 5 and was never more than **13 mm** from it in 85 s. R to a
+checkpoint, starting again and finishing behind the ghost weren't driven, but follow from the ghost's clock:
+the race clock's ticks since the start, which R doesn't touch and a restart sets back.
+
 - **Game:** `GhostCar` on the race clock (fact 6), beside you; the best saved on the finish; ghosts and bests
   loaded when a track is built, so the board's bests last between sessions; G to choose (decision 4); a
   best on another car marked (decision 6).
