@@ -90,6 +90,12 @@ public partial class Main
     /// <summary>Where the car is put back on a track: the last gate passed while a run is on, the start otherwise.</summary>
     private Transform3D TrackHome()
     {
+        // An untimed test drive (M5c) goes back to where it began.
+        if (_testDriveFrom is not null)
+        {
+            return _spawn;
+        }
+
         if (_track is null || _race is null || !_race.Running || _race.Passed == 0)
         {
             return SpawnAt(TrackStart(_track!), _car!.Spec);
@@ -173,6 +179,14 @@ public partial class Main
     {
         if (_track is null || _car is null)
         {
+            return;
+        }
+
+        if (_testDriveFrom is not null)
+        {
+            _car.Respawn(_spawn);
+            _autoRespawn?.Reset();
+            _hud?.Flash("Back where the test drive began.", 2.0);
             return;
         }
 

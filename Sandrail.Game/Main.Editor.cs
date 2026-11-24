@@ -16,15 +16,83 @@ public partial class Main
 {
     private EditorView? _editorView;
 
-    /// <summary>The editor on a track: an empty one, or one read from its file with its problems kept (fact 2).</summary>
+    /// <summary>The flags the scene started with, for Tab back to the editor.</summary>
+    private string[] _args = [];
+
+    /// <summary>Whether this is a test drive from the editor (M5c): Tab goes back to it.</summary>
+    private bool _testDrive;
+
+    /// <summary>What Tab back to the editor opens: the editor's own track, or the file driven.</summary>
+    private string? _editBack;
+
+    /// <summary>The piece an untimed test drive began on; null in a race, timed from the start gate.</summary>
+    private PlacedPiece? _testDriveFrom;
+
+    /// <summary>The piece a test drive begins on: the one covering <c>--drive-from=</c>'s tile, else the route's first, else the first placed.</summary>
+    private static PlacedPiece? DriveFromPiece(LaidTrack track, string? flag)
+    {
+        string[] parts = (flag ?? string.Empty).Split(',');
+        if (parts.Length == 2 && int.TryParse(parts[0], out int column) && int.TryParse(parts[1], out int row)
+            && track.Placed.FirstOrDefault(p => p.Tiles.Contains(new Tile(column, row))) is PlacedPiece on)
+        {
+            return on;
+        }
+
+        return track.Route.Count > 0 ? track.Route[0] : track.Placed.FirstOrDefault();
+    }
+
+    /// <summary>Once a frame on a test drive: Tab goes back to the editor, as it was. True if it did, the scene leaving the tree.</summary>
+    private bool WatchTabBack()
+    {
+        if (_testDrive && _editBack is not null && Input.IsActionJustPressed(Controls.TestDrive))
+        {
+            StartAgainOn(_args, $"--edit={_editBack}");
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>The board on an untimed test drive.</summary>
+    private string TestDriveBoard() =>
+        $"TEST DRIVE   {_track!.Track.Name}, from the {Short(_testDriveFrom!.Def)} at {_testDriveFrom.Placement.At}\n"
+        + (_track.Problems.Count > 0 ? $"UNTIMED      the track has {_track.Problems.Count} thing{(_track.Problems.Count == 1 ? string.Empty : "s")} to do" : "UNTIMED      the race is from the start gate")
+        + "\nKEYS         R: back to here  ·  Tab: back to the editor";
+
+    /// <summary>The grid tile under a point.</summary>
+    private static Tile TileUnder(Vector3 at) =>
+        new((int)MathF.Floor((at.X - TrackGrid.Origin.X) / TrackGrid.TileM), (int)MathF.Floor((at.Z - TrackGrid.Origin.Z) / TrackGrid.TileM));
+
+    private static string Short(PieceDef def) => def.Id.StartsWith("base:", StringComparison.Ordinal) ? def.Id[5..] : def.Id;
+
+    /// <summary>
+    /// The editor on a track: an empty one, one read from its file with its problems kept (fact 2), or, back from
+    /// a test drive (<c>--edit=@editor</c>), the one it was working on, its history and view and all (M5c).
+    /// </summary>
     private void OpenEditor(string[] args, string edit)
     {
         PieceCatalogue catalogue;
-        Track track;
+        TrackEditor editor;
         try
         {
             catalogue = TrackView.LoadCatalogue();
-            track = edit == "new" ? TrackEditor.Empty() : TrackView.ReadTrack(edit);
+            if (edit == EditorSession.Id && EditorSession.Editor is TrackEditor kept)
+            {
+                editor = kept;
+            }
+            else
+            {
+                Track fresh = edit == "new" ? TrackEditor.Empty() : TrackView.ReadTrack(edit);
+                if (fresh.Ground is not null)
+                {
+                    Refuse($"--edit={edit}: {fresh.Name} is on generated ground, which the editor takes on in M5d; for now it edits tracks on the plain.");
+                    return;
+                }
+
+                editor = new TrackEditor(fresh, catalogue);
+                EditorSession.Editor = editor;
+                EditorSession.State = null;
+            }
         }
         catch (System.IO.InvalidDataException e)
         {
@@ -32,13 +100,13 @@ public partial class Main
             return;
         }
 
-        if (track.Ground is not null)
+        Track track = editor.Track;
+        _editorView = new EditorView
         {
-            Refuse($"--edit={edit}: {track.Name} is on generated ground, which the editor takes on in M5d; for now it edits tracks on the plain.");
-            return;
-        }
-
-        _editorView = new EditorView { Editor = new TrackEditor(track, catalogue), Catalogue = catalogue };
+            Editor = editor,
+            Catalogue = catalogue,
+            TestDrive = tile => StartAgainOn(args, $"--track={EditorSession.Id}", $"--drive-from={tile.Column},{tile.Row}"),
+        };
         AddChild(_editorView);
         AddChild(new SeedMenu
         {

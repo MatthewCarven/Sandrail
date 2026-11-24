@@ -159,6 +159,13 @@ and a right click by the mouse.
 
 ## M5c — test driving
 
+**Built 2026-11-24**, as below; worklog that date. Departures: **Tab starts the scene again as a test drive**,
+reusing the game's own setup (the car, its camera, R, the autodriver, and from the start gate of a sound track
+the race, ghosts and replays) rather than a second one; the editor's track, history and view wait outside the
+scene in `EditorSession`, and Tab back puts them as they were. **Tab on empty ground drives from the track's
+start.** `--track=@editor` is the editor's track, and **`--drive-from=<column>,<row>`** test-drives any track
+from a piece, untimed, reading its file without refusing it. R and Backspace go back to where the drive began.
+
 - **Game:** Tab into the car on the piece under the cursor and back (decision 4); the race from the start
   gate of a sound track; the autodriver (P) on an edited track.
 - **Checks:** the car starts on the right piece facing the right way for a piece of each kind; the `track`

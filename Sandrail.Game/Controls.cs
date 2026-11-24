@@ -51,6 +51,7 @@ public static class Controls
     public const string ShowLine = "show_line";
     public const string Menu = "menu";
     public const string ChooseGhost = "choose_ghost";
+    public const string TestDrive = "test_drive";
     public const string Watch = "watch";
     public const string ReplayPause = "replay_pause";
     public const string ReplayBack = "replay_back";
@@ -98,6 +99,9 @@ public static class Controls
 
         // Whose ghost (M4c): his best, the autodriver's, none. Keyboard only, as the menu is.
         Add(ChooseGhost, Key.G);
+
+        // Tab (M5c): from a test drive back to the editor. The editor reads Tab itself, to leave for one.
+        Add(TestDrive, Key.Tab);
 
         // Replays (M4d): Enter watches the last run; in a replay, Space pauses, the arrows skip and change
         // its speed. They share keys with driving, which nothing does during a replay.

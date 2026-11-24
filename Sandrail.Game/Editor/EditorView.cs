@@ -89,6 +89,33 @@ public partial class EditorView : Node3D
 
     public required PieceCatalogue Catalogue { get; init; }
 
+    /// <summary>Tab (M5c): a test drive from the piece on a tile; the view is kept in <see cref="EditorSession"/> for coming back.</summary>
+    public System.Action<Tile>? TestDrive { get; init; }
+
+    /// <summary>Where the view is now, for <see cref="EditorSession.State"/>.</summary>
+    public EditorState Capture() => new(_cursor, _level, _turn, _mirrored, _piece, _yaw, _zoom, _atEnd, _endIndex, _cameraAt);
+
+    /// <summary>
+    /// Tab: a test drive from the piece the cursor is on; at the road's end, from the road's last piece; on empty
+    /// ground, from the track's start (its start gate once it has one), so Tab always drives.
+    /// </summary>
+    private void Drive()
+    {
+        Tile? from = _atEnd && CurrentEnd is WorldConnector end ? end.Tile
+            : Editor.PieceAt(_cursor) is not null ? _cursor
+            : Editor.Laid.Route.Count > 0 ? Editor.Laid.Route[0].Placement.At
+            : Editor.Laid.Placed.Count > 0 ? Editor.Laid.Placed[0].Placement.At
+            : null;
+        if (from is not Tile tile || TestDrive is null)
+        {
+            Say("Lay a piece first: there's nothing to drive.", 3.0);
+            return;
+        }
+
+        EditorSession.State = Capture();
+        TestDrive(tile);
+    }
+
     public override void _Ready()
     {
         _palette = PaletteOrder.Select(Catalogue.Find).OfType<PieceDef>()
@@ -118,6 +145,19 @@ public partial class EditorView : Node3D
             Pick(_palette.FindIndex(d => d.Id == "base:start"));
         }
 
+        // Back from a test drive: the view as it was left.
+        if (EditorSession.State is EditorState was)
+        {
+            (_cursor, _level, _turn, _mirrored, _yaw, _zoom, _atEnd, _endIndex) = (was.Cursor, was.Level, was.Turn, was.Mirrored, was.Yaw, was.Zoom, was.AtEnd, was.EndIndex);
+            Pick(was.Piece);
+            _cameraAt = was.CameraAt;
+            _cameraPlaced = true;
+            EditorSession.State = null;
+            Rebuild();
+            Say("Back in the editor, as you left it.", 3.0);
+            return;
+        }
+
         _cursor = Clamped(_cursor);
         Rebuild();
         Say(Editor.Laid.Placed.Count == 0
@@ -141,7 +181,8 @@ public partial class EditorView : Node3D
                 Clicked(click);
                 return;
             case InputEventKey { Pressed: true } key:
-                if (Pressed(key))
+                // Tab may have started the scene again, taking this out of the tree: then there's no viewport to tell.
+                if (Pressed(key) && IsInsideTree())
                 {
                     GetViewport().SetInputAsHandled();
                 }
@@ -262,6 +303,9 @@ public partial class EditorView : Node3D
                 break;
             case Key.C:
                 _yaw = (_yaw + 1) % 4;
+                break;
+            case Key.Tab:
+                Drive();
                 break;
             case Key.Minus or Key.KpSubtract:
                 _zoom = Math.Min(400.0f, _zoom * 1.25f);
@@ -577,7 +621,7 @@ public partial class EditorView : Node3D
         _problems.CustomMinimumSize = new Vector2(520.0f, 0.0f);
         _note = Panel(layer, 18, new Vector2(24.0f, -70.0f), bottom: true);
         Label keys = Panel(layer, 15, new Vector2(24.0f, -20.0f), bottom: true);
-        keys.Text = "Enter or click: lay  ·  Backspace: take back  ·  wheel, [ ] or 1-9: piece  ·  M: mirror  ·  F: the road's end  ·  N: another end\n"
+        keys.Text = "Tab: drive it  ·  Enter or click: lay  ·  Backspace: take back  ·  wheel, [ ] or 1-9: piece  ·  M: mirror  ·  F: the road's end  ·  N: another end\n"
             + "Arrows or mouse: free cursor  ·  Q/E: turn  ·  PgUp/PgDn: level  ·  right click or Delete: take away  ·  Ctrl+Z/Y: undo/redo  ·  C: view  ·  -/+: zoom  ·  Esc: menu";
 
         // The palette down the left in two columns, a button a piece, the one in hand lit.

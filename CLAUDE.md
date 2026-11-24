@@ -122,7 +122,7 @@ the air (the M4b entry: millimetres, and 1.75 cm for a tick on a hard landing). 
 it on two specs and read the flying lap, the corner speeds and where it left the road; `track` says
 whether a car (or a track) can be finished at all.
 
-Game flags, after `--` (or passed to `start.cmd`): `--edit=new` or `--edit=<track id or path>` (the editor, M5, no car and no race; the Esc menu's New track and Edit this track use it; tracks on generated ground wait for M5d), `--seed=<n>` (a generated track on its own ground,
+Game flags, after `--` (or passed to `start.cmd`): `--edit=new` or `--edit=<track id or path>` (the editor, M5, no car and no race; the Esc menu's New track and Edit this track use it; tracks on generated ground wait for M5d; `--edit=@editor` is the editor's own track, kept across a test drive), `--drive-from=<column>,<row>` with `--track=` (a test drive from the piece on that tile, untimed unless it's a sound track's start gate, the file read without refusing it; `--track=@editor` drives the editor's track; M5c), `--seed=<n>` (a generated track on its own ground,
 M3b, with stunts and checkpoints since M3c; since M4a a code too, `--seed=5v1`, and a code from another
 version of the generator drives its file if the game has one, or says why not: the timer, P and `--oracle=track` all work on it; the
 autodriver finishes all five test sprints and three of the five test circuits at `--caution=0.7`; since
@@ -246,7 +246,8 @@ built and **passed on his word, 2026-11-24** ("Looks great to me Claude lets con
 brakes are on, white reversing, on the car, the ghost (not faded) and the replay. **M5, the editor, is planned**
 (`docs/M5-PLAN.md`), its seven decisions taken as recommended, and under way: **M5a, the editor's core, is built**
 (`TrackEditor` in Core: place, erase, open ends, next, undo; the editor from the Esc menu on the plain), and **M5b**:
-track laid onto the road's end by Enter, the palette, the mouse. Next: M5c, test-driving with Tab. His tuning comes after
+track laid onto the road's end by Enter, the palette, the mouse, and **M5c**: Tab test-drives from the piece under the
+cursor and Tab comes back (`EditorSession` keeps the work). Next: M5d, ground, saving and circuits. His tuning comes after
 M5. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by

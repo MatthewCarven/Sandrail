@@ -9,6 +9,7 @@ using Sandrail.Core.Generation;
 using Sandrail.Core.Pieces;
 using Sandrail.Core.Tracks;
 using Sandrail.Game.Cars;
+using Sandrail.Game.Editor;
 using Sandrail.Game.Oracles;
 using Sandrail.Game.Ui;
 using Sandrail.Game.World;
@@ -130,6 +131,7 @@ public partial class Main : Node3D
 
         // The Esc menu's "generate" starts the scene again with the flags it chose (M3e), the rest kept.
         string[] args = NextArgs ?? OS.GetCmdlineUserArgs();
+        _args = args;
 
         // A sensor run on a gamepad instead of a drive (Diagnostics/PadCheck.cs), or a binding run that
         // saves the pad's own layout (Diagnostics/PadBinder.cs).
@@ -381,7 +383,15 @@ public partial class Main : Node3D
             try
             {
                 catalogue = TrackView.LoadCatalogue();
-                _track = TrackView.LoadTrack(trackName, catalogue);
+
+                // A test drive (M5c): the editor's own track (--track=@editor), or a file read without refusing
+                // it, since a track being built can be driven before it can be raced.
+                _testDrive = trackName == EditorSession.Id || Flag(args, "--drive-from=") is not null;
+                _track = trackName == EditorSession.Id
+                    ? EditorSession.Editor?.Laid ?? throw new System.IO.InvalidDataException("There's no track in the editor to drive.")
+                    : _testDrive ? TrackView.ReadTrack(trackName).Lay(catalogue)
+                    : TrackView.LoadTrack(trackName, catalogue);
+                _editBack = trackName;
             }
             catch (System.IO.InvalidDataException e)
             {
@@ -410,7 +420,33 @@ public partial class Main : Node3D
                 + $"loaded in {loaded:F0} ms and built in {clock.Elapsed.TotalMilliseconds - loaded:F0} ms");
         }
 
-        if (_track is not null)
+        // A test drive from a piece that isn't a sound track's start gate is untimed (M5c, decision 4): the car on
+        // that piece, a few metres in, facing along it. From the start gate of a sound track it's the race.
+        PlacedPiece? driveFrom = _testDrive && _track is not null ? DriveFromPiece(_track, Flag(args, "--drive-from=")) : null;
+        if (_testDrive && _track is not null && driveFrom is null)
+        {
+            Refuse("There are no pieces on the track to drive.");
+            return;
+        }
+
+        if (_track is not null && driveFrom is not null && (_track.Problems.Count > 0 || driveFrom != _track.Route[0]))
+        {
+            if (_track.Problems.Count == 0)
+            {
+                // Sound but not from the start: the autodriver (P) can still drive its route.
+                _routeLine = _track.RouteLine(spec);
+                DrawLine(spec);
+            }
+
+            ICentreline first = driveFrom.Road().Pieces[0];
+            _spawn = SpawnAt(first.FrameAt(MathF.Min(4.0f, first.Length / 2.0f)), spec);
+            _testDriveFrom = driveFrom;
+            Vector3 heading = -_spawn.Basis.Z;
+            GD.Print($"Test drive from the {Short(driveFrom.Def)} at {driveFrom.Placement.At}, which goes {driveFrom.Forward.ToString().ToLowerInvariant()}, untimed: "
+                + $"the car at ({_spawn.Origin.X:F1}, {_spawn.Origin.Y:F1}, {_spawn.Origin.Z:F1}), heading {Mathf.RadToDeg(MathF.Atan2(heading.X, -heading.Z)):F0}°, "
+                + $"{(driveFrom.Tiles.Contains(TileUnder(_spawn.Origin)) ? "on the piece" : "OFF THE PIECE")}");
+        }
+        else if (_track is not null)
         {
             SetUpRace(_track, spec);
             _spawn = SpawnAt(TrackStart(_track), spec);
@@ -465,8 +501,9 @@ public partial class Main : Node3D
         _hud = new Hud { Car = _car, Recorder = _recorder, OnATrack = _track is not null };
         AddChild(_hud);
 
-        // Ghosts and bests from their files (M4c), for play and screenshots: an oracle reads no one's ghosts.
-        if (_track is not null && oracle is null && !SetUpGhosts(args))
+        // Ghosts and bests from their files (M4c), for play and screenshots: an oracle reads no one's ghosts, and
+        // an untimed test drive has no race to ghost.
+        if (_track is not null && _race is not null && oracle is null && !SetUpGhosts(args))
         {
             return;
         }
@@ -539,7 +576,12 @@ public partial class Main : Node3D
 
         string where = _track is not null ? $", {_track.Track.Id}, from its start" : _stations is not null ? $", {ground}, from station {station}" : string.Empty;
         GD.Print($"Driving {spec.Id} {spec.Fingerprint()} on {surface.Id}{where}");
-        if (_track is not null && oracle is null && _screenshot is null)
+        if (_testDriveFrom is PlacedPiece from && oracle is null && _screenshot is null)
+        {
+            _hud.Flash($"Test drive from the {from.Def.Name.ToLowerInvariant()} at {from.Placement.At}, untimed"
+                + (_track!.Problems.Count > 0 ? " (the track isn't finished)" : ": the race is from the start gate") + ". R puts you back here; Tab goes back to the editor.", 8.0);
+        }
+        else if (_track is not null && oracle is null && _screenshot is null)
         {
             float km = _track.LengthM / 1000.0f;
             string what = _track.Track.Circuit
@@ -595,7 +637,7 @@ public partial class Main : Node3D
 
     /// <summary>The flags that choose where to drive, which "generate" replaces with a seed; the rest (the car, the caution, the panels) stay.</summary>
     private static readonly string[] PlaceFlags =
-        ["--seed=", "--track=", "--terrain=", "--ground=", "--station=", "--checkpoint=", "--screenshot=", "--oracle=", "--camera=", "--drive=", "--edit=", "--replay=", "--replay-at=", "--replay-camera="];
+        ["--seed=", "--track=", "--terrain=", "--ground=", "--station=", "--checkpoint=", "--screenshot=", "--oracle=", "--camera=", "--drive=", "--edit=", "--drive-from=", "--replay=", "--replay-at=", "--replay-camera="];
 
     /// <summary>
     /// The Esc menu's "generate" (M3e), with codes (M4a): this version's code builds its seed's track; another
@@ -620,10 +662,10 @@ public partial class Main : Node3D
     }
 
     /// <summary>The scene started again somewhere else, the player's other flags kept.</summary>
-    private void StartAgainOn(string[] args, string place)
+    private void StartAgainOn(string[] args, params string[] places)
     {
         NextArgs = args.Where(a => !PlaceFlags.Any(p => a.StartsWith(p, StringComparison.Ordinal)) && a != "--autodrive")
-            .Append(place)
+            .Concat(places)
             .ToArray();
         GD.Print($"Starting again: {string.Join(' ', NextArgs)}");
         GetTree().ReloadCurrentScene();
@@ -941,6 +983,12 @@ public partial class Main : Node3D
             return;
         }
 
+        // Tab: back to the editor from a test drive (M5c).
+        if (WatchTabBack())
+        {
+            return;
+        }
+
         // Enter: watch the last run (M4d).
         if (Input.IsActionJustPressed(Controls.Watch) && _lastGhost is Sandrail.Core.Ghosts.Ghost last)
         {
@@ -997,7 +1045,7 @@ public partial class Main : Node3D
 
         if (_hud is not null)
         {
-            _hud.Laps = _race is not null ? RaceBoard() : LapBoard();
+            _hud.Laps = _race is not null ? RaceBoard() : _testDriveFrom is not null ? TestDriveBoard() : LapBoard();
 
             // The countdown once the car has been stuck for half a second, so a roll that rights itself
             // doesn't flash it.

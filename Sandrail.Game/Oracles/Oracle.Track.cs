@@ -281,7 +281,7 @@ public partial class Oracle
         float tps = Engine.PhysicsTicksPerSecond;
         string splits = timer.Splits.Count == 0 ? "none"
             : string.Join(", ", timer.Splits.Take(Math.Min(timer.Splits.Count, timer.Checkpoints)).Select(s => Clock(s)));
-        string splitWord = $"splits {splits} of {timer.Checkpoints}";
+        string splitWord = timer.Checkpoints == 0 ? "no checkpoints" : $"splits {splits} of {timer.Checkpoints}";
 
         // A circuit's laps (M3g): the time at each line less the one before.
         if (track.Track.Circuit)

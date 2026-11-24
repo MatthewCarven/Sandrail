@@ -2,6 +2,41 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M5c: test driving
+
+*"Go on to M5c"*. Built as M5-PLAN has it (decision 4).
+
+**Tab in the editor starts the scene again as a test drive**, and Tab in the car starts it again as the editor.
+It reuses the game's own setup rather than building a second one: the car, its camera, R, the autodriver, and
+on a sound track from its start gate the race, ghosts and replays. The editor's work waits outside the scene in
+`EditorSession` (the track, its undo history, the cursor, the piece in hand, the camera), as the Esc menu's next
+flags wait in `NextArgs`, and comes back as it was. Tab drives from the piece under the cursor; at the road's
+end, from the road's last piece; on empty ground, from the track's start. **From anywhere but a sound track's
+start gate the drive is untimed**: the car a few metres into the piece, facing along it; the board says TEST
+DRIVE, how many things the track has to do, and the keys; R and Backspace go back to where it began. A sound
+track driven from mid-way still has its racing line, so P hands it to the autodriver. `--track=@editor` is the
+editor's track; `--drive-from=<column>,<row>` test-drives any track file from a piece, reading it without
+refusing it, which is how the checks drive.
+
+**Checks:**
+
+- **Ten pieces on the shakedown**, each driven from: both launch ramps, a landing (at its raised level), a slope,
+  corners both ways, the banked corner, the chicane, the loop. The car was on its piece every time, heading the
+  way the piece goes (north 0°, east 90°, south 180°; a few degrees into the turn on corners, the right way for
+  each), and from the start gate it was the race.
+- **The round trip**, by a temporary probe (since removed): it laid a sound track in the editor by the keys (ten
+  pieces, start to finish, no problems), pressed Tab on empty ground (the race from its start gate), then Tab
+  back: the cursor, level, facing, piece in hand, zoom and view as they were, the undo history kept.
+- **The `track` oracle drove the editor-made track**: FINISHED in 14.89 at 80%, wheels on the road throughout.
+- **An unfinished track** (four problems) test-driven from a straight: the board as above.
+
+**Found and fixed on the way**: Tab left a `NullReferenceException` behind at each switch, the old scene's code
+carrying on after the scene had left the tree, asking for its viewport (the same family as the menu's paused
+new track); it now stops at once. And the probe's first run went astray when the game window opened under his
+mouse: moving the mouse takes the editor's cursor off the road's end, as it should (*"Sorry claude i
+interfered"*). The `track` oracle says "no checkpoints" on a track without, rather than "splits  of 0". Tests
+334; all seventeen oracles as before.
+
 ## 2026-11-24 — M5b: laying track, the palette, the mouse
 
 *"Go on to M5b"*. Built as M5-PLAN has it (`Editor/EditorView`).
