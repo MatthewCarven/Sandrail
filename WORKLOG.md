@@ -2,6 +2,28 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M5e: corners, left and right, and clicks that snap
+
+His first play in the editor came back as a picture: a track of 26 problems, nearly all "runs into … which isn't
+entered from there", the pieces facing ways that don't meet. Then: *"ok with the circular pieces i had trouble
+rotating to the other direction like there is no middle"*. Three faults, all the editor's:
+
+- **Moving the mouse made the free cursor**, and a click put the piece where it pointed, turned however the
+  cursor last faced. Corners came out a tile off or the wrong way, and everything after them with them.
+- **At the road's end, Q and E did nothing**, the road setting the facing; turning a corner the other way was
+  M, which nothing said.
+- **With the free cursor, Q and E swung a piece round the tile it's entered from**, its corner, so a 3 × 3 corner
+  jumped about instead of turning in place: no middle.
+
+**Now:** snapped onto the road, **Q turns a corner left and E right** (the S-bend, chicane and loop to the left or
+right too), and the status says which way it goes and which key flips it. **With the free cursor, Q, E and M
+turn a piece about its middle.** **The free cursor on the tile just past an open end snaps the piece onto that
+end**, so clicking along the road lays it as Enter does; and the mouse resting over the piece in hand at the
+road's end keeps it there. Checked with a temporary probe (since removed): a corner right with E and one left
+with Q, both meeting the road (two problems throughout: the end, no finish); a free 50 m corner turned four
+times, its entry tile going round the corners of one 3 × 3 block, its middle staying at (20, 11); a click on the
+tile past the road's end laying a straight onto it, connected.
+
 ## 2026-11-24 — M5d: ground, saving and circuits; M5 is built
 
 *"Go on to M5d"*. Built as M5-PLAN has it (decisions 5, 6 and 7).

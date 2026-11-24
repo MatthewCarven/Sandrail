@@ -216,7 +216,8 @@ public partial class EditorView : Node3D
         switch (e)
         {
             case InputEventMouseMotion motion when motion.Relative.Length() > 2.0f:
-                if (Pointed(motion.Position) is Tile pointed && (pointed != _cursor || _atEnd))
+                // Over the piece in hand at the road's end, it stays there; anywhere else is the free cursor.
+                if (Pointed(motion.Position) is Tile pointed && !(_atEnd && HandTiles().Contains(pointed)) && (pointed != _cursor || _atEnd))
                 {
                     GoFree();
                     _cursor = pointed;
@@ -244,9 +245,15 @@ public partial class EditorView : Node3D
         switch (click.ButtonIndex)
         {
             case MouseButton.Left when Pointed(click.Position) is Tile at:
-                GoFree();
-                _cursor = at;
-                FollowGround();
+                // A click on the piece in hand at the road's end lays it there; anywhere else puts the free cursor
+                // there first, where the tile just past an open end snaps the piece onto that end.
+                if (!(_atEnd && HandTiles().Contains(at)))
+                {
+                    GoFree();
+                    _cursor = at;
+                    FollowGround();
+                }
+
                 PlaceHand();
                 break;
             case MouseButton.Right when Pointed(click.Position) is Tile at:
@@ -319,13 +326,13 @@ public partial class EditorView : Node3D
                 Pick((int)(key.Keycode - Key.Key1));
                 break;
             case Key.Q:
-                _turn = (_turn + 3) % 4;
+                Turn(-1);
                 break;
             case Key.E:
-                _turn = (_turn + 1) % 4;
+                Turn(1);
                 break;
             case Key.M:
-                _mirrored = !_mirrored;
+                Mirror();
                 break;
             case Key.Pageup:
                 _level = Math.Min(Track.MaxLevel, _level + 1);
@@ -419,7 +426,7 @@ public partial class EditorView : Node3D
         _status.Text = $"EDITOR   {Editor.Track.Name}\n"
             + (Editor.Track.Circuit ? $"       A circuit of {Editor.Track.Laps} laps (L for more)" : "       A sprint")
             + (Editor.Track.Ground is TrackGround g ? $", on seed {g.Seed}'s ground{(_groundTask is not null || _groundDirty ? ", catching up" : string.Empty)}\n" : "\n")
-            + $"PIECE  {def.Name}{(_mirrored && Mirrors(def) ? (IsCorner(def) ? ", turning left" : ", mirrored") : string.Empty)}\n"
+            + $"PIECE  {def.Name}{Side(def)}\n"
             + $"AT     {where}"
             + (why is null ? string.Empty : $"\n       {char.ToUpperInvariant(why[0])}{why[1..]}");
     }
@@ -430,20 +437,106 @@ public partial class EditorView : Node3D
     /// </summary>
     private (Placement Placement, string? Why) Hand()
     {
-        PieceDef def = _palette[_piece];
-        if (_atEnd && CurrentEnd is WorldConnector end)
+        // At the road's end, or with the free cursor on the tile just past one (where a click lays the next piece,
+        // 2026-11-24), the piece snaps onto that end.
+        if ((_atEnd ? CurrentEnd : EndBefore(_cursor)) is WorldConnector end)
         {
-            if (Editor.Next(end, def.Id, _mirrored, out string? cannot) is Placement next)
-            {
-                return (next, Editor.Fits(next));
-            }
-
-            Tile first = end.Kind == ConnectorKind.Lip ? end.Landing : end.Beyond;
-            return (new Placement(def.Id, first, end.Level, (int)end.Facing, _mirrored), cannot);
+            return Onto(end);
         }
 
-        var free = new Placement(def.Id, _cursor, _level, _turn, _mirrored);
+        var free = new Placement(_palette[_piece].Id, _cursor, _level, _turn, _mirrored);
         return (free, Editor.Fits(free));
+    }
+
+    /// <summary>The piece in hand laid onto an open end; one that can't follow it is shown there anyway, refused.</summary>
+    private (Placement Placement, string? Why) Onto(WorldConnector end)
+    {
+        PieceDef def = _palette[_piece];
+        if (Editor.Next(end, def.Id, _mirrored, out string? cannot) is Placement next)
+        {
+            return (next, Editor.Fits(next));
+        }
+
+        return (new Placement(def.Id, First(end), end.Level, (int)end.Facing, _mirrored), cannot);
+    }
+
+    /// <summary>The tile a piece laid onto an open end begins on: across the edge, or across a jump's gap.</summary>
+    private static Tile First(WorldConnector end) => end.Kind == ConnectorKind.Lip ? end.Landing : end.Beyond;
+
+    /// <summary>The open end whose next piece would begin on a tile, if there's one.</summary>
+    private WorldConnector? EndBefore(Tile tile) => Editor.OpenEnds().Where(e => First(e) == tile).Cast<WorldConnector?>().FirstOrDefault();
+
+    /// <summary>Whether the piece in hand is snapped onto an end (so Q and E turn it left and right) rather than free.</summary>
+    private bool Snapped => _atEnd ? CurrentEnd is not null : EndBefore(_cursor) is not null;
+
+    /// <summary>Which way the piece in hand goes, for one mirroring changes: ", turning right (Q: left)" for a corner snapped to the road.</summary>
+    private string Side(PieceDef def)
+    {
+        if (!Mirrors(def))
+        {
+            return string.Empty;
+        }
+
+        string way = IsCorner(def) ? (_mirrored ? "turning left" : "turning right") : (_mirrored ? "to the left" : "to the right");
+        return Snapped ? $", {way} ({(_mirrored ? "E: right" : "Q: left")})" : $", {way} (M: the other way)";
+    }
+
+    /// <summary>The tiles the piece in hand would cover.</summary>
+    private IEnumerable<Tile> HandTiles() => new PlacedPiece(_palette[_piece], Hand().Placement).Tiles;
+
+    /// <summary>
+    /// Q and E (his report, 2026-11-24: corners were hard to turn the other way, "like there is no middle"). Snapped
+    /// onto the road, the road sets the facing, so they choose the side: Q to the left, E to the right, for a piece
+    /// mirroring changes. With the free cursor they turn the piece a quarter about its middle, so it spins in place
+    /// rather than swinging round the tile it's entered from.
+    /// </summary>
+    private void Turn(int way)
+    {
+        PieceDef def = _palette[_piece];
+        if (Snapped)
+        {
+            if (Mirrors(def))
+            {
+                _mirrored = way < 0;
+                Say(IsCorner(def) ? (way < 0 ? "Turning left." : "Turning right.") : (way < 0 ? "To the left." : "To the right."), 1.5);
+            }
+            else
+            {
+                Say($"The {Short(def)} goes the road's way; Q and E turn corners left and right.", 3.0);
+            }
+
+            return;
+        }
+
+        Keep(() => _turn = (_turn + way + 4) % 4);
+    }
+
+    /// <summary>M: the other way round; with the free cursor, about the piece's middle too.</summary>
+    private void Mirror()
+    {
+        if (Snapped)
+        {
+            _mirrored = !_mirrored;
+            return;
+        }
+
+        Keep(() => _mirrored = !_mirrored);
+    }
+
+    /// <summary>A change to the free piece in hand that keeps its middle where it was, moving the cursor to make up.</summary>
+    private void Keep(System.Action change)
+    {
+        (float c0, float r0) = Middle(Hand().Placement);
+        change();
+        (float c1, float r1) = Middle(Hand().Placement);
+        _cursor = Clamped(new Tile(_cursor.Column + (int)MathF.Round(c0 - c1), _cursor.Row + (int)MathF.Round(r0 - r1)));
+    }
+
+    /// <summary>The middle of a placement's tiles, in columns and rows.</summary>
+    private (float Column, float Row) Middle(Placement p)
+    {
+        Tile[] tiles = new PlacedPiece(_palette[_piece], p).Tiles.ToArray();
+        return ((float)tiles.Average(t => t.Column), (float)tiles.Average(t => t.Row));
     }
 
     /// <summary>The open end the cursor waits at, if it waits at one that's still open.</summary>
@@ -899,7 +992,7 @@ public partial class EditorView : Node3D
         _note = Panel(layer, 18, new Vector2(24.0f, -70.0f), bottom: true);
         Label keys = Panel(layer, 15, new Vector2(24.0f, -20.0f), bottom: true);
         keys.Text = "Tab: drive it  ·  Ctrl+S: save  ·  Enter/click: lay  ·  Backspace: take back  ·  wheel, [ ], 1-9: piece  ·  M: mirror  ·  F: road's end  ·  N: next end\n"
-            + "Arrows/mouse: free cursor  ·  Q/E: turn  ·  PgUp/PgDn: level  ·  Del/right click: take away  ·  Ctrl+Z/Y: undo/redo  ·  L: laps  ·  C: view  ·  -/+: zoom  ·  Esc: menu";
+            + "Arrows/mouse: free cursor  ·  Q/E: left/right (free: turn)  ·  PgUp/PgDn: level  ·  Del/right click: take away  ·  Ctrl+Z/Y: undo/redo  ·  L: laps  ·  C: view  ·  -/+: zoom  ·  Esc: menu";
 
         // The name box for saving (decision 6), in the middle, hidden until Ctrl+S.
         _saveBox = new PanelContainer { Visible = false };
