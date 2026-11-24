@@ -35,6 +35,12 @@ public partial class GhostCar : Node3D
     private CarLooks? _looks;
     private float _shownOpacity = -1.0f;
 
+    /// <summary>How much of it shows: a ghost's <see cref="Opacity"/>, or 1 for a replay's car (M4d).</summary>
+    public float Solidity { get; init; } = Opacity;
+
+    /// <summary>Whether it fades near the camera and after its finish: a ghost does, a replay's car doesn't.</summary>
+    public bool Fades { get; init; } = true;
+
     /// <summary>The run it plays; null shows nothing.</summary>
     public Ghost? Run { get; private set; }
 
@@ -91,9 +97,9 @@ public partial class GhostCar : Node3D
         _looks.Wheel(2, s.Droop.Z, 0.0f, rear, seconds);
         _looks.Wheel(3, s.Droop.W, 0.0f, rear, seconds);
 
-        float near = camera is null ? 1.0f : Mathf.SmoothStep(NearM, ClearM, camera.GlobalPosition.DistanceTo(at));
-        float over = (float)Math.Clamp(1.0 - ((clock - run.Duration) / FadeOutSeconds), 0.0, 1.0);
-        float opacity = Opacity * near * over;
+        float near = !Fades || camera is null ? 1.0f : Mathf.SmoothStep(NearM, ClearM, camera.GlobalPosition.DistanceTo(at));
+        float over = !Fades ? 1.0f : (float)Math.Clamp(1.0 - ((clock - run.Duration) / FadeOutSeconds), 0.0, 1.0);
+        float opacity = Solidity * near * over;
         Visible = opacity > 0.01f;
         if (MathF.Abs(opacity - _shownOpacity) > 0.01f)
         {
@@ -101,4 +107,7 @@ public partial class GhostCar : Node3D
             _looks.Fade(MathF.Max(opacity, 0.01f));
         }
     }
+
+    /// <summary>How fast its run was going at a time, metres a second: the replay's speedometer.</summary>
+    public float SpeedAt(double clock) => Run is Ghost run ? run.VelocityAt(clock).Length() : 0.0f;
 }

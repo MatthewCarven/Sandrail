@@ -13,6 +13,7 @@ public partial class Hud : CanvasLayer
     private Label _recording = null!;
     private Label _banner = null!;
     private Label _message = null!;
+    private Label _keys = null!;
     private double _messageLeft;
 
     public required Buggy Car { get; init; }
@@ -27,6 +28,12 @@ public partial class Hud : CanvasLayer
 
     /// <summary>A large line in the middle of the screen, such as the auto-respawn's countdown; null hides it.</summary>
     public string? Alert { get; set; }
+
+    /// <summary>A speed to show instead of the car's, metres a second: a replay's car's (M4d). Null shows the car's.</summary>
+    public float? SpeedOverrideMps { get; set; }
+
+    /// <summary>Whether the driving keys show at the bottom: not in a replay, whose board has its own (M4d).</summary>
+    public bool ShowKeys { get; set; } = true;
 
     /// <summary>On a track: the keys line offers checkpoints and a restart instead of stations, which a track hasn't.</summary>
     public bool OnATrack { get; init; }
@@ -86,16 +93,16 @@ public partial class Hud : CanvasLayer
         Pin(_message, 0.0f, 1.0f, new Vector2(24.0f, -98.0f), growUp: true);
         AddChild(_message);
 
-        var keys = new Label
+        _keys = new Label
         {
             // Three lines, since two ran off a 1152-wide window once the ghost's key came (M4c).
             Text = "W/S: throttle, brake, reverse  ·  A/D: steer (Shift: wide lock)  ·  Space: handbrake  ·  C: camera\n"
-                + (OnATrack ? "R: last checkpoint (hold: start again)  ·  Backspace: start again  ·  G: ghost" : "R: respawn  ·  1-9, [ ]: stations") + "  ·  Esc: menu\n"
+                + (OnATrack ? "R: last checkpoint (hold: start again)  ·  Backspace: start again  ·  G: ghost  ·  Enter: replay" : "R: respawn  ·  1-9, [ ]: stations") + "  ·  Esc: menu\n"
                 + "In the air: W/S nose up and down, A/D turn  ·  P: autodriver (-/+: its aggression)  ·  L: racing line  ·  F2: tuning  ·  F3: telemetry  ·  F4: record",
             LabelSettings = Settings(16),
         };
-        Pin(keys, 0.0f, 1.0f, new Vector2(24.0f, -16.0f), growUp: true);
-        AddChild(keys);
+        Pin(_keys, 0.0f, 1.0f, new Vector2(24.0f, -16.0f), growUp: true);
+        AddChild(_keys);
     }
 
     /// <summary>Shows a line at the bottom for a few seconds, and prints it to the log too.</summary>
@@ -109,7 +116,8 @@ public partial class Hud : CanvasLayer
 
     public override void _Process(double delta)
     {
-        _speed.Text = $"{Car.LinearVelocity.Length() * 3.6f:F0} km/h";
+        _speed.Text = $"{(SpeedOverrideMps ?? Car.LinearVelocity.Length()) * 3.6f:F0} km/h";
+        _keys.Visible = ShowKeys;
 
         bool recording = Recorder?.Recording ?? false;
         _recording.Visible = recording;

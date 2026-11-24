@@ -141,7 +141,9 @@ again), and holding R for a second or pressing Backspace starts again, clock and
 for the game and the `lap` oracle alike; in the game - and + change it),
 `--ghost=you|auto|none` (whose ghost shows on a track, M4c; G changes it in the game) and
 `--ghosts=<folder>` (where ghosts and bests are kept, `user://ghosts` unless told: **point checks at a
-scratch folder**, so his bests are never touched),
+scratch folder**, so his bests are never touched), `--replay=you|auto` with `--replay-at=<seconds>` and
+`--replay-camera=trackside|chase|free` (a saved best's replay from the start, M4d, for a look or a
+screenshot; in the game Enter watches the last run and the Esc menu offers the bests),
 and `--screenshot=<path.png>`, which saves a frame at rest and one driving, then quits; with it,
 `--drive=throttle,steer` sets how it drives and `--camera=x,y,z:x,y,z` looks at the ground from a fixed
 point instead of following the car. It opens a window for a few seconds, and it is how Claude sees
@@ -189,14 +191,16 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   middle at their speed hints), and `TrackFingerprint` (M4a: eight hex digits over what's driven, the
   placements, the pieces' shapes, the bedded heights and the rocks; ghosts are filed under it). `Ghosts/` is M4's stream: `Snapshot` (a pose, quantised as the file keeps
   it), `Ghost` (a header line of JSON with the car's spec, then the snapshots deflated; `At(t)` plays it back,
-  holding at cuts) and `GhostRecorder` (every 4th tick from the clock's zero to just past the finish).
-  `Pads/` is `PadProfile`.
+  holding at cuts), `GhostRecorder` (every 4th tick from the clock's zero to just past the finish) and
+  `ReplayCameras` (M4d: cameras beside a laid track, at the start, each stunt, corners and long straights,
+  each raised until it sees its stretch of road over the ground). `Pads/` is `PadProfile`.
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
   physics interpolation. `Cars/` is the `Buggy`, its `CarLooks` (the grey boxes and wing, a node a ghost
   can wear too), the `GhostCar` (a best run see-through beside you, on the race clock), its `ChaseCamera`,
-  `CarReadout` and the `RunRecorder`; `Main.Ghosts.cs` loads and saves each track's bests as ghosts;
+  `CarReadout`, the `RunRecorder` and the replay's `FreeCamera`; `Main.Ghosts.cs` loads and saves each
+  track's bests as ghosts, and `Main.Replay.cs` plays a run back (trackside, chase or free cameras);
   `Ui/` the `Hud`, `TelemetryOverlay` and `TuningPanel`; `World/` builds the test ground's meshes and
   colliders; `Oracles/` the headless drives; `content/base/cars/buggy.json` the shipped spec.
 - `tools/godot-sln/` — the solution Godot's editor builds from (`project/solution_directory`).
@@ -234,7 +238,9 @@ codes like `5v1` in the menu and on `--seed=`; generated IDs `gen:5v1`; the trac
 **M4b, the snapshot stream, is built** (every run recorded at 30 a second, about 0.4 KB a second; the
 `ghost` oracle; `CarLooks` out of `Buggy`, nothing changed on screen), and **M4c, ghosts, is built** (his
 best or the autodriver's, see-through beside him on the race clock, G to choose; each driver's best saved
-under the track's fingerprint, so bests last between sessions). Next: M4d, replays. **The stock car has his
+under the track's fingerprint, so bests last between sessions), and **M4d, replays, is built** (the last run
+or a best, from the Esc menu or Enter; cameras beside the track, chase or free; pause, skip, ¼ to 2x). M4 is
+built; M4e, his play, passes it. Next, at his word: brake lights. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles

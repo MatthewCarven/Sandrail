@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 using Sandrail.Core.Generation;
 
@@ -33,6 +34,13 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>Saves the generated track being driven and says where; null when there's no generated track to save.</summary>
     public Func<string>? Save { get; init; }
 
+    /// <summary>What can be watched now (M4d): the last run, the saved bests. Asked each time the menu opens.</summary>
+    public Func<IReadOnlyList<(string Label, Action Watch)>>? Replays { get; init; }
+
+    /// <summary>Whether Esc belongs to something else just now: a replay, which it leaves.</summary>
+    public Func<bool>? EscTaken { get; init; }
+
+    private VBoxContainer _replays = null!;
     private PanelContainer _panel = null!;
     private LineEdit _seed = null!;
     private Label _note = null!;
@@ -112,6 +120,10 @@ public partial class SeedMenu : CanvasLayer
             }));
         }
 
+        _replays = new VBoxContainer();
+        _replays.AddThemeConstantOverride("separation", 10);
+        rows.AddChild(_replays);
+
         rows.AddChild(Button("Resume", Close));
         rows.AddChild(Button("Quit", () => GetTree().Quit()));
 
@@ -128,13 +140,35 @@ public partial class SeedMenu : CanvasLayer
             {
                 Close();
             }
-            else
+            else if (EscTaken?.Invoke() != true)
             {
+                ShowReplays();
                 _panel.Visible = true;
                 GetTree().Paused = true;
                 _seed.GrabFocus();
             }
         }
+    }
+
+    /// <summary>A button for each thing there is to watch now, the menu closing as it starts.</summary>
+    private void ShowReplays()
+    {
+        foreach (Node old in _replays.GetChildren())
+        {
+            _replays.RemoveChild(old);
+            old.QueueFree();
+        }
+
+        foreach ((string label, Action watch) in Replays?.Invoke() ?? [])
+        {
+            _replays.AddChild(Button(label, () =>
+            {
+                Close();
+                watch();
+            }));
+        }
+
+        _replays.Visible = _replays.GetChildCount() > 0;
     }
 
     private void Close()

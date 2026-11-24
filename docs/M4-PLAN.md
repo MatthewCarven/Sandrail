@@ -227,6 +227,17 @@ the race clock's ticks since the start, which R doesn't touch and a restart sets
 
 ## M4d — replays
 
+**Built 2026-11-24**, as below; 6 tests, worklog that date. Departures: **cameras** at the start, by each
+stunt (22 m out for a jump, 34 m for the loop), on the outside of corners at least 120 m apart, and on any
+straight that would otherwise leave 200 m between cameras; each covers halfway back and on to its
+neighbours, and stands 4 m up, raised up to 24 m more until it sees 95% of its stretch. On the shakedown and
+seeds 1, 2, 5 and 8 every camera sees at least 90%. **The trackside camera zooms** to keep about 28 m across
+at the car. **The race stops in a replay**: no game tick runs, so the clock waits; the car is held still and
+hidden and comes back moving as it was. **Esc is the replay's** while one plays (and on the frame it ends),
+so it never opens the menu by accident. The speedometer shows the replay's car, and the driving keys hide.
+`--replay=you|auto`, `--replay-at=` and `--replay-camera=` start one for a screenshot. The keys were pressed by
+a script (C, Space, the arrows, Esc); the menu's Watch buttons, Enter, and a replay with a cut weren't.
+
 - **Core:** `ReplayCameras` from a laid track.
 - **Game:** replay mode (the last run and the saved bests, decision 7), its cameras and its controls.
 - **Checks:** every camera's spot is above the ground and can see the road it covers; screenshots from the

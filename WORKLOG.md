@@ -2,6 +2,48 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M4d: replays
+
+*"ok lets continue please Claude"*, then, offered brake lights first, *"carry on with the replays we can do
+this after"*. Built as M4-PLAN has it.
+
+**On the ghosts**, while trying them: the first ghost looked missing (*"not seeing a ghost"*), because the board
+named the autodriver's best while the run that made it was still on, and a new best races from the next run.
+The board now says so: *"…, from the next run (Backspace)"*. After Backspace: *"Backspace brought the ghost up
+just faintly in front"*. Offered a pale blue tint, he's *"happy as is"*.
+
+**The cameras** (`ReplayCameras`, Core): placed from the laid track when a replay first starts on it (8-10 ms),
+not saved. One at the start; one by each stunt, 22 m out for a jump and 34 m for the loop; one on the
+outside of a corner, at least 120 m from any other; and one partway along any straight that would leave
+200 m without one. Each covers the road from halfway back to the camera before it to halfway on to the next,
+so the car always has its nearest. Each stands 4 m up, past the road's bed, on whichever side sees its
+stretch best, raised in 4 m steps (up to 24 m) until it sees 95% of the road over the ground. Seed 5 has 15,
+circuit 8 6, the shakedown 10. 6 tests: above the ground, at least 90% seen, the whole route covered, a
+camera by every stunt, the same each time, a ghost read along the route. 326 tests in all.
+
+**Replay mode** (`Main.Replay`): the last run, or a saved best, from the Esc menu's new Watch buttons or Enter
+for the last run (the finish flash says so, and the keys line has "Enter: replay"). The race stops (no game
+tick runs, so the clock waits), the car is held still and hidden, and a solid copy of the run's car plays
+it. **C** changes the camera: trackside (the one covering the car's stretch, looking at it, zoomed to keep
+about 28 m across at the car), chase, or free (right mouse to look, W/A/S/D and Q/E to fly, Shift faster).
+**Space** pauses (at the end, plays again), **← →** skip 5 s, **↑ ↓** change the speed (¼, ½, 1, 2), **Esc**
+goes back to the car, moving as it was. The board shows the time, the speed and which camera, the speedometer
+shows the replay's car, and the driving keys hide.
+
+**Checks**: frames from the replay on seed 5 (a straight's camera at 116 km/h, then the jump's with the car
+in mid-air over the gap), circuit 8 (a banked corner from beside it, and the chase camera), and the shakedown
+(the loop's camera, the car on its way up inside the loop). A temporary probe pressed the keys in turn: C went
+trackside, chase, free; Space paused; → skipped 21.12 to 26.12 s; ↑ made it x2; Esc ended it with the car's
+own camera back, the car moving and shown, and the game not paused (the menu didn't open). All seventeen
+oracles as before. **Not tried**: the menu's Watch buttons, Enter, and a replay of a run with an R in it (the
+ghost holds across the cut, tested in M4b, and the chase camera starts behind the car again after any jump of
+30 m).
+
+**Also**: a lap within a hundredth of the best says "equal to the best lap", not "a new best lap by 0.00 s".
+
+**Next, at his word**: brake lights (his idea, 2026-11-24): red when braking, white when reversing, and the
+ghost's kept bright so its braking points show far up the road. The ghost already records the brake.
+
 ## 2026-11-24 — Fix: a new track from the menu started paused
 
 His report, trying the ghosts: *"The camera doesnt seem to follow the car correctly anymore?"*, then *"like

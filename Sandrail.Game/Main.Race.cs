@@ -302,7 +302,9 @@ public partial class Main
         double time = splits[gate - 1] - (lap > 1 ? splits[gate - perLap - 1] : 0.0);
         _lastLapTime = time;
         double? best = _autoThisRun ? _bestLapAuto : _bestLapYou;
+        // A lap within a hundredth of the best equals it, rather than beating it "by 0.00 s".
         string verdict = best is not double b ? string.Empty
+            : System.Math.Abs(time - b) < 0.005 ? ", equal to the best lap"
             : time < b ? $", a new best lap by {b - time:F2} s"
             : $", +{time - b:F2} s on the best lap";
         if (best is not double old || time < old)
@@ -359,7 +361,7 @@ public partial class Main
 
         GD.Print($"{(run.Auto ? "Autodriver's run" : "Run")} on {_track!.Track.Id}: {LapTime(seconds)} (splits {string.Join(", ", run.Splits.SkipLast(1).Select(LapTime))})"
             + (OnACircuit ? $"; laps {string.Join(", ", LapTimes(run.Splits).Select(LapTime))}" : string.Empty));
-        _hud!.Flash($"{lastLap}{who}: {LapTime(seconds)}{verdict}  Backspace to go again.", 8.0);
+        _hud!.Flash($"{lastLap}{who}: {LapTime(seconds)}{verdict}  Backspace to go again, Enter to watch it.", 8.0);
     }
 
     /// <summary>A circuit run's lap times, from its splits: the time at each line less the one before.</summary>

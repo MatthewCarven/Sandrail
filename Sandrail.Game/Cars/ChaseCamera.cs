@@ -35,9 +35,16 @@ public partial class ChaseCamera : Camera3D
     private bool _bonnet;
     private bool _placed;
 
-    public Buggy? Target { get; set; }
+    /// <summary>What it follows: the buggy, or in a replay, the replay car (M4d).</summary>
+    public Node3D? Target { get; set; }
+
+    /// <summary>The target's speed, metres a second, for the widening view; the buggy's own when it's the buggy.</summary>
+    public Func<float>? Speed { get; set; }
 
     public void ToggleView() => _bonnet = !_bonnet;
+
+    /// <summary>Behind the car at once on the next frame: after a replay cuts to a checkpoint (M4d).</summary>
+    public void Snap() => _placed = false;
 
     public override void _Ready()
     {
@@ -59,7 +66,8 @@ public partial class ChaseCamera : Camera3D
         Vector3 carForward = -car.Basis.Z.Normalized();
         float dt = (float)delta;
 
-        Fov = Mathf.Lerp(FovAtRest, FovAtTopSpeed, Math.Clamp(Target.LinearVelocity.Length() / TopSpeed, 0.0f, 1.0f));
+        float speed = Speed?.Invoke() ?? (Target is Buggy buggy ? buggy.LinearVelocity.Length() : 0.0f);
+        Fov = Mathf.Lerp(FovAtRest, FovAtTopSpeed, Math.Clamp(speed / TopSpeed, 0.0f, 1.0f));
 
         if (_bonnet)
         {

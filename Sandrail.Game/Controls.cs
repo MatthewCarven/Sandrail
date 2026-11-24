@@ -51,6 +51,12 @@ public static class Controls
     public const string ShowLine = "show_line";
     public const string Menu = "menu";
     public const string ChooseGhost = "choose_ghost";
+    public const string Watch = "watch";
+    public const string ReplayPause = "replay_pause";
+    public const string ReplayBack = "replay_back";
+    public const string ReplayForward = "replay_forward";
+    public const string ReplayFaster = "replay_faster";
+    public const string ReplaySlower = "replay_slower";
 
     public static void Register()
     {
@@ -92,6 +98,15 @@ public static class Controls
 
         // Whose ghost (M4c): his best, the autodriver's, none. Keyboard only, as the menu is.
         Add(ChooseGhost, Key.G);
+
+        // Replays (M4d): Enter watches the last run; in a replay, Space pauses, the arrows skip and change
+        // its speed. They share keys with driving, which nothing does during a replay.
+        Add(Watch, Key.Enter);
+        Add(ReplayPause, Key.Space);
+        Add(ReplayBack, Key.Left);
+        Add(ReplayForward, Key.Right);
+        Add(ReplayFaster, Key.Up);
+        Add(ReplaySlower, Key.Down);
 
         // On a track, the run from the start again (M2d); pad layouts don't rebind it.
         Add(Restart, Key.Backspace, JoyButton.Start);

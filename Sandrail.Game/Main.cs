@@ -478,6 +478,8 @@ public partial class Main : Node3D
                 Seed = code?.ToString() ?? (_generated is not null ? genSeed.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty),
                 Generate = c => GoToCode(args, c),
                 Save = _generated is not null ? SaveGenerated : null,
+                Replays = ReplaysOnOffer,
+                EscTaken = EscTakenByReplay,
             });
         }
         _telemetry = new TelemetryOverlay { Car = _car, Visible = panels.Contains("telemetry") };
@@ -537,6 +539,35 @@ public partial class Main : Node3D
         {
             Station first = _stations[station - 1];
             _hud.Flash($"{first.Number}. {first.Name}: {first.Hint}", 8.0);
+        }
+
+        // A replay from the start (M4d), for a look at it or a screenshot of it: --replay=you|auto, from
+        // --replay-at= seconds, on --replay-camera=trackside|chase|free.
+        if (Flag(args, "--replay=") is string which && oracle is null)
+        {
+            Sandrail.Core.Ghosts.Ghost? run = which switch
+            {
+                "you" => _ghostYou,
+                "auto" => _ghostAuto,
+                _ => null,
+            };
+            if (run is null)
+            {
+                Refuse($"--replay={which}: it's you or auto, on a track with that ghost saved.");
+                return;
+            }
+
+            StartReplay(run, which == "you" ? "your best" : "the autodriver's best", FloatFlag(args, "--replay-at=") ?? 0.0f);
+            if (Flag(args, "--replay-camera=") is string replayView && _replay is not null)
+            {
+                _replay.View = replayView switch
+                {
+                    "chase" => ReplayView.Chase,
+                    "free" => ReplayView.Free,
+                    _ => ReplayView.Trackside,
+                };
+                ShowReplayView();
+            }
         }
     }
 
@@ -789,6 +820,13 @@ public partial class Main : Node3D
             return;
         }
 
+        // A replay (M4d) stops the race: no tick of it runs, so its clock waits. Counted apart, for screenshots.
+        if (_replay is not null)
+        {
+            _replayTicks++;
+            return;
+        }
+
         _ticks++;
         if (_screenshot is not null)
         {
@@ -863,6 +901,24 @@ public partial class Main : Node3D
     {
         if (_car is null)
         {
+            return;
+        }
+
+        if (_replay is not null)
+        {
+            UpdateReplay(delta);
+            if (_screenshot is not null)
+            {
+                TakeScreenshots(_screenshot);
+            }
+
+            return;
+        }
+
+        // Enter: watch the last run (M4d).
+        if (Input.IsActionJustPressed(Controls.Watch) && _lastGhost is Sandrail.Core.Ghosts.Ghost last)
+        {
+            StartReplay(last, "the last run");
             return;
         }
 
@@ -1080,12 +1136,14 @@ public partial class Main : Node3D
         int tps = Engine.PhysicsTicksPerSecond;
         string stem = path.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? path[..^4] : path;
 
-        if (_ticks >= (tps * 3) / 2 && !FileAccess.FileExists(stem + "-rest.png"))
+        // A replay's ticks count too: the race's stop while one plays (M4d).
+        int ticks = _ticks + _replayTicks;
+        if (ticks >= (tps * 3) / 2 && !FileAccess.FileExists(stem + "-rest.png"))
         {
             GetViewport().GetTexture().GetImage().SavePng(stem + "-rest.png");
         }
 
-        if (_ticks >= tps * 5)
+        if (ticks >= tps * 5)
         {
             GetViewport().GetTexture().GetImage().SavePng(stem + "-turn.png");
             GD.Print($"Screenshots saved: {stem}-rest.png, {stem}-turn.png");
