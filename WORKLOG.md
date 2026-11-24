@@ -2,6 +2,12 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M3f: he tries the menu
+
+His first report of M3f's play, after trying the Esc menu: *"Load works, new random track works :-{D"*.
+That's loading a saved track and New random seed, the two things the headless probe couldn't press. No
+word on the rocks yet. M3f goes on as he drives.
+
 ## 2026-11-24 — M3e: the Esc menu, and saved tracks
 
 Still *"Keep going"*. Built as M3-PLAN's M3e (decision 5). **Esc opens the menu** and stops the game, the
