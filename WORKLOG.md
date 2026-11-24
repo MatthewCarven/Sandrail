@@ -2,6 +2,30 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M5b: laying track, the palette, the mouse
+
+*"Go on to M5b"*. Built as M5-PLAN has it (`Editor/EditorView`).
+
+**Laying track onto the road's end** (decision 2): whenever the road has an open end, the cursor waits there
+and the piece in hand snaps onto it by `TrackEditor.Next`, facing along the road; Enter lays it and the cursor
+moves on to the new end. A piece laid anywhere (the free cursor, or a click) takes the cursor to its end too,
+so a start gate put down anywhere is followed onto at once. The hand changes by itself: the landing after a
+launch ramp's lip, a straight after the landing and after the start gate; on an empty grid the start gate is in
+hand. Backspace at the road's end takes back its last piece; N goes to another open end, F back to the newest.
+The arrows or the mouse make a free cursor, where Q/E turn and Page Up/Down change the level as before.
+
+**The palette**: two columns down the left on a dark backing, the piece in hand lit; the mouse wheel, [ ], 1-9
+or a click pick from it. **The mouse** (decision 3): pointing moves the free cursor (onto the plane of its
+level), a click lays, a right click takes away, Ctrl and the wheel zoom. Mirroring is only mentioned for the
+pieces it changes ("turning left" for a corner).
+
+Checked with a temporary probe (since removed) that laid a track from an empty grid by the keys: start,
+straights, a 30 m corner, a short jump (its landing came into hand and went down across the gap), a 50 m corner
+turning left, straights, then Backspace. Every piece met the last: one open end and the same two problems
+throughout (the road's end on empty ground, no finish), 1 to 12 pieces and back to 11. A right click at the
+screen's middle took away the piece under it, and the to-do list showed the two loose ends at once. Frames of a
+track half laid. Tests 334; nothing of the car or the race changed.
+
 ## 2026-11-24 — M5a: the editor's core
 
 M5's seven decisions taken as recommended: *"Yes, as recommended"*. Decision 7 folds PLAN's M6 (circuits in

@@ -145,6 +145,14 @@ they say.
 
 ## M5b — laying track
 
+**Built 2026-11-24**, as below; worklog that date. Departures: **laying a piece anywhere goes to its end**,
+so a start gate put down with the free cursor is followed onto at once; **the hand changes by itself** around
+jumps (the landing after a lip, a straight after the landing) and after the start gate; **Backspace at the
+road's end takes back its last piece**; N goes to another open end, F back to the newest; on an empty grid the
+start gate is in hand. The palette is two columns down the left on a dark backing, with 1-9 for its first nine.
+The test that **next** alone lays the shakedown came with M5a. A script laid a track from nothing by the keys,
+and a right click by the mouse.
+
 - **Game:** chain mode (decision 2), the palette, the mouse (pointing, clicking, the wheel; decision 3).
 - **Checks:** a test that laying the shakedown's pieces in order by **next** alone builds the shakedown;
   screenshots of a track half laid.

@@ -9,16 +9,26 @@ using Sandrail.Game.World;
 namespace Sandrail.Game.Editor;
 
 /// <summary>
-/// The track editor (M5-PLAN, M5a): a camera above the grid, a cursor on a tile and a level, the piece in hand
-/// shown there (see-through, green where it fits and red where it doesn't), and the track's problems listed as
-/// they stand, the pieces at fault tinted red. Every change goes through Core's <see cref="TrackEditor"/>.
+/// The track editor (M5-PLAN, M5a and M5b): a camera above the grid, a cursor, the piece in hand shown where it
+/// would go (see-through, green where it fits and red where it doesn't), the palette down the left, and the
+/// track's problems listed as they stand, the pieces at fault tinted red. Every change goes through Core's
+/// <see cref="TrackEditor"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Keys</b> (decision 3; the mouse comes with M5b): the arrows move the cursor, away from the camera being
-/// up; [ and ] pick the piece; Q and E turn it; M mirrors it; Page Up and Page Down change the level; Enter or
-/// Space places it; Delete or Backspace takes away the piece under the cursor; Ctrl+Z and Ctrl+Y undo and redo;
-/// C turns the view a quarter; - and + zoom. Esc is the menu's.
+/// <b>Laying track onto the road's end</b> (decision 2, M5b): whenever the road has an open end, the cursor
+/// waits there and the piece in hand snaps onto it, facing along the road, by <see cref="TrackEditor.Next"/>.
+/// Enter lays it and the cursor moves on to the new end, like model railway track. After a jump's lip the
+/// landing comes into hand by itself, and after the landing a straight. Backspace takes back the
+/// road's last piece.
+/// </para>
+/// <para>
+/// <b>The free cursor</b> does everything else: the arrows or the mouse move it, Q and E turn the piece, Page Up
+/// and Page Down change its level. F goes back to the road's end; laying a piece anywhere goes to its end.
+/// </para>
+/// <para>
+/// <b>The mouse</b> (decision 3): pointing moves the free cursor, a click places, a right click takes away, the
+/// wheel picks the piece (Ctrl and the wheel zoom), and the palette's names are buttons.
 /// </para>
 /// <para>
 /// <b>Only what changed is built</b> (fact 3): a placed piece is built alone, in about a millisecond and a
@@ -41,20 +51,14 @@ public partial class EditorView : Node3D
     /// <summary>A piece as <see cref="Track.Lay"/> names it, "pieces[3] (base:corner-30 at (14, 13))".</summary>
     private static readonly Regex PieceLabel = new(@"pieces\[\d+\] \((?:base:)?([^ ]+) at (\(\d+, \d+\))\)", RegexOptions.Compiled);
 
-    /// <summary>A problem in the editor's words: "the corner-30 at (14, 13)" for the file's "pieces[3] (base:corner-30 at (14, 13))".</summary>
-    private static string Plain(string problem)
-    {
-        string said = PieceLabel.Replace(problem, "the $1 at $2");
-        return char.ToUpperInvariant(said[0]) + said[1..];
-    }
-
     private readonly Dictionary<Placement, Node3D> _built = new();
+    private readonly List<Button> _paletteButtons = new();
     private List<PieceDef> _palette = new();
     private Camera3D _camera = null!;
     private MeshInstance3D _cursorMark = null!;
     private Node3D? _hand;
     private Placement? _handShown;
-    private bool _handFits;
+    private bool _handShownFits;
     private Label _status = null!;
     private Label _problems = null!;
     private Label _note = null!;
@@ -64,10 +68,18 @@ public partial class EditorView : Node3D
     private int _turn;
     private bool _mirrored;
     private int _piece;
+
     private int _yaw;
     private float _zoom = 110.0f;
     private Vector3 _cameraAt;
     private bool _cameraPlaced;
+
+    /// <summary>Whether the cursor waits at the road's end (chain mode) rather than going where it's moved.</summary>
+    private bool _atEnd;
+
+    /// <summary>Which open end, of <see cref="TrackEditor.OpenEnds"/>, the cursor waits at.</summary>
+    private int _endIndex = -1;
+
     private readonly StandardMaterial3D _fits = Glass(new Color(0.3f, 0.95f, 0.4f, 0.45f));
     private readonly StandardMaterial3D _blocked = Glass(new Color(1.0f, 0.25f, 0.2f, 0.45f));
     private readonly StandardMaterial3D _fault = Glass(new Color(1.0f, 0.15f, 0.1f, 0.35f));
@@ -91,34 +103,89 @@ public partial class EditorView : Node3D
 
         BuildPanels();
 
-        // Start where the work is: the newest open end of the road, or the first piece, or the grid's middle.
-        if (Editor.OpenEnds() is { Count: > 0 } ends)
+        // Start where the work is: the road's newest open end; on an empty grid, with a start gate in hand.
+        if (Editor.OpenEnds().Count > 0)
         {
-            WorldConnector end = ends[^1];
-            _cursor = end.Kind == ConnectorKind.Lip ? end.Landing : end.Beyond;
-            _level = end.Level;
-            _turn = (int)end.Facing;
+            GoToEnd(Editor.OpenEnds().Count - 1);
         }
         else if (Editor.Laid.Placed.Count > 0)
         {
             _cursor = Editor.Laid.Placed[0].Placement.At;
             _level = Editor.Laid.Placed[0].Placement.Level;
         }
+        else
+        {
+            Pick(_palette.FindIndex(d => d.Id == "base:start"));
+        }
 
         _cursor = Clamped(_cursor);
         Rebuild();
-        Say("The editor. Arrows move, [ ] pick a piece, Enter places it. Esc for the menu.", 6.0);
+        Say(Editor.Laid.Placed.Count == 0
+            ? "An empty grid, a start gate in hand: Enter puts it down, then each piece goes onto the road's end."
+            : "Enter lays the piece in hand onto the road's end. Arrows or the mouse move a free cursor; F comes back.", 7.0);
     }
 
     public override void _UnhandledInput(InputEvent e)
     {
-        if (e is not InputEventKey { Pressed: true } key)
+        switch (e)
         {
-            return;
+            case InputEventMouseMotion motion when motion.Relative.Length() > 2.0f:
+                if (Pointed(motion.Position) is Tile pointed)
+                {
+                    _atEnd = false;
+                    _cursor = pointed;
+                }
+
+                return;
+            case InputEventMouseButton { Pressed: true } click:
+                Clicked(click);
+                return;
+            case InputEventKey { Pressed: true } key:
+                if (Pressed(key))
+                {
+                    GetViewport().SetInputAsHandled();
+                }
+
+                return;
+        }
+    }
+
+    private void Clicked(InputEventMouseButton click)
+    {
+        bool zoom = click.CtrlPressed;
+        switch (click.ButtonIndex)
+        {
+            case MouseButton.Left when Pointed(click.Position) is Tile at:
+                _atEnd = false;
+                _cursor = at;
+                PlaceHand();
+                break;
+            case MouseButton.Right when Pointed(click.Position) is Tile at:
+                Act(Editor.Erase(at), "Taken away.");
+                break;
+            case MouseButton.WheelUp when zoom:
+                _zoom = Math.Max(30.0f, _zoom / 1.15f);
+                break;
+            case MouseButton.WheelDown when zoom:
+                _zoom = Math.Min(400.0f, _zoom * 1.15f);
+                break;
+            case MouseButton.WheelUp:
+                Pick((_piece + _palette.Count - 1) % _palette.Count);
+                break;
+            case MouseButton.WheelDown:
+                Pick((_piece + 1) % _palette.Count);
+                break;
+            default:
+                return;
         }
 
+        GetViewport().SetInputAsHandled();
+    }
+
+    /// <summary>A key: true if the editor used it.</summary>
+    private bool Pressed(InputEventKey key)
+    {
         Compass ahead = TrackGrid.Turned(Compass.North, _yaw);
-        bool handled = true;
         switch (key.Keycode)
         {
             case Key.Up:
@@ -133,11 +200,34 @@ public partial class EditorView : Node3D
             case Key.Left:
                 Move(TrackGrid.Turned(ahead, -1));
                 break;
+            case Key.F:
+                if (Editor.OpenEnds().Count == 0)
+                {
+                    Say("The road has no open end to go back to.", 3.0);
+                }
+                else
+                {
+                    GoToEnd(Editor.OpenEnds().Count - 1);
+                }
+
+                break;
+            case Key.N:
+                int ends = Editor.OpenEnds().Count;
+                if (ends > 1)
+                {
+                    GoToEnd(((_atEnd ? _endIndex : ends - 1) + 1) % ends);
+                    Say($"Open end {_endIndex + 1} of {ends}.", 2.0);
+                }
+
+                break;
             case Key.Bracketleft:
-                _piece = (_piece + _palette.Count - 1) % _palette.Count;
+                Pick((_piece + _palette.Count - 1) % _palette.Count);
                 break;
             case Key.Bracketright:
-                _piece = (_piece + 1) % _palette.Count;
+                Pick((_piece + 1) % _palette.Count);
+                break;
+            case >= Key.Key1 and <= Key.Key9:
+                Pick((int)(key.Keycode - Key.Key1));
                 break;
             case Key.Q:
                 _turn = (_turn + 3) % 4;
@@ -155,7 +245,11 @@ public partial class EditorView : Node3D
                 _level = Math.Max(Editor.Track.Ground is null ? 0 : -Track.MaxLevel, _level - 1);
                 break;
             case Key.Enter or Key.KpEnter or Key.Space:
-                Act(Editor.Place(Hand), $"Placed {Hand.Piece[5..]}.");
+                PlaceHand();
+                break;
+            case Key.Backspace when _atEnd && CurrentEnd is WorldConnector end:
+                // At the road's end, Backspace takes back the piece the road ends on.
+                Act(Editor.Erase(end.Tile), "Taken back.");
                 break;
             case Key.Delete or Key.Backspace:
                 Act(Editor.Erase(_cursor), "Taken away.");
@@ -176,14 +270,10 @@ public partial class EditorView : Node3D
                 _zoom = Math.Max(30.0f, _zoom / 1.25f);
                 break;
             default:
-                handled = false;
-                break;
+                return false;
         }
 
-        if (handled)
-        {
-            GetViewport().SetInputAsHandled();
-        }
+        return true;
     }
 
     public override void _Process(double delta)
@@ -194,7 +284,16 @@ public partial class EditorView : Node3D
             _note.Visible = _noteLeft > 0.0;
         }
 
-        ShowHand();
+        // At the road's end the cursor is where the piece in hand would go, so a free cursor starts from there.
+        (Placement hand, string? why) = Hand();
+        if (_atEnd)
+        {
+            _cursor = Clamped(hand.At);
+            _level = hand.Level;
+            _turn = hand.Rotation;
+        }
+
+        ShowHand(hand, why is null);
         Vector3 middle = TrackGrid.Middle(_cursor, _level).ToGodot();
         _cursorMark.Position = middle + new Vector3(0.0f, 0.05f, 0.0f);
 
@@ -207,18 +306,162 @@ public partial class EditorView : Node3D
         _camera.LookAt(_cameraAt + (middle - wanted), Vector3.Up);
 
         PieceDef def = _palette[_piece];
+        string facing = TrackGrid.Turned(Compass.North, _turn).ToString().ToLowerInvariant();
+        string where = _atEnd
+            ? $"the road's end, {_cursor}, going {facing}, level {_level}{(Editor.OpenEnds().Count > 1 ? $" ({_endIndex + 1} of {Editor.OpenEnds().Count} ends)" : string.Empty)}"
+            : $"{_cursor}, facing {facing}, level {_level}{(Editor.PieceAt(_cursor) is PlacedPiece under ? $", on the {Short(under.Def)}" : string.Empty)}";
         _status.Text = $"EDITOR   {Editor.Track.Name}\n"
-            + $"PIECE  {_piece + 1} of {_palette.Count}: {def.Name}{(_mirrored ? " (mirrored)" : string.Empty)}, facing {TrackGrid.Turned(Compass.North, _turn).ToString().ToLowerInvariant()}, level {_level}\n"
-            + $"AT     {_cursor}{(Editor.PieceAt(_cursor) is PlacedPiece under ? $", on {under.Def.Name.ToLowerInvariant()}" : string.Empty)}"
-            + (_handFits ? string.Empty : $"\n       {Editor.Fits(Hand)}");
+            + $"PIECE  {def.Name}{(_mirrored && Mirrors(def) ? (IsCorner(def) ? ", turning left" : ", mirrored") : string.Empty)}\n"
+            + $"AT     {where}"
+            + (why is null ? string.Empty : $"\n       {char.ToUpperInvariant(why[0])}{why[1..]}");
     }
 
-    /// <summary>The piece in hand, where the cursor is, as it would be placed.</summary>
-    private Placement Hand => new(_palette[_piece].Id, _cursor, _level, _turn, _mirrored);
+    /// <summary>
+    /// The piece in hand, where it would go, and why it can't if it can't: at the road's end, onto it; with the
+    /// free cursor, on the cursor as turned. At an end a piece can't follow, it's shown there anyway, refused.
+    /// </summary>
+    private (Placement Placement, string? Why) Hand()
+    {
+        PieceDef def = _palette[_piece];
+        if (_atEnd && CurrentEnd is WorldConnector end)
+        {
+            if (Editor.Next(end, def.Id, _mirrored, out string? cannot) is Placement next)
+            {
+                return (next, Editor.Fits(next));
+            }
 
-    private void Move(Compass way) => _cursor = Clamped(_cursor.Step(way));
+            Tile first = end.Kind == ConnectorKind.Lip ? end.Landing : end.Beyond;
+            return (new Placement(def.Id, first, end.Level, (int)end.Facing, _mirrored), cannot);
+        }
+
+        var free = new Placement(def.Id, _cursor, _level, _turn, _mirrored);
+        return (free, Editor.Fits(free));
+    }
+
+    /// <summary>The open end the cursor waits at, if it waits at one that's still open.</summary>
+    private WorldConnector? CurrentEnd
+    {
+        get
+        {
+            IReadOnlyList<WorldConnector> ends = Editor.OpenEnds();
+            if (ends.Count == 0)
+            {
+                return null;
+            }
+
+            _endIndex = Math.Clamp(_endIndex, 0, ends.Count - 1);
+            return ends[_endIndex];
+        }
+    }
+
+    private void GoToEnd(int index)
+    {
+        _atEnd = true;
+        _endIndex = index;
+    }
+
+    /// <summary>Places the piece in hand; laid, the cursor goes on to its end if it has an open one.</summary>
+    private void PlaceHand()
+    {
+        (Placement hand, string? why) = Hand();
+        if (why is not null)
+        {
+            Say($"{char.ToUpperInvariant(why[0])}{why[1..]}.", 4.0);
+            return;
+        }
+
+        string? refused = Editor.Place(hand);
+        if (refused is not null)
+        {
+            Act(refused, string.Empty);
+            return;
+        }
+
+        // On to the end of what was just laid, if it leaves one open; after a lip, the landing in hand.
+        PlacedPiece? laid = Editor.PieceAt(hand.At);
+        IReadOnlyList<WorldConnector> ends = Editor.OpenEnds();
+        int index = laid is null ? -1 : ends.ToList().IndexOf(laid.Out);
+        if (index >= 0)
+        {
+            GoToEnd(index);
+        }
+        else if (ends.Count > 0)
+        {
+            GoToEnd(ends.Count - 1);
+        }
+        else
+        {
+            _atEnd = false;
+        }
+
+        // After a lip, the landing in hand; after the landing, or the start gate, a straight.
+        if (laid?.Out.Kind == ConnectorKind.Lip && _palette.FindIndex(d => d.Id == "base:landing") is int landing and >= 0)
+        {
+            Pick(landing);
+        }
+        else if (laid?.Def.In == ConnectorKind.Landing || laid?.Def.Id == "base:start")
+        {
+            Pick(0);
+        }
+
+        Rebuild();
+        Say($"Laid the {Short(laid?.Def ?? _palette[_piece])}.", 2.0);
+    }
+
+    private void Pick(int index)
+    {
+        if (index < 0 || index >= _palette.Count)
+        {
+            return;
+        }
+
+        _piece = index;
+        for (int i = 0; i < _paletteButtons.Count; i++)
+        {
+            _paletteButtons[i].Modulate = i == _piece ? new Color(1.0f, 0.9f, 0.3f) : Colors.White;
+        }
+    }
+
+    private void Move(Compass way)
+    {
+        _atEnd = false;
+        _cursor = Clamped(_cursor.Step(way));
+    }
+
+    /// <summary>The tile the mouse points at, on the plane of the cursor's level, if it's on the grid.</summary>
+    private Tile? Pointed(Vector2 screen)
+    {
+        Vector3 from = _camera.ProjectRayOrigin(screen);
+        Vector3 ray = _camera.ProjectRayNormal(screen);
+        float height = TrackGrid.Middle(_cursor, _level).Y;
+        if (ray.Y > -1e-4f)
+        {
+            return null;
+        }
+
+        Vector3 hit = from + (ray * ((height - from.Y) / ray.Y));
+        System.Numerics.Vector3 o = TrackGrid.Origin;
+        var tile = new Tile((int)MathF.Floor((hit.X - o.X) / TrackGrid.TileM), (int)MathF.Floor((hit.Z - o.Z) / TrackGrid.TileM));
+        return TrackGrid.Contains(tile) ? tile : null;
+    }
 
     private static Tile Clamped(Tile t) => new(Math.Clamp(t.Column, 0, TrackGrid.Size - 1), Math.Clamp(t.Row, 0, TrackGrid.Size - 1));
+
+    private static bool IsCorner(PieceDef def) => def.Path.Any(s => s.Turn is not null);
+
+    /// <summary>Whether mirroring a piece changes it: one that turns, loops or reaches to a side; a straight or a slope doesn't.</summary>
+    private static bool Mirrors(PieceDef def) =>
+        IsCorner(def) || def.Path.Any(s => s.Loop is not null) || def.Tiles.Any(t => t[0] != 0) || def.Out.Tile[0] != 0;
+
+    /// <summary>A piece's short name, its ID without the namespace: "corner-30".</summary>
+    private static string Short(PieceDef def) => def.Id.StartsWith("base:", StringComparison.Ordinal) ? def.Id[5..] : def.Id;
+
+    /// <summary>A problem in the editor's words: "the corner-30 at (14, 13)" for the file's "pieces[3] (base:corner-30 at (14, 13))".</summary>
+    private static string Plain(string problem)
+    {
+        string said = PieceLabel.Replace(problem, "the $1 at $2");
+        return char.ToUpperInvariant(said[0]) + said[1..];
+    }
 
     /// <summary>A change made, or refused: the track rebuilt where it changed, and a word on the result.</summary>
     private void Act(string? refused, string done)
@@ -275,6 +518,12 @@ public partial class EditorView : Node3D
             }
         }
 
+        // An end taken away (by undo, or Backspace) moves the cursor to the end that's newest now.
+        if (_atEnd && Editor.OpenEnds().Count > 0 && _endIndex >= Editor.OpenEnds().Count)
+        {
+            _endIndex = Editor.OpenEnds().Count - 1;
+        }
+
         IReadOnlyList<string> problems = Editor.Laid.Problems;
         _problems.Text = problems.Count == 0
             ? "SOUND: it can be raced."
@@ -283,20 +532,18 @@ public partial class EditorView : Node3D
         _handShown = null;
     }
 
-    /// <summary>The piece in hand at the cursor, built again only when it moves or changes.</summary>
-    private void ShowHand()
+    /// <summary>The piece in hand where it would go, built again only when it moves or changes.</summary>
+    private void ShowHand(Placement hand, bool fits)
     {
-        Placement hand = Hand;
-        if (hand == _handShown)
+        if (hand == _handShown && fits == _handShownFits)
         {
             return;
         }
 
         _handShown = hand;
+        _handShownFits = fits;
         _hand?.QueueFree();
-        _handFits = Editor.Fits(hand) is null;
-        var piece = new PlacedPiece(_palette[_piece], hand);
-        _hand = TrackView.BuildOne(piece);
+        _hand = TrackView.BuildOne(new PlacedPiece(_palette[_piece], hand));
         foreach (CollisionObject3D body in _hand.FindChildren("*", "CollisionObject3D", true, false).OfType<CollisionObject3D>())
         {
             body.CollisionLayer = 0;
@@ -305,7 +552,7 @@ public partial class EditorView : Node3D
 
         foreach (MeshInstance3D mesh in _hand.FindChildren("*", "MeshInstance3D", true, false).OfType<MeshInstance3D>())
         {
-            mesh.MaterialOverride = _handFits ? _fits : _blocked;
+            mesh.MaterialOverride = fits ? _fits : _blocked;
             mesh.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
         }
 
@@ -330,8 +577,45 @@ public partial class EditorView : Node3D
         _problems.CustomMinimumSize = new Vector2(520.0f, 0.0f);
         _note = Panel(layer, 18, new Vector2(24.0f, -70.0f), bottom: true);
         Label keys = Panel(layer, 15, new Vector2(24.0f, -20.0f), bottom: true);
-        keys.Text = "Arrows: move  ·  [ ]: piece  ·  Q/E: turn  ·  M: mirror  ·  PgUp/PgDn: level  ·  Enter: place  ·  Delete: take away\n"
-            + "Ctrl+Z / Ctrl+Y: undo / redo  ·  C: turn the view  ·  - / +: zoom  ·  Esc: menu";
+        keys.Text = "Enter or click: lay  ·  Backspace: take back  ·  wheel, [ ] or 1-9: piece  ·  M: mirror  ·  F: the road's end  ·  N: another end\n"
+            + "Arrows or mouse: free cursor  ·  Q/E: turn  ·  PgUp/PgDn: level  ·  right click or Delete: take away  ·  Ctrl+Z/Y: undo/redo  ·  C: view  ·  -/+: zoom  ·  Esc: menu";
+
+        // The palette down the left in two columns, a button a piece, the one in hand lit.
+        var backing = new PanelContainer { OffsetLeft = 16.0f, OffsetTop = 126.0f };
+        backing.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color(0.06f, 0.06f, 0.08f, 0.6f),
+            ContentMarginLeft = 6.0f,
+            ContentMarginRight = 6.0f,
+            ContentMarginTop = 4.0f,
+            ContentMarginBottom = 4.0f,
+            CornerRadiusTopLeft = 4,
+            CornerRadiusTopRight = 4,
+            CornerRadiusBottomLeft = 4,
+            CornerRadiusBottomRight = 4,
+        });
+        layer.AddChild(backing);
+        var list = new GridContainer { Columns = 2 };
+        list.AddThemeConstantOverride("v_separation", 0);
+        list.AddThemeConstantOverride("h_separation", 6);
+        backing.AddChild(list);
+        for (int i = 0; i < _palette.Count; i++)
+        {
+            int index = i;
+            var button = new Button
+            {
+                Text = $"{(i < 9 ? $"{i + 1} " : "   ")}{_palette[i].Name}",
+                Flat = true,
+                Alignment = HorizontalAlignment.Left,
+                FocusMode = Control.FocusModeEnum.None,
+            };
+            button.AddThemeFontSizeOverride("font_size", 14);
+            button.Pressed += () => Pick(index);
+            list.AddChild(button);
+            _paletteButtons.Add(button);
+        }
+
+        Pick(_piece);
     }
 
     private static Label Panel(CanvasLayer layer, int size, Vector2 offset, bool right = false, bool bottom = false)

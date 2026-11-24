@@ -202,7 +202,7 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   can wear too), the `GhostCar` (a best run see-through beside you, on the race clock), its `ChaseCamera`,
   `CarReadout`, the `RunRecorder` and the replay's `FreeCamera`; `Main.Ghosts.cs` loads and saves each
   track's bests as ghosts, and `Main.Replay.cs` plays a run back (trackside, chase or free cameras);
-  `Editor/` the `EditorView` (M5: camera, cursor, the piece in hand, problems; `Main.Editor.cs` opens it); `Ui/` the `Hud`, `TelemetryOverlay` and `TuningPanel`; `World/` builds the test ground's meshes and
+  `Editor/` the `EditorView` (M5: camera, cursor, track laid onto the road's end, the palette, the mouse, problems; `Main.Editor.cs` opens it); `Ui/` the `Hud`, `TelemetryOverlay` and `TuningPanel`; `World/` builds the test ground's meshes and
   colliders; `Oracles/` the headless drives; `content/base/cars/buggy.json` the shipped spec.
 - `tools/godot-sln/` — the solution Godot's editor builds from (`project/solution_directory`).
 - `Directory.Build.props` — Debug builds are JIT-optimised, Overburden's measured rule.
@@ -245,8 +245,9 @@ or a best, from the Esc menu or Enter; cameras beside the track, chase or free; 
 built and **passed on his word, 2026-11-24** ("Looks great to me Claude lets continue"). **Brake lights** too, at his word: red when the
 brakes are on, white reversing, on the car, the ghost (not faded) and the replay. **M5, the editor, is planned**
 (`docs/M5-PLAN.md`), its seven decisions taken as recommended, and under way: **M5a, the editor's core, is built**
-(`TrackEditor` in Core: place, erase, open ends, next, undo; the editor from the Esc menu on the plain, keys only). Next:
-M5b, laying track onto the open end and the mouse. His tuning comes after M5. **The stock car has his
+(`TrackEditor` in Core: place, erase, open ends, next, undo; the editor from the Esc menu on the plain), and **M5b**:
+track laid onto the road's end by Enter, the palette, the mouse. Next: M5c, test-driving with Tab. His tuning comes after
+M5. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles
