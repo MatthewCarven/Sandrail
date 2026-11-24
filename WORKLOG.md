@@ -2,6 +2,12 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — He drives seed 5 with its jumps
+
+After M3c, on seed 5 with its two new short jumps and three checkpoints: *"Claude this is the most fun i've
+had in a driving game for a long time like :-{D"*. The first verdict on a generated track with stunts, and
+the bar for M3f's play: whatever M3g and the rest of M3 change, seed 5 as it is now should stay this good.
+
 ## 2026-11-24 — M3c: stunts and checkpoints
 
 *"Go on to M3c"*, then *"please and thanks Claude"*. Built as M3-PLAN's M3c, with the departures written
