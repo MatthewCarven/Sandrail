@@ -79,7 +79,9 @@ wheel spin is M1e's to talk over, not this plan's to build.
    again since: as of 22:48 on the 24th it's a third car of his, 18 numbers away from his late tune (974 kg, grip
    1.31, the twin-plane wing), **kept nowhere else, uncommitted**, one `git checkout` from gone. And on his
    machine the "stock car" the game loads is his tune, so "against the stock car" would mean against his own.
-   Every car's ID is `base:buggy`, so a car's name, in practice, is its file's.
+   Every car's ID is `base:buggy`, so a car's name, in practice, is its file's. **(Since P2: his car is
+   `tunes/matthew-2026-11-24.json`, byte for byte, and the repo's `buggy.json` went back to the stock car at his
+   word on 2026-11-25.)**
 8. **A spreadsheet holds a file it has open.** Excel locks a CSV while it's open, so writing a row then fails.
    (Windows' usual behaviour; P3 checks it and copes.)
 

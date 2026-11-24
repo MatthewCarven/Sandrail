@@ -2,6 +2,15 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — The stock car back in `buggy.json`
+
+Asked whether to put the repo's `buggy.json` back to the stock car now that his car is safe in the garage: *"Yes, put
+it back"*. Checked first that `tunes/matthew-2026-11-24.json` was still his working file byte for byte (both 22:48:57,
+1352 bytes, `cmp` the same), then restored the committed file: 650 kg, grip 1.1, no wing, his steering, fingerprint
+`4f918acd`. The working tree is clean for the first time since 2026-11-23. **His tunes now live only in the garage**,
+and since P2 the game never writes the stock car, so it can't fill up with a tune again: F2's Save on it asks for a
+name.
+
 ## 2026-11-24 — P2: the garage
 
 **His working car first**: asked what to call it, *"matthew-2026-11-24"*, so `buggy.json` as F2 last saved it (22:48,

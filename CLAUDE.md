@@ -22,7 +22,7 @@ free of Godot. Its generator's `Hash64` and `GradientNoise` are ported here unch
 | [docs/M3-PLAN.md](docs/M3-PLAN.md) | **M3, the generator**: eight facts (the noise's reach, how fast the road can climb, how steep the car can, why the route is walked in pieces, why a stunt can only replace its own footprint, the height field, painted ground, terrain in the track file), the model (settings, a seed per stage, terrain, route, stunts, the bed), ten decisions (his, all taken: six on 2026-11-23, four on circuits on 2026-11-24), slices M3a–M3f and M3g, circuits (walked out and walked home, 3 laps of 0.8–1.5 km, half the seeds; built after M3c). **Passed 2026-11-24.** |
 | [docs/M4-PLAN.md](docs/M4-PLAN.md) | **M4, ghosts, replays and track codes**: nine facts (record what happened, not inputs; 30 snapshots a second misses a curve by millimetres; a ghost belongs to one track, named by a fingerprint of what's driven; a seed is a track for one generator version), the model (the generator version, codes like `5v1`, the track fingerprint, the snapshot, the ghost file, `CarLooks`, replay cameras from the laid track), seven decisions (his, all taken as recommended 2026-11-24), slices M4a–M4e. |
 | [docs/M5-PLAN.md](docs/M5-PLAN.md) | **M5, the editor**: seven facts (validating is free; a track being built is unsound, and `Track.Load` refuses that; a piece builds in 1.5 ms, the ground in about 400 ms; big pieces want laying onto the road's open end; an edited generated track needs a name of its own; one key in, one key back), the model (`TrackEditor` in Core: place, erase, open ends, next, undo; the editor's camera, cursor, palette and problems), seven decisions (his, all taken as recommended 2026-11-24; M6 folded in), slices M5a–M5e, then his tuning. |
-| [docs/PROFILE-PLAN.md](docs/PROFILE-PLAN.md) | **The car profile, for his tuning (M1e)**: a car driven over a track by the autodriver, a sweep of cautions, one row a run in a CSV per track (time and slowest speed on each piece), his own runs beside them, and a garage of cars. Eight facts (a run is the same every time and at any speed; about ×10 headless; the autodriver plans from grip, top speed and downforce only, so the clean limit tells cars apart; his working `buggy.json` is a car kept nowhere else), seven decisions (his, all taken 2026-11-24, the sweep from 50% at his word), slices P1–P5. No breeding, at his word. |
+| [docs/PROFILE-PLAN.md](docs/PROFILE-PLAN.md) | **The car profile, for his tuning (M1e)**: a car driven over a track by the autodriver, a sweep of cautions, one row a run in a CSV per track (time and slowest speed on each piece), his own runs beside them, and a garage of cars. Eight facts (a run is the same every time and at any speed; about ×10 headless; the autodriver plans from grip, top speed and downforce only, so the clean limit tells cars apart; his working `buggy.json` was a car kept nowhere else, now in his garage), seven decisions (his, all taken 2026-11-24, the sweep from 50% at his word), slices P1–P5. No breeding, at his word. |
 | [WORKLOG.md](WORKLOG.md) | What happened and why, newest first. Findings worth keeping live here. |
 
 ## Non-negotiables
@@ -265,9 +265,10 @@ F2's Save as a new car, the stock car never written by the game).
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
-trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`, and since
-2026-11-24 also in his garage as `tunes/matthew-2026-11-24.json` (`d0142095`); the repo's file goes back to the
-stock car only at his word. Oracles checking Claude's changes run on the committed spec via `-Spec`.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
+trial and error. His saved buggy, a whole tune, is in his garage as `tunes/matthew-2026-11-24.json`
+(`d0142095`), and since 2026-11-25, at his word, the repo's `buggy.json` is the stock car again: the game never
+writes it (P2), so his tunes live only in the garage. Oracles checking Claude's changes still run on the committed
+spec via `-Spec`.** The buggy drives a test ground on a sand plain, stations 1-6: a tabletop
 jump, a slope and plateau with a crest, a 30° banked hairpin, a tall loop driven with the wheels
 straight, a dirt bump patch, and a 526 m lap of six different corners (flat to 35° bank, 18 to 60 m
 radius, one left-hander), which is also the shortlist for M2's corner tiles. **The autodriver** (his
@@ -298,9 +299,9 @@ goes through 0.1 m off centre, but **the suspension bottoms out on the jump's la
 loop** (worklog, M1c). **Steering is his to open**: Shift doubles the lock (`wideLockFactor`), with
 Ackermann steering (`ackermannShare`) to make 60° work. **He drives with his mum's clone pad**, with a
 saved layout (throttle and brake on the right stick). **His own tunes are kept outside the repo**, in
-`%APPDATA%\Godot\app_userdata\Sandrail\tunes\`, and `start.cmd --spec=<path>` drives one:
+`%APPDATA%\Godot\app_userdata\Sandrail\tunes\`, the garage (Esc, Change car; or `start.cmd --spec=<path>`):
 `matthew-2026-11-23.json`, a heavier, much faster car (1004 kg, 243 kW, grip 1.4) whose springs are too
-soft for its weight, so it bottoms out (worklog); and `matthew-2026-11-23-late.json` (844 kg, 159.5 kW,
-twin-plane wing), which is also his working `buggy.json`, uncommitted. He's thinking of making **building
+soft for its weight, so it bottoms out (worklog); `matthew-2026-11-23-late.json` (844 kg, 159.5 kW,
+twin-plane wing); and `matthew-2026-11-24.json` (974 kg, grip 1.31, twin-plane wing), his latest. He's thinking of making **building
 your car part of the game** (PLAN, "His ideas"). The bottoming is a lever to bring to his play rather
 than to change unasked.
