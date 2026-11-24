@@ -325,6 +325,13 @@ up. Median 116 a track; the autodriver's ten seeds come out to the hundredth as 
 
 ## M3e — seeds in the game
 
+**Built 2026-11-24**, as below; 1 test, worklog that date. **Esc** opens the menu (keyboard only: his pad's
+Start is his wide lock) and stops the game, the race clock with it: the seed, **Generate** (the scene
+started again on that seed, his other flags kept), **New random seed**, **Save this track** (a generated
+track to `user://tracks/gen-<seed>.json`, format 2 or 3 with its ground), Resume and Quit. **`--track=` loads
+a saved one** with its terrain made again from the ground block and its bed and rocks laid again: seed 5
+saved and loaded drives to the same 1:25.19 as generated. The shakedown still loads on the plain.
+
 - **Game:** `--seed=` builds a generated track on its terrain; the Esc menu (decision 5); the track file
   saves a generated track with its terrain block (fact 8, format 2), and loads one back.
 - **Checks:** a generated track saved and loaded is the same track; the shakedown, format 1, still

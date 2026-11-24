@@ -124,7 +124,8 @@ M3g the even seeds among 1-10 are circuits of 3 laps; `--stunts=` and `--checkpo
 stage's dials, and `--stunts=0 --checkpoints=0` is the route as it was before M3c),
 `--terrain=<seed>` (the generated ground alone, M3a), `--ground=test|showroom|bare` (the showroom is every
 M2 piece on its own with a run-up, a station each; [ and ] step through them), `--track=base:shakedown`
-(a track from `content/base/tracks/` by its ID, or `--track=<path>.json`; the car starts at its start
+(a track from `content/base/tracks/` by its ID, or `--track=<path>.json`, a generated one saved from the
+Esc menu included, which comes with its own ground, bed and rocks; the car starts at its start
 gate, the clock starts on the throttle, R goes back to the last checkpoint (before the first, it starts
 again), and holding R for a second or pressing Backspace starts again, clock and all;
 `--checkpoint=N` starts where R would put the car after checkpoint N, for a screenshot), `--station=N`,
@@ -208,8 +209,9 @@ gains two short jumps). **M3g, circuits**, is built too (2026-11-24 at his ask: 
 the even ones among 1-10, are circuits of 3 laps of 0.8–1.5 km, walked out from a start-finish line and
 home again; format 3 carries `laps`; the board counts laps and keeps a best lap; seeds 1, 3, 5 and 7,
 seed 5 his favourite, are byte for byte the sprints they were), and rocks off the road (M3d's last piece,
-`Rocks`: grey boxes 12-70 m out from the road's edge, never on the bed). Next: M3e (the
-Esc menu and saving), M3f (his play). **The stock car has his
+`Rocks`: grey boxes 12-70 m out from the road's edge, never on the bed). M3e (the Esc menu: the seed, generate, a new
+random seed, save this track; `--track=user://tracks/gen-<seed>.json` drives a saved one on its own ground)
+is built too. Next: M3f, his play, and M3 passes on his word. **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
 trial and error. His saved buggy, a whole tune, sits uncommitted in his working `buggy.json`; oracles

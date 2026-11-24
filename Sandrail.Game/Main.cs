@@ -128,7 +128,8 @@ public partial class Main : Node3D
         // side, it says this binary links the same Core the tests ran against.
         GD.Print($"Core linked: Hash64.Mix(0) = 0x{Hash64.Mix(0UL):X16} (expected 0xE220A8397B1DCDAF)");
 
-        string[] args = OS.GetCmdlineUserArgs();
+        // The Esc menu's "generate" starts the scene again with the flags it chose (M3e), the rest kept.
+        string[] args = NextArgs ?? OS.GetCmdlineUserArgs();
 
         // A sensor run on a gamepad instead of a drive (Diagnostics/PadCheck.cs), or a binding run that
         // saves the pad's own layout (Diagnostics/PadBinder.cs).
@@ -340,12 +341,8 @@ public partial class Main : Node3D
 
             double generated = clock.Elapsed.TotalMilliseconds;
             _terrain = made.Terrain;
-            var plain = GetNode<StaticBody3D>("Ground");
-            plain.GetNode<MeshInstance3D>("Mesh").Visible = false;
-            plain.GetNode<CollisionShape3D>("Shape").Disabled = true;
-            AddChild(TerrainView.Build(_terrain, genSeed));
-            TrackView.Build(this, _track.Placed, _terrain);
-            AddChild(RockView.Build(made.Rocks));
+            _generated = made;
+            BuildGround(_terrain, genSeed, made.Rocks);
             GenStats s = made.Stats;
             StuntStats st = s.Stunts;
             GD.Print($"Seed {genSeed}: {(s.Circuit ? $"a circuit, {made.Track.Laps} laps of " : "a sprint, ")}{s.LengthM / 1000.0f:F2} km, {_track.Placed.Count} pieces, {s.Slopes} slopes, {s.Banked} banked corners, "
@@ -367,7 +364,18 @@ public partial class Main : Node3D
             }
 
             double loaded = clock.Elapsed.TotalMilliseconds;
-            TrackView.Build(this, _track.Placed);
+            if (_track.Track.Ground is TrackGround saved)
+            {
+                // A generated track saved with its ground (M3e): the terrain made again from its seed and dials,
+                // and the bed and the rocks laid again from the track, as the generator laid them.
+                _terrain = Bed.Lay(new Terrain(saved.Seed, saved.Terrain), _track);
+                BuildGround(_terrain, saved.Seed, Rocks.Scatter(saved.Seed, new RockSettings(), _track, _terrain));
+            }
+            else
+            {
+                TrackView.Build(this, _track.Placed);
+            }
+
             float length = _track.LengthM;
             GD.Print($"Built {_track.Track.Id} ({_track.Track.Name}): {_track.Placed.Count} pieces, {length / 1000.0f:F2} km of road, "
                 + $"loaded in {loaded:F0} ms and built in {clock.Elapsed.TotalMilliseconds - loaded:F0} ms");
@@ -427,6 +435,21 @@ public partial class Main : Node3D
 
         _hud = new Hud { Car = _car, Recorder = _recorder, OnATrack = _track is not null };
         AddChild(_hud);
+
+        // The Esc menu (M3e), for play: not for an oracle or a screenshot, which quit on their own.
+        if (oracle is null && _screenshot is null)
+        {
+            string driving = _generated is Generated g
+                ? $"Seed {genSeed}: {(g.Stats.Circuit ? $"a circuit, {g.Track.Laps} laps of {g.Stats.LengthM / 1000.0f:F1} km" : $"a sprint of {g.Stats.LengthM / 1000.0f:F1} km")}"
+                : _track is not null ? $"{_track.Track.Name} ({_track.Track.Id})" : "The test ground";
+            AddChild(new SeedMenu
+            {
+                Where = driving,
+                Seed = _generated is not null ? genSeed.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty,
+                Generate = seed => GenerateInPlace(args, seed),
+                Save = _generated is not null ? () => SaveGenerated(genSeed) : null,
+            });
+        }
         _telemetry = new TelemetryOverlay { Car = _car, Visible = panels.Contains("telemetry") };
         _hud.AddChild(_telemetry);
         _tuning = new TuningPanel { Car = _car, SpecPath = specPath, Hud = _hud, Visible = panels.Contains("tuning") };
@@ -487,7 +510,66 @@ public partial class Main : Node3D
         }
     }
 
-    /// <summary>Where a car starts on a track: on the start gate's road, a few metres short of its arch.</summary>
+    /// <summary>
+    /// The flags the scene starts with when the Esc menu starts it again (M3e): a seed to generate, the
+    /// player's own flags kept. Static, so it outlives the scene it's set in.
+    /// </summary>
+    public static string[]? NextArgs { get; set; }
+
+    /// <summary>The generated track being driven, with its stats, for the Esc menu to save; null on any other ground.</summary>
+    private Generated? _generated;
+
+    /// <summary>The flags that choose where to drive, which "generate" replaces with a seed; the rest (the car, the caution, the panels) stay.</summary>
+    private static readonly string[] PlaceFlags =
+        ["--seed=", "--track=", "--terrain=", "--ground=", "--station=", "--checkpoint=", "--screenshot=", "--oracle=", "--camera=", "--drive="];
+
+    /// <summary>The Esc menu's "generate": the scene started again on a seed's track, the player's other flags kept.</summary>
+    private void GenerateInPlace(string[] args, ulong seed)
+    {
+        NextArgs = args.Where(a => !PlaceFlags.Any(p => a.StartsWith(p, StringComparison.Ordinal)) && a != "--autodrive")
+            .Append($"--seed={seed.ToString(System.Globalization.CultureInfo.InvariantCulture)}")
+            .ToArray();
+        GD.Print($"Generating seed {seed}: {string.Join(' ', NextArgs)}");
+        GetTree().ReloadCurrentScene();
+    }
+
+    /// <summary>
+    /// The Esc menu's "save": the generated track being driven written as its file (format 2, or 3 for a
+    /// circuit), its ground in it, to <c>user://tracks/gen-&lt;seed&gt;.json</c>; <c>--track=</c> drives it again.
+    /// </summary>
+    private string SaveGenerated(ulong seed)
+    {
+        const string Folder = "user://tracks";
+        DirAccess.MakeDirRecursiveAbsolute(Folder);
+        string path = $"{Folder}/gen-{seed.ToString(System.Globalization.CultureInfo.InvariantCulture)}.json";
+        using (FileAccess? file = FileAccess.Open(path, FileAccess.ModeFlags.Write))
+        {
+            if (file is null)
+            {
+                throw new System.IO.IOException($"{path}: {FileAccess.GetOpenError()}");
+            }
+
+            file.StoreString(_generated!.Track.Save());
+        }
+
+        GD.Print($"Saved seed {seed} to {ProjectSettings.GlobalizePath(path)}");
+        return $"{ProjectSettings.GlobalizePath(path)}. Drive it again with start.cmd --track={path}";
+    }
+
+    /// <summary>
+    /// A generated track's world (M3b on, and a saved one loaded, M3e): the plain put away, the bedded terrain,
+    /// the track's pieces on it, and its rocks.
+    /// </summary>
+    private void BuildGround(Terrain bedded, ulong seed, IReadOnlyList<Rock> rocks)
+    {
+        var plain = GetNode<StaticBody3D>("Ground");
+        plain.GetNode<MeshInstance3D>("Mesh").Visible = false;
+        plain.GetNode<CollisionShape3D>("Shape").Disabled = true;
+        AddChild(TerrainView.Build(bedded, seed));
+        TrackView.Build(this, _track!.Placed, bedded);
+        AddChild(RockView.Build(rocks));
+    }
+
     /// <summary>
     /// Where the car starts on a track: just inside its start gate, behind the arch; on a circuit just past
     /// its line (M3g), since crossing it is the end of a lap, and doing so at the start would read as a lap

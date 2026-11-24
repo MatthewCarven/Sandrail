@@ -90,7 +90,7 @@ public partial class Hud : CanvasLayer
         {
             Text = "W/S: throttle, brake, reverse  ·  A/D: steer (Shift: wide lock)  ·  Space: handbrake  ·  "
                 + (OnATrack ? "R: last checkpoint (hold: start again)  ·  Backspace: start again" : "R: respawn  ·  1-9, [ ]: stations") + "  ·  C: camera\n"
-                + "In the air: W/S nose up and down, A/D turn  ·  P: autodriver (-/+: its aggression)  ·  L: racing line  ·  F2: tuning  ·  F3: telemetry  ·  F4: record",
+                + "In the air: W/S nose up and down, A/D turn  ·  P: autodriver (-/+: its aggression)  ·  L: racing line  ·  F2: tuning  ·  F3: telemetry  ·  F4: record  ·  Esc: menu",
             LabelSettings = Settings(16),
         };
         Pin(keys, 0.0f, 1.0f, new Vector2(24.0f, -16.0f), growUp: true);

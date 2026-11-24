@@ -2,6 +2,31 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-24 — M3e: the Esc menu, and saved tracks
+
+Still *"Keep going"*. Built as M3-PLAN's M3e (decision 5). **Esc opens the menu** and stops the game, the
+race clock with it, since the clock counts physics ticks. It's keyboard only: his pad's Start button is his
+wide lock. It shows what's being driven ("Seed 5: a sprint of 2.1 km"), **the seed** in a box, and these
+buttons:
+
+- **Generate**, or Enter: the scene starts again on that seed. The flags that choose where to drive are
+  replaced; his others (the car, the caution, the panels) are kept, through a static the new scene reads.
+- **New random seed**: a number from 1 to 999999 from the clock. It only picks the seed; the track is still
+  the seed's.
+- **Save this track**: the generated track being driven, as its file, to
+  `user://tracks/gen-<seed>.json` (format 2, or 3 for a circuit, with its ground block).
+- **Resume** and **Quit**.
+
+**`--track=` loads a saved one on its own ground**: the terrain made again from the ground block, the bed
+and rocks laid again from it and the pieces, as the generator laid them. The file holds the pieces, so a
+saved track keeps them even if the generator changes. **Seed 5 saved and loaded drives to the same 1:25.19
+at 70%, the same splits, both jumps on the down-ramp.** The shakedown, format 1, still loads on the plain.
+A test saves seed 5 and circuit 8 and checks the reload is the same file, the same bedded heights and the
+same rocks. Tried with a temporary probe, since a headless run can't press Esc: the menu opened, saved
+seed 5 and generated seed 7 in place. Tests 287.
+
+**M3 is built** (M3a-M3g). M3f, his play on generated tracks, is what passes it.
+
 ## 2026-11-24 — Rocks: M3d finished
 
 *"Keep going"*. The last of M3d: **rocks off the road** (`Generation/Rocks.cs`), grey boxes with colliders

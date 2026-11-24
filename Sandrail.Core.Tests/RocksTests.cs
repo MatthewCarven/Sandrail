@@ -96,6 +96,28 @@ public class RocksTests
         Assert.Equal(a.Rocks, Rocks.Scatter(5UL, new RockSettings(), laid, a.Terrain));
     }
 
+    /// <summary>
+    /// M3e: a generated track saved as its file and loaded back is the same track on the same ground: its
+    /// pieces from the file, its terrain from the ground block, the bed and the rocks laid again from both.
+    /// A sprint and a circuit.
+    /// </summary>
+    [Fact]
+    public void ASavedTrackLoadsBackOnTheSameGround()
+    {
+        foreach (ulong seed in new ulong[] { 5, 8 })
+        {
+            Generated made = TrackGenerator.Generate(seed, new GenSettings(), Catalogue.Value);
+            string saved = made.Track.Save();
+            LaidTrack back = Track.Load(saved, Catalogue.Value);
+            Assert.Equal(saved, back.Track.Save());
+
+            TrackGround ground = back.Track.Ground!;
+            Terrain bedded = Bed.Lay(new Terrain(ground.Seed, ground.Terrain), back);
+            Assert.Equal(made.Terrain.Heights, bedded.Heights);
+            Assert.Equal(made.Rocks, Rocks.Scatter(ground.Seed, new RockSettings(), back, bedded));
+        }
+    }
+
     [Fact]
     public void UnsoundRockSettingsAreRefused()
     {

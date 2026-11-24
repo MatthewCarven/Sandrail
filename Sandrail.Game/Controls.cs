@@ -49,6 +49,7 @@ public static class Controls
     public const string Bolder = "autodrive_bolder";
     public const string Calmer = "autodrive_calmer";
     public const string ShowLine = "show_line";
+    public const string Menu = "menu";
 
     public static void Register()
     {
@@ -84,6 +85,9 @@ public static class Controls
         // [ and ] step through the stations, for the showroom's more than nine (M2b).
         Add(PreviousStation, Key.Bracketleft);
         Add(NextStation, Key.Bracketright);
+
+        // The Esc menu (M3e): keyboard only, since a pad's Start button may be a layout's, as his is.
+        Add(Menu, Key.Escape);
 
         // On a track, the run from the start again (M2d); pad layouts don't rebind it.
         Add(Restart, Key.Backspace, JoyButton.Start);
