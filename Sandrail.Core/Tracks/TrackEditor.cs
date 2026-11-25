@@ -21,7 +21,7 @@ public sealed class TrackEditor
     private readonly PieceCatalogue _catalogue;
     private readonly Stack<Track> _undo = new();
     private readonly Stack<Track> _redo = new();
-    private Dictionary<Tile, PlacedPiece> _owner = new();
+    private Dictionary<Tile, List<PlacedPiece>> _owner = new();
 
     public TrackEditor(Track track, PieceCatalogue catalogue)
     {
@@ -49,8 +49,29 @@ public sealed class TrackEditor
 
     public bool CanRedo => _redo.Count > 0;
 
-    /// <summary>The piece covering a tile, or null.</summary>
-    public PlacedPiece? PieceAt(Tile tile) => _owner.GetValueOrDefault(tile);
+    /// <summary>The piece covering a tile, the top one where pieces cross (what's seen from above), or null.</summary>
+    public PlacedPiece? PieceAt(Tile tile) =>
+        _owner.TryGetValue(tile, out List<PlacedPiece>? there) ? there.MaxBy(p => Stacking.Span(p, tile).LowM) : null;
+
+    /// <summary>The piece covering a tile whose road there is nearest a level, or null: on a tile of one piece, that piece.</summary>
+    public PlacedPiece? PieceAt(Tile tile, int level)
+    {
+        if (!_owner.TryGetValue(tile, out List<PlacedPiece>? there))
+        {
+            return null;
+        }
+
+        float height = TrackGrid.Origin.Y + (level * TrackGrid.LevelM);
+        return there.MinBy(p =>
+        {
+            TileSpan span = Stacking.Span(p, tile);
+            return height < span.LowM ? span.LowM - height : height > span.HighM ? height - span.HighM : 0.0f;
+        });
+    }
+
+    /// <summary>Every piece covering a tile, lowest first: more than one only where roads cross.</summary>
+    public IReadOnlyList<PlacedPiece> PiecesAt(Tile tile) =>
+        _owner.TryGetValue(tile, out List<PlacedPiece>? there) ? there.OrderBy(p => Stacking.Span(p, tile).LowM).ToList() : [];
 
     /// <summary>Why a placement can't be made, in words, or null if it can.</summary>
     public string? Fits(Placement p)
@@ -76,9 +97,30 @@ public sealed class TrackEditor
                 return $"{def.Name.ToLowerInvariant()} would run off the grid at {tile}";
             }
 
-            if (_owner.TryGetValue(tile, out PlacedPiece? other))
+            if (!_owner.TryGetValue(tile, out List<PlacedPiece>? there))
             {
-                return $"{other.Def.Name.ToLowerInvariant()} at {other.Placement.At} is in the way at {tile}";
+                continue;
+            }
+
+            foreach (PlacedPiece other in there)
+            {
+                Stack stack = Stacking.Of(other, placed, tile);
+                if (stack.Clear)
+                {
+                    continue;
+                }
+
+                if (stack.Overlap)
+                {
+                    return $"{other.Def.Name.ToLowerInvariant()} at {other.Placement.At} is in the way at {tile}";
+                }
+
+                // One above the other, but not far enough: by how much, and which way would do it.
+                int levels = (int)MathF.Ceiling(((Stacking.ClearanceM - stack.GapM) / TrackGrid.LevelM) - 1e-3f);
+                bool over = ReferenceEquals(stack.Upper, placed);
+                string more = $"{levels} level{(levels == 1 ? string.Empty : "s")} {(over ? "higher" : "lower")}";
+                return $"{def.Name.ToLowerInvariant()} would cross {(over ? "over" : "under")} {other.Def.Name.ToLowerInvariant()} at {other.Placement.At} "
+                    + $"with {stack.GapM:0.0} m between them at {tile}, and a crossing needs {Stacking.ClearanceM:0} m: {more} would do it";
             }
         }
 
@@ -105,12 +147,13 @@ public sealed class TrackEditor
     }
 
     /// <summary>
-    /// Takes away the piece covering a tile: null if one was, or why not. Taking away a circuit's last
-    /// start-finish line makes it a sprint again, in the same change.
+    /// Takes away the piece covering a tile (where roads cross, the one nearest a level, or the top one if no
+    /// level is given): null if one was, or why not. Taking away a circuit's last start-finish line makes it a
+    /// sprint again, in the same change.
     /// </summary>
-    public string? Erase(Tile tile)
+    public string? Erase(Tile tile, int? level = null)
     {
-        if (PieceAt(tile) is not PlacedPiece piece)
+        if ((level is int l ? PieceAt(tile, l) : PieceAt(tile)) is not PlacedPiece piece)
         {
             return $"there's nothing at {tile} to take away";
         }
@@ -183,8 +226,9 @@ public sealed class TrackEditor
     }
 
     /// <summary>
-    /// Every way out that nothing meets: a road's end with nothing on the tile beyond it, or a jump's lip with
-    /// nothing where it would land. In the order the pieces were placed, so the last is the newest end.
+    /// Every way out that nothing meets: a road's end with room on the tile beyond it (nothing there, or only
+    /// road two levels above or below it), or a jump's lip with nothing where it would land. In the order the
+    /// pieces were placed, so the last is the newest end.
     /// </summary>
     public IReadOnlyList<WorldConnector> OpenEnds()
     {
@@ -198,13 +242,50 @@ public sealed class TrackEditor
                 ConnectorKind.Lip => o.Landing,
                 _ => default,
             };
-            if (o.Kind is ConnectorKind.Road or ConnectorKind.Lip && !_owner.ContainsKey(target))
+            if (o.Kind is ConnectorKind.Road or ConnectorKind.Lip && Room(target, o))
             {
                 ends.Add(o);
             }
         }
 
         return ends;
+    }
+
+    /// <summary>
+    /// Whether a way out could be followed: the tile beyond it is empty, or everything on it is road that runs
+    /// clear over or under the way out's level and none of it is entered from there at that level.
+    /// </summary>
+    private bool Room(Tile target, WorldConnector end)
+    {
+        if (!_owner.TryGetValue(target, out List<PlacedPiece>? there))
+        {
+            return true;
+        }
+
+        if (end.Kind == ConnectorKind.Lip)
+        {
+            return false;
+        }
+
+        float height = TrackGrid.Origin.Y + (end.Level * TrackGrid.LevelM);
+        foreach (PlacedPiece p in there)
+        {
+            WorldConnector into = p.In;
+            if (into.Tile == target && TrackGrid.Opposite(into.Facing) == end.Facing && into.Level == end.Level)
+            {
+                return false;
+            }
+
+            TileSpan span = Stacking.Span(p, target);
+            bool above = span.LowM - Stacking.DeckM - height >= Stacking.ClearanceM - 1e-3f;
+            bool below = height - Stacking.DeckM - span.HighM >= Stacking.ClearanceM - 1e-3f;
+            if (!above && !below)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -255,12 +336,19 @@ public sealed class TrackEditor
     private LaidTrack Relay()
     {
         LaidTrack laid = Track.Lay(_catalogue);
-        _owner = new Dictionary<Tile, PlacedPiece>();
+        _owner = new Dictionary<Tile, List<PlacedPiece>>();
         foreach (PlacedPiece p in laid.Placed)
         {
             foreach (Tile tile in p.Tiles)
             {
-                _owner.TryAdd(tile, p);
+                if (_owner.TryGetValue(tile, out List<PlacedPiece>? there))
+                {
+                    there.Add(p);
+                }
+                else
+                {
+                    _owner[tile] = [p];
+                }
             }
         }
 

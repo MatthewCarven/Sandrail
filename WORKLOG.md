@@ -2,6 +2,64 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-26 — Crossings: a road can go under another (PIECES-PLAN, X1 and X2)
+
+His ask was *"more track pieces"*. The plan (`docs/PIECES-PLAN.md`) leads with crossings, because of what he'd said
+about his own tracks: he *"can never get the heights to work out correctly like i want to go under sometimes"*. **It
+was never the heights.** `Lay` refused two pieces on one tile whatever their levels, and so did the editor, so no
+layout of slopes could cross. His decisions, all five taken: pillars by themselves (1); every cheap piece (2); the
+climbing corner and the corkscrew, the half-pipe left for later (3); the generator stays version 1 (4); and
+`base:crossover` ships (5).
+
+**The rule** (`Stacking`): two pieces may share a tile when the lower road's highest point, edges and banks included,
+is at least 4 m under the upper road's underside. The deck is 0.5 m thick, so on level road that's two levels apart
+(4.5 m clear); one level leaves 2.0 m, and the car is about 2 m tall. A banked corner's raised edge counts: 30 m
+banked under a deck two levels up has 1.1 m, and is refused where the flat corner isn't. A loop never stacks. Two
+pieces at one height are still refused in M2's words, *"both cover"*. One stacked but short says by how much: *"...
+with 2.0 m under it, and a crossing needs 4 m: 1 level more between them"*. In the editor the piece in hand says which
+way: *"1 level higher would do it"*.
+
+**Pillars come by themselves.** `Lay` puts any piece with road under it on pillars (`PlacedPiece.Pillars`): a 0.5 m
+slab, no bed under it (or the bed's highest-wins rule buried the road below), and legs. Nothing new goes in the track
+file, so a track that doesn't cross itself is the same file, the same bodies and the same fingerprint. **Legs** are
+0.8 m posts under both edges of the deck, 1 m in, about every 20 m from its way in, each left out where it would stand
+within 1 m of a road below. Over a 30 m corner, one of a straight's four is left out. They have colliders.
+
+**Ways in are found by level**, where two pieces on one tile are entered from the same side. An end in the editor is
+open when its next tile is empty or holds only road two levels away, so laying onto the road's end goes over a road as
+it goes anywhere. Delete and Tab take the piece nearest the cursor's level (Page Up and Down choose), right-click takes
+the top one, and the status line names both: *"on the straight (level 2) over the straight (level 0, Delete takes
+it)"*. `--drive-from=` takes a level. A piece going up onto pillars or coming down off them is built again.
+
+**The steep slopes** climb or drop two levels over three tiles: 9.5° at the steepest, but with crest arcs of 181 m
+against the old slope's 161. So they throw the car later, not sooner: `pieces2` has the steep slope up wheels-down at
+118 km/h (the old slope is 0.15 s in the air there), and in the air from about 137 (0.52 s; 0.87 at 155). The steep
+slope down is in the air at 137 (0.41 s). A crossing with them is seven tiles end to end, not nine.
+
+**`base:crossover`**, a figure-of-eight circuit, 963 m a lap: north up the middle, right and up two levels, round,
+back west over its own road at (16, 16), down, and round to the line; two checkpoints, 3 laps. **Its first layout
+taught a lesson**: at 70% the autodriver lost the road for 81 s after a steep descent that went straight into a 30 m
+corner, because it plans its braking as if on the flat, about a fifth short on a 9.5° drop. At 80% it tipped over in
+two banked 30 m corners back to back just after the climb. With two flat tiles after each slope and flat corners, the
+stock car does **2:04.59 at 80%** (laps 43.29, 40.65, 40.65) and 2:10.10 at 70%, the wheels never off the road. The
+`track` oracle drives it with `--track=base:crossover`.
+
+**The showroom** has the steep slopes and two crossing stations, under and over, sharing one block. The block first
+wrapped into a band off the north edge of the grid, beyond the plain. So **anything since the starter set now goes in
+the first free spot**, a tile clear of the rest: the tall long-jump group left rows 14-22 empty. The starter set is
+laid as it always was, and a test holds it there whatever is added. **`pieces2`** is a second showroom oracle, so
+`pieces` never grows. Under the deck at 155 km/h the car's middle rose at most 0.63 m over the road, under 4.5 m of
+headroom.
+
+**Checks**:
+- 363 tests, 13 of them for crossings, among them the crossover laid onto the road's end alone, piece by piece.
+- The bench's new `--fingerprints` on the game's tracks and a scratch copy of his 31 saved ones: identical, line for
+  line, before the first change, after X1 and after X2. `0070ecd8` (seed 5) and `8a6323aa` (the shakedown) are pinned.
+- 1000 seeds generated, none refused.
+- Every oracle byte for byte as before, `pieces` included, with the new stations in its showroom.
+- The headless check.
+- Screenshots of the crossing from the car under and over, from above, in the editor, and the showroom's station.
+
 ## 2026-11-26 — Random cars, into the garage, for the profile
 
 His ask: a *"generate random cars dialog"*, cars made at random into his garage so the profile can test them. Four

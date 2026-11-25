@@ -152,9 +152,18 @@ public class PieceCatalogueTests
         IReadOnlyList<PlacedPiece> pieces = layout.Pieces;
         IReadOnlyList<Station> stations = layout.Stations;
 
-        Assert.Equal(catalogue.All.Count(p => p.In != ConnectorKind.Landing), stations.Count);
+        // A station a piece, and two for the crossing (PIECES-PLAN, X2).
+        Assert.Equal(catalogue.All.Count(p => p.In != ConnectorKind.Landing) + 2, stations.Count);
+        Assert.Contains(stations, s => s.Name == Showroom.CrossingUnder);
+
+        // Every tile covered once, but the crossing's, where one road runs clear over the other on pillars.
         var tiles = pieces.SelectMany(p => p.Tiles).ToList();
-        Assert.Equal(tiles.Count, tiles.Distinct().Count());
+        var shared = tiles.GroupBy(t => t).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        Tile crossing = Assert.Single(shared);
+        var there = pieces.Where(p => p.Tiles.Contains(crossing)).ToList();
+        Assert.True(Stacking.Of(there[0], there[1], crossing).Clear);
+        Assert.Single(there, p => p.Pillars);
+        Assert.NotEmpty(layout.Legs);
         Assert.All(tiles, t => Assert.True(TrackGrid.Contains(t), $"{t} is off the grid"));
 
         // Each run-up meets its piece, and each piece its run-out.
@@ -165,6 +174,23 @@ public class PieceCatalogueTests
                 Assert.True(Vector3.Distance(pieces[i - 1].Road().End.Position, pieces[i].Start.Position) < PieceDef.FitM);
             }
         }
+    }
+
+    /// <summary>
+    /// The starter set stays where it always was in the showroom (PIECES-PLAN fact 9): the pieces oracle drives it, so
+    /// a piece added since, whatever its file is called, comes after it and moves nothing.
+    /// </summary>
+    [Fact]
+    public void TheShowroomsStarterSetStaysPutWhateverIsAdded()
+    {
+        PieceCatalogue starter = PieceCatalogue.Parse(ShippedFiles().Where(f => Showroom.StarterSet.Contains(PieceCatalogue.ParsePiece(f.Json).Id)));
+        Assert.Equal(Showroom.StarterSet.Count, starter.All.Count);
+        ShowroomLayout before = Showroom.Lay(starter);
+        ShowroomLayout now = Showroom.Lay(Shipped());
+
+        Assert.Equal(before.Stations, now.Stations.Take(before.Stations.Count));
+        Assert.Equal(before.Pieces.Select(p => p.Placement), now.Pieces.Take(before.Pieces.Count).Select(p => p.Placement));
+        Assert.Empty(before.Legs);
     }
 
     [Fact]

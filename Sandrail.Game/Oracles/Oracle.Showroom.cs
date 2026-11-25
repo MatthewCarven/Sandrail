@@ -34,11 +34,39 @@ public partial class Oracle
     /// <summary>The showroom the pieces oracle drives; null elsewhere.</summary>
     public ShowroomLayout? Showroom { get; init; }
 
-    public static bool NeedsShowroom(string kind) => kind is Pieces;
+    /// <summary>
+    /// The pieces added since the starter set (PIECES-PLAN): their trials kept apart from <see cref="Pieces"/>, so that
+    /// oracle's line never grows and stays comparable byte for byte.
+    /// </summary>
+    public const string Pieces2 = "pieces2";
 
-    private enum TrialKind { Loop, Jump, Slope }
+    public static bool NeedsShowroom(string kind) => kind is Pieces or Pieces2;
 
-    private sealed record PieceTrial(string Piece, float Kmh, TrialKind Kind);
+    /// <summary>A loop, a jump or a slope as M2b drove them; or the crossing driven under its deck.</summary>
+    private enum TrialKind { Loop, Jump, Slope, Under }
+
+    /// <summary>A piece at a speed; or with <paramref name="Station"/>, a station's whole road, as for the crossing.</summary>
+    private sealed record PieceTrial(string Piece, float Kmh, TrialKind Kind, string? Station = null);
+
+    private PieceTrial[] ActiveTrials => Kind == Pieces2 ? Trials2 : Trials;
+
+    /// <summary>
+    /// The steep slopes either side of 143 km/h, where today's slope's crest throws the car (theirs are gentler, 181 m to
+    /// 161), and the crossing: under its deck flat out, and over it, up two levels and down.
+    /// </summary>
+    private static readonly PieceTrial[] Trials2 =
+    [
+        new("base:slope-up-steep", 100.0f, TrialKind.Slope),
+        new("base:slope-up-steep", 120.0f, TrialKind.Slope),
+        new("base:slope-up-steep", 140.0f, TrialKind.Slope),
+        new("base:slope-up-steep", 160.0f, TrialKind.Slope),
+        new("base:slope-down-steep", 100.0f, TrialKind.Slope),
+        new("base:slope-down-steep", 140.0f, TrialKind.Slope),
+        new("base:straight", 120.0f, TrialKind.Under, Sandrail.Core.Tracks.Showroom.CrossingUnder),
+        new("base:straight", 160.0f, TrialKind.Under, Sandrail.Core.Tracks.Showroom.CrossingUnder),
+        new("base:straight", 80.0f, TrialKind.Slope, Sandrail.Core.Tracks.Showroom.CrossingOver),
+        new("base:straight", 120.0f, TrialKind.Slope, Sandrail.Core.Tracks.Showroom.CrossingOver),
+    ];
 
     private static readonly PieceTrial[] Trials =
     [
@@ -86,7 +114,7 @@ public partial class Oracle
             return;
         }
 
-        PieceTrial trial = Trials[_trial];
+        PieceTrial trial = ActiveTrials[_trial];
         if (Time - _trialFrom < 0.05f)
         {
             Car.Driver = default;
@@ -123,11 +151,14 @@ public partial class Oracle
             case TrialKind.Slope:
                 RunSlopeTrial(trial, steer, along);
                 break;
+            case TrialKind.Under:
+                RunUnderTrial(trial, steer, along);
+                break;
         }
 
         if (_trialFigures.Count > _trial)
         {
-            if (_trial + 1 < Trials.Length)
+            if (_trial + 1 < ActiveTrials.Length)
             {
                 StartTrial(room, _trial + 1);
             }
@@ -223,24 +254,69 @@ public partial class Oracle
         if (_trialInAt is not null && along > _trialMainEnd + 20.0f)
         {
             float air = _trialAirTicks / (float)GameClock.TicksPerSecond;
-            _trialFigures.Add($"slope at {_trialInSpeed * 3.6f:F0} km/h: {(air > 0.0f ? $"{air:F2} s in the air" : "wheels down")}");
+            string name = trial.Piece == "base:slope-up" && trial.Station is null ? "slope" : TrialName(trial);
+            _trialFigures.Add($"{name} at {_trialInSpeed * 3.6f:F0} km/h: {(air > 0.0f ? $"{air:F2} s in the air" : "wheels down")}");
+        }
+    }
+
+    /// <summary>
+    /// The crossing driven under its deck at a speed (PIECES-PLAN, X2): through or not, how high the car's middle rose
+    /// over the road under the deck against the headroom there, and its time with a wheel off the road.
+    /// </summary>
+    private void RunUnderTrial(PieceTrial trial, float steer, float along)
+    {
+        Car.Driver = Hold(trial.Kmh / 3.6f) with { Steer = steer };
+        bool under = along >= _trialMainStart && along <= _trialMainEnd;
+        if (_trialInAt is null && under)
+        {
+            _trialInAt = Time;
+            _trialInSpeed = Car.LinearVelocity.Length();
+        }
+
+        if (under)
+        {
+            float road = _trialLine!.PositionAt(Math.Max(_trialHint, 0)).Y;
+            _trialSlowestTop = MathF.Max(_trialSlowestTop == float.MaxValue ? 0.0f : _trialSlowestTop, Car.GlobalPosition.Y - road);
+        }
+
+        if (_trialInAt is not null && along > _trialMainEnd + 20.0f)
+        {
+            PlacedPiece deck = Showroom!.Pieces.First(p => p.Pillars);
+            float headroom = deck.Start.Position.Y - Stacking.DeckM - _trialPiece!.Start.Position.Y;
+            bool upright = Car.GlobalBasis.Y.Normalized().Y > 0.7f;
+            _trialFigures.Add($"under the deck at {_trialInSpeed * 3.6f:F0} km/h: {(upright ? "THROUGH" : "NOT UPRIGHT")}, its middle at most "
+                + $"{_trialSlowestTop:F2} m over the road, under {headroom:F1} m of headroom");
         }
     }
 
     private void StartTrial(ShowroomLayout room, int index)
     {
         _trial = index;
-        PieceTrial trial = Trials[index];
-        IReadOnlyList<PlacedPiece> group = room.Groups.First(g => g.Any(p => p.Def.Id == trial.Piece));
-        _trialPiece = group.First(p => p.Def.Id == trial.Piece);
+        PieceTrial trial = ActiveTrials[index];
+        IReadOnlyList<PlacedPiece> group;
+        Func<PlacedPiece, bool> main;
+        if (trial.Station is string station)
+        {
+            // A station's whole road: under the deck, the piece beneath it; over it, the climb, the deck and the descent.
+            group = room.Groups[room.Stations.ToList().FindIndex(s => s.Name == station)];
+            var decks = room.Pieces.Where(p => p.Pillars).SelectMany(p => p.Tiles).ToHashSet();
+            main = trial.Kind == TrialKind.Under ? p => p.Tiles.Any(decks.Contains) : p => p.Pillars || p.Def.Id != trial.Piece;
+            _trialPiece = group.First(main);
+        }
+        else
+        {
+            group = room.Groups.First(g => g.Any(p => p.Def.Id == trial.Piece));
+            _trialPiece = group.First(p => p.Def.Id == trial.Piece);
+            main = p => p == _trialPiece;
+        }
 
         _trialRoad = new List<ICentreline>();
-        float start = 0.0f;
+        float start = -1.0f;
         float end = 0.0f;
         float length = 0.0f;
         foreach (PlacedPiece piece in group)
         {
-            if (piece == _trialPiece)
+            if (main(piece) && start < 0.0f)
             {
                 start = length;
             }
@@ -251,11 +327,13 @@ public partial class Oracle
                 length += c.Length;
             }
 
-            if (piece == _trialPiece)
+            if (main(piece))
             {
                 end = length;
             }
         }
+
+        start = MathF.Max(start, 0.0f);
 
         _trialLine = new RacingLine(_trialRoad, closed: false);
         _trialMainStart = start;
@@ -305,10 +383,12 @@ public partial class Oracle
         : into < 32.7f ? "on its foot"
         : "past it, on the run-out";
 
-    private static string TrialName(PieceTrial trial) => trial.Piece switch
+    private static string TrialName(PieceTrial trial) => trial.Station is string station ? station.ToLowerInvariant() : trial.Piece switch
     {
         "base:launch-short" => "short jump",
         "base:launch-long" => "long jump",
+        "base:slope-up-steep" => "steep slope up",
+        "base:slope-down-steep" => "steep slope down",
         _ => trial.Piece,
     };
 }

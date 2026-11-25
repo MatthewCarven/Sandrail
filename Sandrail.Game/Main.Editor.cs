@@ -28,14 +28,24 @@ public partial class Main
     /// <summary>The piece an untimed test drive began on; null in a race, timed from the start gate.</summary>
     private PlacedPiece? _testDriveFrom;
 
-    /// <summary>The piece a test drive begins on: the one covering <c>--drive-from=</c>'s tile, else the route's first, else the first placed.</summary>
+    /// <summary>
+    /// The piece a test drive begins on: the one covering <c>--drive-from=</c>'s tile (<c>column,row</c>, or
+    /// <c>column,row,level</c> where roads cross, for the one nearest that level), else the route's first, else the
+    /// first placed.
+    /// </summary>
     private static PlacedPiece? DriveFromPiece(LaidTrack track, string? flag)
     {
         string[] parts = (flag ?? string.Empty).Split(',');
-        if (parts.Length == 2 && int.TryParse(parts[0], out int column) && int.TryParse(parts[1], out int row)
-            && track.Placed.FirstOrDefault(p => p.Tiles.Contains(new Tile(column, row))) is PlacedPiece on)
+        if (parts.Length is 2 or 3 && int.TryParse(parts[0], out int column) && int.TryParse(parts[1], out int row))
         {
-            return on;
+            var tile = new Tile(column, row);
+            var on = track.Placed.Where(p => p.Tiles.Contains(tile)).ToList();
+            if (on.Count > 0)
+            {
+                return parts.Length == 3 && int.TryParse(parts[2], out int level)
+                    ? on.MinBy(p => Math.Abs(p.Placement.Level - level))
+                    : on[0];
+            }
         }
 
         return track.Route.Count > 0 ? track.Route[0] : track.Placed.FirstOrDefault();
@@ -163,7 +173,7 @@ public partial class Main
         {
             Editor = editor,
             Catalogue = catalogue,
-            TestDrive = tile => StartAgainOn(args, $"--track={EditorSession.Id}", $"--drive-from={tile.Column},{tile.Row}"),
+            TestDrive = (tile, level) => StartAgainOn(args, $"--track={EditorSession.Id}", $"--drive-from={tile.Column},{tile.Row},{level}"),
         };
         AddChild(_editorView);
         AddChild(new SeedMenu

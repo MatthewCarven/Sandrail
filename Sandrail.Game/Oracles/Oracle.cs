@@ -169,7 +169,7 @@ public partial class Oracle : Node
             case Respawn:
                 RunRespawn();
                 break;
-            case Pieces:
+            case Pieces or Pieces2:
                 RunPieces();
                 break;
             case Jump:

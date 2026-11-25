@@ -175,7 +175,10 @@ the grid rather than borrowed from any one game.
 
 ## Decisions
 
-Numbered so they can be answered by number; the recommendation is first.
+Numbered so they can be answered by number; the recommendation is first. **All five taken 2026-11-26**:
+decisions 1, 4 and 5 as recommended; for 2, **every cheap piece** (steep slopes, 70 m corners and the U-turn,
+the hump and the tabletop, surfaces and the steep bank); for 3, **the climbing corner and the corkscrew**, the
+half-pipe left for later.
 
 1. **How a road gets over another: pillars by themselves.** Any piece goes up on pillars where another road
    runs under it, two levels clear (the model above). Nothing new to place, and any piece can be the bridge:
@@ -202,6 +205,13 @@ Numbered so they can be answered by number; the recommendation is first.
 
 ## X1: crossings in Core
 
+**Built 2026-11-26**, as below; 13 tests, worklog that date. Departures: **a tile shared at one height is still
+refused in M2's words** (*"both cover"*), and one stacked but short says by how much and how many levels more; **an
+open end** in the editor is one whose next tile is empty or has only road two levels away, so laying onto the road's
+end goes over a road as it goes anywhere; **the bench grew `--fingerprints`**, which prints every track's fingerprint
+as the game works it out: his 31 saved tracks (a scratch copy) and the game's own came out the same before and after,
+line for line.
+
 - **Core:** stacking in `TrackLayer.Cover` (`ClearanceM`, measured on the road over each shared tile);
   pillars worked out in `Lay` (`LaidTrack.OnPillars`); legs as Core data (where each stands and how tall),
   left out over roads below; `Connect` by tile, side and level; `Bed` skipping pieces on pillars;
@@ -213,6 +223,13 @@ Numbered so they can be answered by number; the recommendation is first.
   unchanged; his saved tracks' fingerprints from a scratch copy unchanged.
 
 ## X2: crossings in the game
+
+**Built 2026-11-26**, as below; worklog that date. Departures: **the showroom lays anything new in the first free
+spot**, a tile clear of the rest, because the crossing's block wrapped into a band off the grid; the starter set is
+laid as it always was, pinned by a test. **The crossover's first layout taught a lesson**: a steep descent straight
+into a 30 m corner put the autodriver off the road, since it plans braking as on the flat, so the crossover has two
+flat tiles after each slope. Worth knowing when he builds with them. The steep slope throws the car from about 137 km/h
+where the old slope does from 118.
 
 - **Game:** pieces on pillars built as a thin slab with legs (grey boxes with colliders); the editor's hand
   green or red with the clearance reason, picking and erasing by level, the status line naming what's above

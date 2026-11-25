@@ -44,6 +44,13 @@ public sealed class PlacedPiece(PieceDef def, Placement placement)
 
     public Placement Placement { get; } = placement;
 
+    /// <summary>
+    /// Whether it stands on pillars, a thin deck on legs, because another road runs under it (PIECES-PLAN, the
+    /// model): worked out by <see cref="Track.Lay"/> from where the pieces are, never kept in the file. A piece
+    /// with nothing under it stands on earthworks, as every piece did before crossings.
+    /// </summary>
+    public bool Pillars { get; init; }
+
     /// <summary>The way the piece is driven, on the grid.</summary>
     public Compass Forward => TrackGrid.Turned(Compass.North, Placement.Rotation);
 
@@ -134,14 +141,14 @@ public sealed class PlacedPiece(PieceDef def, Placement placement)
     /// <summary>
     /// How deep its slab goes: a raised piece sits on earthworks down past the plain (M2-PLAN fact 8), deep
     /// enough under its highest edge, a fifth more for a surface that's banked or pitched; a loop is a thin
-    /// road, or its earthworks would fill it.
+    /// road, or its earthworks would fill it, and so is a piece on pillars, or they'd bury the road under it.
     /// </summary>
     public float DepthM
     {
         get
         {
-            const float Slab = 0.5f;
-            if (Def.Path.Any(s => s.Loop is not null))
+            const float Slab = Stacking.DeckM;
+            if (Pillars || Def.Path.Any(s => s.Loop is not null))
             {
                 return Slab;
             }
@@ -169,8 +176,8 @@ public sealed class PlacedPiece(PieceDef def, Placement placement)
     /// </summary>
     public float DepthTo(Func<float, float, float> groundAt)
     {
-        const float Slab = 0.5f;
-        if (Def.Path.Any(s => s.Loop is not null))
+        const float Slab = Stacking.DeckM;
+        if (Pillars || Def.Path.Any(s => s.Loop is not null))
         {
             return Slab;
         }

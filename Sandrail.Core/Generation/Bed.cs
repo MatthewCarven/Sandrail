@@ -69,6 +69,13 @@ public static class Bed
 
         foreach (PlacedPiece piece in pieces)
         {
+            // A piece on pillars lays no bed (PIECES-PLAN fact 7): the highest bed wins, and it would bury the road
+            // under it. Its legs stand on whatever is laid below.
+            if (piece.Pillars)
+            {
+                continue;
+            }
+
             float halfWidth = piece.Def.WidthM / 2.0f;
             foreach (ICentreline c in piece.Road().Pieces)
             {

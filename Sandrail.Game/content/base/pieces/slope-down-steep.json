@@ -1,0 +1,10 @@
+{
+  "id": "base:slope-down-steep",
+  "name": "Steep slope down",
+  "tiles": [[0, 0], [0, 1], [0, 2]],
+  "out": { "tile": [0, 2], "side": "front", "rise": -2 },
+  "path": [
+    { "pitch": { "angle": -9.5272834, "radius": 181.25 } },
+    { "pitch": { "angle": 9.5272834, "radius": 181.25 } }
+  ]
+}

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Numerics;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -275,6 +276,31 @@ public sealed class LaidTrack(Track track, IReadOnlyList<PlacedPiece> placed, IR
 
     /// <summary>How far the route's road runs, start gate to finish, metres; a jump's gap isn't road.</summary>
     public float LengthM => Route.Sum(p => p.Road().Pieces.Sum(c => c.Length));
+
+    private IReadOnlyList<Leg>? _legs;
+
+    /// <summary>
+    /// The legs under every piece on pillars (PIECES-PLAN, the model), each left out where it would stand on a
+    /// road below, and one where two pieces' legs meet at a seam. Empty on a track that never crosses itself.
+    /// </summary>
+    public IReadOnlyList<Leg> Legs => _legs ??= FindLegs();
+
+    private List<Leg> FindLegs()
+    {
+        var legs = new List<Leg>();
+        foreach (PlacedPiece deck in Placed.Where(p => p.Pillars))
+        {
+            foreach (Leg leg in Stacking.Legs(deck, Placed))
+            {
+                if (!legs.Any(l => Vector3.DistanceSquared(l.Top, leg.Top) < 0.25f))
+                {
+                    legs.Add(leg);
+                }
+            }
+        }
+
+        return legs;
+    }
 }
 
 /// <summary>The validation, written out one rule at a time (M2-PLAN, "The model": a track's refusals).</summary>
@@ -283,14 +309,18 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
     private readonly List<string> _problems = new();
     private readonly List<PlacedPiece> _placed = new();
     private readonly List<int> _index = new();
-    private readonly Dictionary<Tile, int> _owner = new();
+    private readonly Dictionary<Tile, List<int>> _owners = new();
     private readonly Dictionary<int, int> _next = new();
+
+    /// <summary>The pieces with road under them, which go up on pillars.</summary>
+    private readonly HashSet<int> _raised = new();
 
     public LaidTrack Lay()
     {
         Header();
         Place();
         Cover();
+        Raise();
         Connect();
         List<PlacedPiece> route = Route();
         return new LaidTrack(track, _placed, _problems, route);
@@ -383,7 +413,11 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
         }
     }
 
-    /// <summary>Every tile covered once and on the grid.</summary>
+    /// <summary>
+    /// Every tile on the grid, and covered once at each height: two pieces may share a tile only one above the
+    /// other, two levels clear (PIECES-PLAN, the model). One at the same height as another is refused as M2
+    /// refused any two on a tile, and isn't counted as covering it.
+    /// </summary>
     private void Cover()
     {
         for (int k = 0; k < _placed.Count; k++)
@@ -396,13 +430,42 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
                     off ??= tile;
                 }
 
-                if (_owner.TryGetValue(tile, out int other))
+                if (!_owners.TryGetValue(tile, out List<int>? owners))
                 {
-                    _problems.Add($"{Label(other)} and {Label(k)} both cover {tile}");
+                    _owners[tile] = [k];
+                    continue;
                 }
-                else
+
+                string? clash = null;
+                bool overlap = false;
+                foreach (int other in owners)
                 {
-                    _owner[tile] = k;
+                    Stack stack = Stacking.Of(_placed[other], _placed[k], tile);
+                    if (!stack.Overlap)
+                    {
+                        _raised.Add(ReferenceEquals(stack.Upper, _placed[k]) ? k : other);
+                    }
+
+                    if (stack.Clear)
+                    {
+                        continue;
+                    }
+
+                    overlap = stack.Overlap;
+                    clash = stack.Overlap
+                        ? $"{Label(other)} and {Label(k)} both cover {tile}"
+                        : Short(stack, ReferenceEquals(stack.Upper, _placed[k]) ? k : other, ReferenceEquals(stack.Upper, _placed[k]) ? other : k, tile);
+                    break;
+                }
+
+                if (clash is not null)
+                {
+                    _problems.Add(clash);
+                }
+
+                if (!overlap)
+                {
+                    owners.Add(k);
                 }
             }
 
@@ -413,6 +476,60 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
         }
     }
 
+    /// <summary>Why a road over another isn't high enough, in metres and levels.</summary>
+    private string Short(Stack stack, int upper, int lower, Tile tile)
+    {
+        int levels = (int)MathF.Ceiling((Stacking.ClearanceM - stack.GapM) / TrackGrid.LevelM - 1e-3f);
+        return $"{Label(upper)} crosses over {Label(lower)} at {tile} with {stack.GapM:0.0} m under it, and a crossing needs "
+            + $"{Stacking.ClearanceM:0} m: {levels} level{(levels == 1 ? string.Empty : "s")} more between them";
+    }
+
+    /// <summary>Every piece with road under it goes up on pillars (PIECES-PLAN, the model): a thin deck on legs.</summary>
+    private void Raise()
+    {
+        foreach (int k in _raised)
+        {
+            _placed[k] = new PlacedPiece(_placed[k].Def, _placed[k].Placement) { Pillars = true };
+        }
+    }
+
+    /// <summary>
+    /// Of the pieces on a tile, the one entered across its edge from a way, at a level if one is; failing that, as
+    /// on a tile of one piece, the first entered from there. Null if none is.
+    /// </summary>
+    private static int? Entered(Dictionary<(Tile, Compass), List<int>> entries, Tile tile, Compass way, int level, Func<int, int> levelOf)
+    {
+        if (!entries.TryGetValue((tile, way), out List<int>? found))
+        {
+            return null;
+        }
+
+        foreach (int e in found)
+        {
+            if (levelOf(e) == level)
+            {
+                return e;
+            }
+        }
+
+        return found[0];
+    }
+
+    /// <summary>The piece covering a tile nearest a level: on a tile of one piece, that piece.</summary>
+    private int Nearest(List<int> owners, int level)
+    {
+        int best = owners[0];
+        foreach (int o in owners)
+        {
+            if (Math.Abs(_placed[o].In.Level - level) < Math.Abs(_placed[best].In.Level - level))
+            {
+                best = o;
+            }
+        }
+
+        return best;
+    }
+
     /// <summary>
     /// Every way out meets a way in, and every way in is met (M2-PLAN fact 6): road to road on the next
     /// tile at the same level, a lip to a landing straight ahead across empty tiles. A mismatch is said once,
@@ -420,27 +537,36 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
     /// </summary>
     private void Connect()
     {
-        // Each piece's way in, by its tile and the way into the piece across that edge.
-        var entries = new Dictionary<(Tile, Compass), int>();
+        // Each piece's way in, by its tile and the way into the piece across that edge: more than one only where
+        // pieces are stacked on a tile, each then found by its level (PIECES-PLAN fact 6).
+        var entries = new Dictionary<(Tile, Compass), List<int>>();
         for (int k = 0; k < _placed.Count; k++)
         {
             WorldConnector into = _placed[k].In;
-            entries.TryAdd((into.Tile, TrackGrid.Opposite(into.Facing)), k);
+            (Tile, Compass) key = (into.Tile, TrackGrid.Opposite(into.Facing));
+            if (entries.TryGetValue(key, out List<int>? list))
+            {
+                list.Add(k);
+            }
+            else
+            {
+                entries[key] = [k];
+            }
         }
 
-        // What each way out points at: the next tile for road, the landing's tile for a lip.
-        var arrivals = new HashSet<(Tile, Compass)>();
+        // What each way out points at, and at what level: the next tile for road, the landing's tile for a lip.
+        var arrivals = new Dictionary<(Tile, Compass), List<int>>();
         for (int k = 0; k < _placed.Count; k++)
         {
             WorldConnector o = _placed[k].Out;
             switch (o.Kind)
             {
                 case ConnectorKind.Road:
-                    arrivals.Add((o.Beyond, o.Facing));
+                    Arrive(arrivals, (o.Beyond, o.Facing), o.Level);
                     MeetRoad(k, o, entries);
                     break;
                 case ConnectorKind.Lip:
-                    arrivals.Add((o.Landing, o.Facing));
+                    Arrive(arrivals, (o.Landing, o.Facing), o.Level);
                     MeetLanding(k, o, entries);
                     break;
             }
@@ -449,7 +575,11 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
         for (int m = 0; m < _placed.Count; m++)
         {
             WorldConnector into = _placed[m].In;
-            if (into.Kind is ConnectorKind.Closed || arrivals.Contains((into.Tile, TrackGrid.Opposite(into.Facing))))
+            (Tile, Compass) key = (into.Tile, TrackGrid.Opposite(into.Facing));
+
+            // Something arrives where it's entered: at its level, where another piece is entered there too.
+            if (into.Kind is ConnectorKind.Closed
+                || (arrivals.TryGetValue(key, out List<int>? levels) && (entries[key].Count == 1 || levels.Contains(into.Level))))
             {
                 continue;
             }
@@ -461,16 +591,28 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
             }
 
             Tile behind = into.Tile.Step(into.Facing);
-            _problems.Add(_owner.TryGetValue(behind, out int b)
-                ? $"nothing leads into {Label(m)}: {Label(b)}, behind it, doesn't lead there"
+            _problems.Add(_owners.TryGetValue(behind, out List<int>? there)
+                ? $"nothing leads into {Label(m)}: {Label(Nearest(there, into.Level))}, behind it, doesn't lead there"
                 : $"nothing leads into {Label(m)}: the tile behind it, {behind}, is empty");
         }
     }
 
-    private void MeetRoad(int k, WorldConnector o, Dictionary<(Tile, Compass), int> entries)
+    private static void Arrive(Dictionary<(Tile, Compass), List<int>> arrivals, (Tile, Compass) key, int level)
+    {
+        if (arrivals.TryGetValue(key, out List<int>? levels))
+        {
+            levels.Add(level);
+        }
+        else
+        {
+            arrivals[key] = [level];
+        }
+    }
+
+    private void MeetRoad(int k, WorldConnector o, Dictionary<(Tile, Compass), List<int>> entries)
     {
         Tile t = o.Beyond;
-        if (!_owner.TryGetValue(t, out int m))
+        if (!_owners.TryGetValue(t, out List<int>? owners))
         {
             _problems.Add(TrackGrid.Contains(t, track.Size)
                 ? $"{Label(k)} leads onto empty ground at {t}"
@@ -478,7 +620,11 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
             return;
         }
 
-        if (!entries.TryGetValue((t, o.Facing), out int entered) || entered != m)
+        // On a tile of one piece, that piece; where pieces are stacked, the one entered from here at this level, or
+        // failing that the one nearest its level.
+        int? entered = Entered(entries, t, o.Facing, o.Level, e => _placed[e].In.Level);
+        int m = entered is int e && owners.Contains(e) && _placed[e].In.Level == o.Level ? e : Nearest(owners, o.Level);
+        if (entered != m)
         {
             _problems.Add($"{Label(k)} runs into {Label(m)} at {t}, which isn't entered from there");
             return;
@@ -503,28 +649,30 @@ internal sealed class TrackLayer(Track track, PieceCatalogue catalogue)
         }
     }
 
-    private void MeetLanding(int k, WorldConnector o, Dictionary<(Tile, Compass), int> entries)
+    private void MeetLanding(int k, WorldConnector o, Dictionary<(Tile, Compass), List<int>> entries)
     {
         bool clear = true;
         for (int g = 1; g <= o.Gap; g++)
         {
             Tile t = o.Tile.Step(o.Facing, g);
-            if (_owner.TryGetValue(t, out int m))
+            if (_owners.TryGetValue(t, out List<int>? inGap))
             {
-                _problems.Add($"{Label(m)} is in the gap {Label(k)} jumps, at {t}");
+                _problems.Add($"{Label(inGap[0])} is in the gap {Label(k)} jumps, at {t}");
                 clear = false;
             }
         }
 
         Tile at = o.Landing;
-        if (!_owner.TryGetValue(at, out int landing))
+        if (!_owners.TryGetValue(at, out List<int>? owners))
         {
             _problems.Add($"{Label(k)} jumps {o.Gap} tile{(o.Gap == 1 ? string.Empty : "s")} toward {at}, and there's no landing there");
             return;
         }
 
+        int? entered = Entered(entries, at, o.Facing, o.Level, e => _placed[e].In.Level);
+        int landing = entered is int e && owners.Contains(e) && _placed[e].In.Level == o.Level ? e : Nearest(owners, o.Level);
         WorldConnector into = _placed[landing].In;
-        if (!entries.TryGetValue((at, o.Facing), out int entered) || entered != landing || into.Kind != ConnectorKind.Landing)
+        if (entered != landing || into.Kind != ConnectorKind.Landing)
         {
             _problems.Add($"{Label(k)} jumps toward {at}, and {Label(landing)} there isn't a landing facing it");
         }

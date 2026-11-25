@@ -364,6 +364,7 @@ public partial class Main : Node3D
 
             _showroom = Showroom.Lay(catalogue);
             TrackView.Build(this, _showroom.Pieces);
+            TrackView.BuildLegs(this, _showroom.Legs);
             _stations = _showroom.Stations;
         }
         else if (terrainFlag is not null)
@@ -462,6 +463,7 @@ public partial class Main : Node3D
             else
             {
                 TrackView.Build(this, _track.Placed);
+                TrackView.BuildLegs(this, _track.Legs);
                 _trackPrint = TrackFingerprint.Of(_track.Track, catalogue);
             }
 
@@ -785,6 +787,7 @@ public partial class Main : Node3D
         plain.GetNode<CollisionShape3D>("Shape").Disabled = true;
         AddChild(TerrainView.Build(bedded, seed));
         TrackView.Build(this, _track!.Placed, bedded);
+        TrackView.BuildLegs(this, _track.Legs, bedded.HeightAt);
         AddChild(RockView.Build(rocks));
     }
 

@@ -86,6 +86,15 @@ apart, 0 for none) and `--circuits=` (the share of circuits, 0 to 1) try the dia
 are reported apart, and five seeds or fewer print each with its code and fingerprint (M4a); it times the
 fingerprint, and `--save=<folder>` writes each track's file (how `gen-5v1.json` was made).
 
+```bash
+dotnet run --project Sandrail.Bench -c Release -- --fingerprints=<scratch copy of his tracks>
+```
+
+`--fingerprints` prints every track's fingerprint as the game works it out (the game's own, and with a folder its tracks
+too), its pieces, route, length and problems: run it before and after any change to the pieces or the track layer on a
+**scratch copy** of `%APPDATA%\Godot\app_userdata\Sandrail\tracks\`, and the two must match line for line, or his
+ghosts and sheets are orphaned (PIECES-PLAN, "Pinned").
+
 Headless check, which catches scene and script errors (`--quit-after` counts **frames**):
 
 ```bash
@@ -103,7 +112,7 @@ pwsh tools/oracles.ps1
 ```
 
 `-Oracles drop` runs one; `-Spec variant.json` drives a variant file instead of the shipped buggy, which
-is how to try numbers without touching what plays. There are seventeen: `straight`, `drop`, `brake` and
+is how to try numbers without touching what plays. There are eighteen: `straight`, `drop`, `brake` and
 `circle` on the bare plain with road grip (their M1a figures are in the 2026-10-31 worklog entry;
 `straight` runs off the plain's end at 26 s and counts top speed only before), `handbrake` there too (a
 stop on it alone, and a full-lock turn with and without it; the M1d entry), `sweeper` there too (the
@@ -113,6 +122,8 @@ the plain's end, which is 1000 m out, Jolt's world boundary), `climb` there too 
 slope it climbs from rest on each surface; the M3a entry), `jump`, `loop` and `bumps` on the test ground (figures in the M1c entry), `air` there too
 (station 1's jump five times with one input held or tapped in flight; the air-control entry),
 `pieces` in the showroom (the loop, both jumps and the slope, each at several speeds; the M2b entry),
+`pieces2` there too (the pieces added since the starter set, and the crossing driven under and over; kept apart so
+`pieces` never grows; the crossings entry),
 `lap`, the autodriver
 lapping station 6 (figures in the 2026-11-23 autodriver entry), and `track`, the autodriver driving the
 shakedown start to finish (or `--track=` or `--seed=` another): its time, splits, each jump and the
@@ -136,7 +147,7 @@ tests it alone; `viewer.py <folder> --screenshot=<png>` is how Claude sees it (i
 tools\profile-viewer\build.cmd
 ```
 
-Game flags, after `--` (or passed to `start.cmd`): `--edit=new` or `--edit=<track id or path>` (the editor, M5, no car and no race; the Esc menu's New track and Edit this track use it; `--edit=new:<seed>` for an empty grid on a seed's ground; `--edit=@editor` is the editor's own track, kept across a test drive), `--drive-from=<column>,<row>` with `--track=` (a test drive from the piece on that tile, untimed unless it's a sound track's start gate, the file read without refusing it; `--track=@editor` drives the editor's track; M5c), `--seed=<n>` (a generated track on its own ground,
+Game flags, after `--` (or passed to `start.cmd`): `--edit=new` or `--edit=<track id or path>` (the editor, M5, no car and no race; the Esc menu's New track and Edit this track use it; `--edit=new:<seed>` for an empty grid on a seed's ground; `--edit=@editor` is the editor's own track, kept across a test drive), `--drive-from=<column>,<row>[,<level>]` with `--track=` (a test drive from the piece on that tile, the one nearest the level where roads cross, untimed unless it's a sound track's start gate, the file read without refusing it; `--track=@editor` drives the editor's track; M5c), `--seed=<n>` (a generated track on its own ground,
 M3b, with stunts and checkpoints since M3c; since M4a a code too, `--seed=5v1`, and a code from another
 version of the generator drives its file if the game has one, or says why not: the timer, P and `--oracle=track` all work on it; the
 autodriver finishes all five test sprints and three of the five test circuits at `--caution=0.7`; since
@@ -204,7 +215,10 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   `Tracks/` is M2's grid: `TrackGrid` (32 × 32 tiles of 20 m, levels of 2.5 m, on the plain),
   `PieceDef` (a piece as data: tiles, way in, way out, road steps; refused if its road misses its way
   out by a millimetre), `Placement` and `PlacedPiece` (turned and mirrored onto the grid),
-  `PieceCatalogue` (one piece a file from `content/base/pieces/`), the `Showroom`, and `Track` (the
+  `PieceCatalogue` (one piece a file from `content/base/pieces/`), the `Showroom` (the starter set where it always
+  was, pieces added since in the first free spot, then the crossing), `Stacking` (crossings, PIECES-PLAN: when two
+  pieces may share a tile, one 4 m clear over the other, measured on the road; the legs under a deck, left out over a
+  road below; `Lay` puts a piece with road under it on pillars, `PlacedPiece.Pillars`, never kept in the file), and `Track` (the
   track file, from `content/base/tracks/`: load, save, `Lay` against the catalogue for its problems and
   its route, start to finish, or on a circuit, format 3 with `laps`, from its start-finish line round to
   it), the `RaceTimer` (gates passed through their arches, in order, with
@@ -316,6 +330,16 @@ and groups make the same car (`RandomCars` in Core, `Hash64` only), and `tunes/r
 Change car lists them and Profile every car drives them, with no button of their own (his pick). Five at 25% around the
 stock car on the shakedown: two clean to 80% (one 56.84 against the stock car's 56.73), three not clean at 50%.
 **P5, his play with the profile, is next**, then his tuning.
+**More pieces** (2026-11-26, his ask, `docs/PIECES-PLAN.md`, its five decisions his): **crossings first**, since he
+"can never get the heights to work out correctly like i want to go under sometimes", which was never heights: a tile
+held one piece. **X1 and X2 are built**: a tile may hold two pieces when one runs 4 m clear over the other (two levels
+on level road; a banked edge counts), and the upper goes up on pillars by itself (a 0.5 m deck on grey legs, no bed),
+nothing new in the file; the editor places, erases and test-drives by level and says how many levels a crossing is
+short; **steep slopes** (two levels over three tiles, a crossing in seven tiles); the showroom's crossing stations;
+`base:crossover`, a figure-of-eight circuit of 963 m a lap under and over itself (the stock car 2:04.59 at 80%,
+clean); the `pieces2` oracle. Every track's fingerprint, his saved ones included, and every other oracle are as they
+were. **X3, his play on crossings, is next**; then the rest he picked: 70 m corners and a U-turn, a hump and a
+tabletop, dirt and sand straights and a 40° bank, then a climbing corner and a corkscrew. The generator stays version 1.
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by

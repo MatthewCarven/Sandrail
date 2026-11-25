@@ -202,6 +202,48 @@ public static class TrackView
     }
 
     /// <summary>
+    /// The legs under the pieces on pillars (PIECES-PLAN, the model), as Core placed them: grey posts from each
+    /// deck's underside down into the ground, with colliders, since a car that leaves the road can hit one. Nothing
+    /// at all on a track that never crosses itself.
+    /// </summary>
+    /// <param name="parent">Where they go.</param>
+    /// <param name="legs">Core's legs.</param>
+    /// <param name="groundAt">The ground's height at a point; null for the plain.</param>
+    public static void BuildLegs(Node3D parent, IReadOnlyList<Leg> legs, System.Func<float, float, float>? groundAt = null)
+    {
+        if (legs.Count == 0)
+        {
+            return;
+        }
+
+        var root = new Node3D { Name = "Legs" };
+        var material = new StandardMaterial3D { AlbedoColor = new Color(0.62f, 0.61f, 0.58f), Roughness = 0.9f };
+        for (int k = 0; k < legs.Count; k++)
+        {
+            Leg leg = legs[k];
+            float bottom = (groundAt?.Invoke(leg.Top.X, leg.Top.Z) ?? 0.0f) - 0.5f;
+            float height = leg.Top.Y - bottom;
+            if (height <= 0.05f)
+            {
+                continue;
+            }
+
+            var size = new Vector3(leg.SizeM, height, leg.SizeM);
+            var body = new StaticBody3D
+            {
+                Name = $"Leg {k}",
+                Position = new Vector3(leg.Top.X, bottom + (height / 2.0f), leg.Top.Z),
+            };
+            body.SetMeta("surface", Surfaces.Road.Id);
+            body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size } });
+            body.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = size }, MaterialOverride = material });
+            root.AddChild(body);
+        }
+
+        parent.AddChild(root);
+    }
+
+    /// <summary>
     /// A grey-box arch across a gate piece's middle: two posts clear of the road and a beam 5 m up, green
     /// for the start, blue for a checkpoint, red for the finish, white for a circuit's line. No collider: it marks the line, it doesn't
     /// stop a car that goes wide.

@@ -52,6 +52,13 @@ public partial class EditorView : Node3D
     private static readonly Regex PieceLabel = new(@"pieces\[\d+\] \((?:base:)?([^ ]+) at (\(\d+, \d+\))\)", RegexOptions.Compiled);
 
     private readonly Dictionary<Placement, Node3D> _built = new();
+
+    /// <summary>The built pieces that went up on pillars, so one is built again when a road goes under it or comes away.</summary>
+    private readonly HashSet<Placement> _builtOnPillars = new();
+
+    /// <summary>The legs under the pieces on pillars, built again with every change: a handful of boxes.</summary>
+    private Node3D? _legs;
+
     private readonly List<Button> _paletteButtons = new();
     private List<PieceDef> _palette = new();
     private Camera3D _camera = null!;
@@ -129,7 +136,7 @@ public partial class EditorView : Node3D
     public required PieceCatalogue Catalogue { get; init; }
 
     /// <summary>Tab (M5c): a test drive from the piece on a tile; the view is kept in <see cref="EditorSession"/> for coming back.</summary>
-    public System.Action<Tile>? TestDrive { get; init; }
+    public System.Action<Tile, int>? TestDrive { get; init; }
 
     /// <summary>Where the view is now, for <see cref="EditorSession.State"/>.</summary>
     public EditorState Capture() => new(_cursor, _level, _turn, _mirrored, _piece, _yaw, _zoom, _atEnd, _endIndex, _cameraAt, _focus, _followCursor);
@@ -140,19 +147,20 @@ public partial class EditorView : Node3D
     /// </summary>
     private void Drive()
     {
-        Tile? from = _atEnd && CurrentEnd is WorldConnector end ? end.Tile
-            : Editor.PieceAt(_cursor) is not null ? _cursor
-            : Editor.Laid.Route.Count > 0 ? Editor.Laid.Route[0].Placement.At
-            : Editor.Laid.Placed.Count > 0 ? Editor.Laid.Placed[0].Placement.At
+        // Where roads cross, the piece nearest the cursor's level: Page Up and Down choose over or under.
+        PlacedPiece? from = _atEnd && CurrentEnd is WorldConnector end ? Editor.PieceAt(end.Tile, end.Level)
+            : Editor.PieceAt(_cursor, _level) is PlacedPiece under ? under
+            : Editor.Laid.Route.Count > 0 ? Editor.Laid.Route[0]
+            : Editor.Laid.Placed.Count > 0 ? Editor.Laid.Placed[0]
             : null;
-        if (from is not Tile tile || TestDrive is null)
+        if (from is null || TestDrive is null)
         {
             Say("Lay a piece first: there's nothing to drive.", 3.0);
             return;
         }
 
         EditorSession.State = Capture();
-        TestDrive(tile);
+        TestDrive(_atEnd || Editor.PieceAt(_cursor) is null ? from.Placement.At : _cursor, from.Placement.Level);
     }
 
     public override void _Ready()
@@ -388,10 +396,11 @@ public partial class EditorView : Node3D
                 break;
             case Key.Backspace when _atEnd && CurrentEnd is WorldConnector end:
                 // At the road's end, Backspace takes back the piece the road ends on.
-                Act(Editor.Erase(end.Tile), "Taken back.");
+                Act(Editor.Erase(end.Tile, end.Level), "Taken back.");
                 break;
             case Key.Delete or Key.Backspace:
-                Act(Editor.Erase(_cursor), "Taken away.");
+                // Where roads cross, the one nearest the cursor's level: Page Up and Down choose.
+                Act(Editor.Erase(_cursor, _level), "Taken away.");
                 break;
             case Key.Z when key.CtrlPressed:
                 Act(Editor.Undo() ? null : "Nothing to undo.", "Undone.");
@@ -463,7 +472,7 @@ public partial class EditorView : Node3D
         string facing = TrackGrid.Turned(Compass.North, _turn).ToString().ToLowerInvariant();
         string where = _atEnd
             ? $"the road's end, {_cursor}, going {facing}, level {_level}{(Editor.OpenEnds().Count > 1 ? $" ({_endIndex + 1} of {Editor.OpenEnds().Count} ends)" : string.Empty)}"
-            : $"{_cursor}, facing {facing}, level {_level}{(Editor.PieceAt(_cursor) is PlacedPiece under ? $", on the {Short(under.Def)}" : string.Empty)}";
+            : $"{_cursor}, facing {facing}, level {_level}{Under(_cursor)}";
         _status.Text = $"EDITOR   {Editor.Track.Name}\n"
             + (Editor.Track.Circuit ? $"       A circuit of {Editor.Track.Laps} laps (L for more)" : "       A sprint")
             + (Editor.Track.Ground is TrackGround g ? $", on seed {g.Seed}'s ground{(_groundTask is not null || _groundDirty ? ", catching up" : string.Empty)}\n" : "\n")
@@ -620,7 +629,7 @@ public partial class EditorView : Node3D
         }
 
         // On to the end of what was just laid, if it leaves one open; after a lip, the landing in hand.
-        PlacedPiece? laid = Editor.PieceAt(hand.At);
+        PlacedPiece? laid = Editor.Laid.Placed.FirstOrDefault(p => p.Placement == hand);
         IReadOnlyList<WorldConnector> ends = Editor.OpenEnds();
         int index = laid is null ? -1 : ends.ToList().IndexOf(laid.Out);
         if (index >= 0)
@@ -694,6 +703,11 @@ public partial class EditorView : Node3D
                 }
 
                 _bedded = done.Result.Bed;
+                if (Editor.Laid.Legs.Count > 0)
+                {
+                    RefreshLegs();
+                }
+
                 GD.Print($"The editor's ground caught up: {behind:F0} ms in the background, {done.Result.Changed.Count} of {Squares * Squares} squares shown again in {swap.Elapsed.TotalMilliseconds:F1} ms");
             }
         }
@@ -925,6 +939,28 @@ public partial class EditorView : Node3D
     /// <summary>A piece's short name, its ID without the namespace: "corner-30".</summary>
     private static string Short(PieceDef def) => def.Id.StartsWith("base:", StringComparison.Ordinal) ? def.Id[5..] : def.Id;
 
+    /// <summary>
+    /// What the cursor's tile has on it, for the status line: the piece, or where roads cross, each with its level,
+    /// top first, the one Delete would take marked.
+    /// </summary>
+    private string Under(Tile tile)
+    {
+        IReadOnlyList<PlacedPiece> there = Editor.PiecesAt(tile);
+        if (there.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        if (there.Count == 1)
+        {
+            return $", on the {Short(there[0].Def)}";
+        }
+
+        PlacedPiece? nearest = Editor.PieceAt(tile, _level);
+        return ", on " + string.Join(" over ", there.Reverse().Select(p =>
+            $"the {Short(p.Def)} (level {p.Placement.Level}{(ReferenceEquals(p, nearest) ? ", Delete takes it" : string.Empty)})"));
+    }
+
     /// <summary>A problem in the editor's words: "the corner-30 at (14, 13)" for the file's "pieces[3] (base:corner-30 at (14, 13))".</summary>
     private static string Plain(string problem)
     {
@@ -950,10 +986,13 @@ public partial class EditorView : Node3D
     private void Rebuild()
     {
         var now = Editor.Laid.Placed.ToDictionary(p => p.Placement);
-        foreach (Placement gone in _built.Keys.Where(k => !now.ContainsKey(k)).ToList())
+
+        // Gone, or gone up onto pillars or down off them since it was built (a road laid under it, or taken away).
+        foreach (Placement gone in _built.Keys.Where(k => !now.TryGetValue(k, out PlacedPiece? p) || p.Pillars != _builtOnPillars.Contains(k)).ToList())
         {
             _built[gone].QueueFree();
             _built.Remove(gone);
+            _builtOnPillars.Remove(gone);
         }
 
         foreach ((Placement p, PlacedPiece piece) in now)
@@ -963,8 +1002,14 @@ public partial class EditorView : Node3D
                 Node3D node = TrackView.BuildOne(piece, _bare);
                 AddChild(node);
                 _built[p] = node;
+                if (piece.Pillars)
+                {
+                    _builtOnPillars.Add(p);
+                }
             }
         }
+
+        RefreshLegs();
 
         // The pieces the problems name, by their place in the file, tinted red.
         var faulty = new HashSet<Placement>();
@@ -1000,6 +1045,16 @@ public partial class EditorView : Node3D
             : $"TO DO ({problems.Count})\n" + string.Join("\n", problems.Take(8).Select(p => "· " + Plain(p))) + (problems.Count > 8 ? $"\n· and {problems.Count - 8} more" : string.Empty);
         _problems.Modulate = problems.Count == 0 ? new Color(0.6f, 1.0f, 0.6f) : Colors.White;
         _handShown = null;
+    }
+
+    /// <summary>The legs under the decks, on the ground as it stands: the bed once it's caught up, else the bare ground or the plain.</summary>
+    private void RefreshLegs()
+    {
+        _legs?.QueueFree();
+        _legs = new Node3D { Name = "Legs under decks" };
+        Sandrail.Core.Generation.Terrain? ground = _bedded ?? _bare;
+        TrackView.BuildLegs(_legs, Editor.Laid.Legs, ground is null ? null : ground.HeightAt);
+        AddChild(_legs);
     }
 
     /// <summary>The piece in hand where it would go, built again only when it moves or changes.</summary>

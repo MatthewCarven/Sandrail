@@ -2,19 +2,30 @@ using Sandrail.Core.Pieces;
 
 namespace Sandrail.Core.Tracks;
 
+/// <summary>The showroom: every piece placed, a station at each run-up's start, and each piece with its run-up and run-out as a group; the legs under any deck.</summary>
+public sealed record ShowroomLayout(IReadOnlyList<PlacedPiece> Pieces, IReadOnlyList<Station> Stations, IReadOnlyList<IReadOnlyList<PlacedPiece>> Groups)
+{
+    /// <summary>The legs under the crossing's deck (PIECES-PLAN, X2); none before crossings.</summary>
+    public IReadOnlyList<Leg> Legs { get; init; } = [];
+}
+
 /// <summary>
 /// Every piece in the catalogue laid out on the grid, one at a time (M2-PLAN, M2b's showroom, begun in
 /// M2a): each behind a run-up of straights and followed by a run-out, with a station at the start of its
 /// run-up, for screenshots and for driving one piece at a time.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Groups go left to right across the grid's south and wrap northward into bands. A group's tiles are
 /// found by placing it at the grid's corner and measuring, then it's shifted to where it fits, so a
 /// piece of any shape or exit finds room.
+/// </para>
+/// <para>
+/// <b>The starter set comes first, where it always was</b> (PIECES-PLAN fact 9): the pieces oracle drives it,
+/// and a new piece file sorting among the old ones would otherwise move every station after it. Pieces added
+/// since come after it, then the crossing, two stations on one block.
+/// </para>
 /// </remarks>
-/// <summary>The showroom: every piece placed, a station at each run-up's start, and each piece with its run-up and run-out as a group.</summary>
-public sealed record ShowroomLayout(IReadOnlyList<PlacedPiece> Pieces, IReadOnlyList<Station> Stations, IReadOnlyList<IReadOnlyList<PlacedPiece>> Groups);
-
 public static class Showroom
 {
     /// <summary>Straights before each piece: 80 m, about what the car needs from rest to 100 km/h.</summary>
@@ -29,6 +40,19 @@ public static class Showroom
     /// <summary>Straights after it, along its way out.</summary>
     public const int RunOut = 2;
 
+    /// <summary>The crossing's two stations: driven under the deck, and over it.</summary>
+    public const string CrossingUnder = "Crossing, under";
+
+    public const string CrossingOver = "Crossing, over";
+
+    /// <summary>The seventeen pieces of M2 and M3, in the order the showroom has always laid them (their files' order).</summary>
+    public static readonly IReadOnlyList<string> StarterSet =
+    [
+        "base:checkpoint", "base:chicane", "base:corner-30-banked", "base:corner-30", "base:corner-50-banked", "base:corner-50",
+        "base:finish", "base:landing", "base:launch-long", "base:launch-short", "base:loop", "base:s-bend", "base:slope-down",
+        "base:slope-up", "base:start-finish", "base:start", "base:straight",
+    ];
+
     public static ShowroomLayout Lay(PieceCatalogue catalogue)
     {
         PieceDef straight = catalogue.Find("base:straight")
@@ -41,12 +65,13 @@ public static class Showroom
         int bandBottom = TrackGrid.Size - 2;
         int bandHeight = 0;
 
-        // A landing is shown after each launch ramp, across its gap, not on its own.
-        foreach (PieceDef piece in catalogue.All.Where(p => p.In != ConnectorKind.Landing))
+        // Each block is laid where it fits, its groups together: one group for a piece, two for the crossing. The
+        // starter set in bands, as it always was; anything since in the first free spot, a tile clear of the rest, so
+        // the gaps the bands leave are filled before anything runs off the grid.
+        var taken = new HashSet<Tile>();
+        void Block(IReadOnlyList<(string Name, string Hint, List<Placement> Group)> block, bool starter)
         {
-            List<Placement> group = Group(piece, straight, catalogue);
-            var placed = group.Select(p => new PlacedPiece(catalogue.Find(p.Piece)!, p)).ToList();
-            var tiles = placed.SelectMany(p => p.Tiles).ToList();
+            var tiles = block.SelectMany(b => b.Group).SelectMany(p => new PlacedPiece(catalogue.Find(p.Piece)!, p).Tiles).ToList();
             int minColumn = tiles.Min(t => t.Column);
             int maxColumn = tiles.Max(t => t.Column);
             int minRow = tiles.Min(t => t.Row);
@@ -54,30 +79,122 @@ public static class Showroom
             int width = maxColumn - minColumn + 1;
             int height = maxRow - minRow + 1;
 
-            if (cursor + width > TrackGrid.Size - 1)
+            int dc;
+            int dr;
+            if (starter || FreeSpot(tiles, taken) is not (int, int) spot)
             {
-                cursor = 1;
-                bandBottom -= bandHeight + 1;
-                bandHeight = 0;
+                if (cursor + width > TrackGrid.Size - 1)
+                {
+                    cursor = 1;
+                    bandBottom -= bandHeight + 1;
+                    bandHeight = 0;
+                }
+
+                dc = cursor - minColumn;
+                dr = bandBottom - maxRow;
+                cursor += width + 1;
+                bandHeight = Math.Max(bandHeight, height);
+            }
+            else
+            {
+                (dc, dr) = spot;
             }
 
-            int dc = cursor - minColumn;
-            int dr = bandBottom - maxRow;
-            foreach (Placement p in group)
+            taken.UnionWith(tiles.Select(t => new Tile(t.Column + dc, t.Row + dr)));
+            foreach ((string name, string hint, List<Placement> group) in block)
             {
-                pieces.Add(new PlacedPiece(catalogue.Find(p.Piece)!, p with { At = new Tile(p.At.Column + dc, p.At.Row + dr) }));
+                foreach (Placement p in group)
+                {
+                    pieces.Add(new PlacedPiece(catalogue.Find(p.Piece)!, p with { At = new Tile(p.At.Column + dc, p.At.Row + dr) }));
+                }
+
+                groups.Add(pieces.GetRange(pieces.Count - group.Count, group.Count));
+                stations.Add(new Station(stations.Count + 1, name, pieces[^group.Count].Start, hint));
             }
-
-            groups.Add(pieces.GetRange(pieces.Count - group.Count, group.Count));
-            PlacedPiece first = pieces[^group.Count];
-            string hint = piece.SpeedKmh is float[] speed ? $"take it at {speed[0]:F0}-{speed[1]:F0} km/h" : "drive it as it comes";
-            stations.Add(new Station(stations.Count + 1, piece.Name, first.Start, hint));
-
-            cursor += width + 1;
-            bandHeight = Math.Max(bandHeight, height);
         }
 
-        return new ShowroomLayout(pieces, stations, groups);
+        // A landing is shown after each launch ramp, across its gap, not on its own.
+        IEnumerable<PieceDef> shown = StarterSet.Select(catalogue.Find).OfType<PieceDef>()
+            .Concat(catalogue.All.Where(p => !StarterSet.Contains(p.Id)))
+            .Where(p => p.In != ConnectorKind.Landing);
+        foreach (PieceDef piece in shown)
+        {
+            string hint = piece.SpeedKmh is float[] speed ? $"take it at {speed[0]:F0}-{speed[1]:F0} km/h" : "drive it as it comes";
+            Block([(piece.Name, hint, Group(piece, straight, catalogue))], StarterSet.Contains(piece.Id));
+        }
+
+        if (Crossing(catalogue) is var (under, over))
+        {
+            Block([(CrossingUnder, "under the deck, as fast as you like", under), (CrossingOver, "up two levels, over, and down", over)], false);
+        }
+
+        // Where one road runs over another, it goes up on pillars, as on a track.
+        var raised = new HashSet<int>();
+        for (int a = 0; a < pieces.Count; a++)
+        {
+            for (int b = a + 1; b < pieces.Count; b++)
+            {
+                foreach (Tile tile in pieces[a].Tiles.Intersect(pieces[b].Tiles))
+                {
+                    Stack stack = Stacking.Of(pieces[a], pieces[b], tile);
+                    if (!stack.Overlap)
+                    {
+                        raised.Add(ReferenceEquals(stack.Upper, pieces[a]) ? a : b);
+                    }
+                }
+            }
+        }
+
+        if (raised.Count == 0)
+        {
+            return new ShowroomLayout(pieces, stations, groups);
+        }
+
+        var all = pieces.Select((p, k) => raised.Contains(k) ? new PlacedPiece(p.Def, p.Placement) { Pillars = true } : p).ToList();
+        var swapped = groups.Select(g => (IReadOnlyList<PlacedPiece>)g.Select(p => all[pieces.IndexOf(p)]).ToList()).ToList();
+        var legs = all.Where(p => p.Pillars).SelectMany(p => Stacking.Legs(p, all)).ToList();
+        return new ShowroomLayout(all, stations, swapped) { Legs = legs };
+    }
+
+    /// <summary>
+    /// The first shift, scanning from the grid's south-west corner row by row, that puts a block's tiles on the grid,
+    /// inside its edge, with a tile clear of everything taken; null if there's none.
+    /// </summary>
+    private static (int Dc, int Dr)? FreeSpot(List<Tile> tiles, HashSet<Tile> taken)
+    {
+        int minColumn = tiles.Min(t => t.Column);
+        int maxColumn = tiles.Max(t => t.Column);
+        int minRow = tiles.Min(t => t.Row);
+        int maxRow = tiles.Max(t => t.Row);
+        for (int bottom = TrackGrid.Size - 2; bottom - (maxRow - minRow) >= 1; bottom--)
+        {
+            for (int left = 1; left + (maxColumn - minColumn) <= TrackGrid.Size - 2; left++)
+            {
+                int dc = left - minColumn;
+                int dr = bottom - maxRow;
+                bool clear = tiles.All(t =>
+                {
+                    for (int i = -1; i <= 1; i++)
+                    {
+                        for (int j = -1; j <= 1; j++)
+                        {
+                            if (taken.Contains(new Tile(t.Column + dc + i, t.Row + dr + j)))
+                            {
+                                return false;
+                            }
+                        }
+                    }
+
+                    return true;
+                });
+                if (clear)
+                {
+                    return (dc, dr);
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -99,7 +216,7 @@ public static class Showroom
         group.Add(main);
 
         WorldConnector exit = new PlacedPiece(piece, main).Out;
-        if (exit.Kind == ConnectorKind.Lip && catalogue.All.FirstOrDefault(p => p.In == ConnectorKind.Landing) is PieceDef landing)
+        if (exit.Kind == ConnectorKind.Lip && (catalogue.Find("base:landing") ?? catalogue.All.FirstOrDefault(p => p.In == ConnectorKind.Landing)) is PieceDef landing)
         {
             var down = new Placement(landing.Id, exit.Landing, exit.Level, (int)exit.Facing, false);
             group.Add(down);
@@ -117,5 +234,44 @@ public static class Showroom
         }
 
         return group;
+    }
+
+    /// <summary>
+    /// The crossing (PIECES-PLAN, X2): a road north at the plain's level, its run-up, the crossing tile and its
+    /// run-out; and a road east over it, a run-up, up two levels on a steep slope, a straight over the crossing
+    /// tile, and down again. Null without the steep slopes.
+    /// </summary>
+    private static (List<Placement> Under, List<Placement> Over)? Crossing(PieceCatalogue catalogue)
+    {
+        if (catalogue.Find("base:slope-up-steep") is null || catalogue.Find("base:slope-down-steep") is null)
+        {
+            return null;
+        }
+
+        const string Straight = "base:straight";
+        int east = (int)Compass.East;
+        var under = new List<Placement>();
+        for (int i = 0; i <= RunUp + RunOut; i++)
+        {
+            under.Add(new Placement(Straight, new Tile(0, -i), 0, 0, false));
+        }
+
+        // The crossing tile comes after a run-up, as a piece does.
+        var crossing = new Tile(0, -RunUp);
+        var over = new List<Placement>();
+        for (int i = RunUp + 3; i > 3; i--)
+        {
+            over.Add(new Placement(Straight, crossing.Step(Compass.West, i), 0, east, false));
+        }
+
+        over.Add(new Placement("base:slope-up-steep", crossing.Step(Compass.West, 3), 0, east, false));
+        over.Add(new Placement(Straight, crossing, 2, east, false));
+        over.Add(new Placement("base:slope-down-steep", crossing.Step(Compass.East), 2, east, false));
+        for (int i = 4; i < 4 + RunOut; i++)
+        {
+            over.Add(new Placement(Straight, crossing.Step(Compass.East, i), 0, east, false));
+        }
+
+        return (under, over);
     }
 }

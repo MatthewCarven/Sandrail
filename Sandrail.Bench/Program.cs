@@ -31,6 +31,11 @@ public static class Program
             return GenerateArm(args);
         }
 
+        if (args.Any(a => a == "--fingerprints" || a.StartsWith("--fingerprints=", StringComparison.Ordinal)))
+        {
+            return FingerprintsArm(args);
+        }
+
         Console.WriteLine("Arms: --noise [--seed=<n>] [--octaves=<n>]");
         Console.WriteLine("      --terrain [--seeds=<n>] [--hills=] [--plains=] [--feature=] [--octaves=] [--gain=] [--region=] [--rarity=]");
         return 1;
@@ -286,6 +291,63 @@ public static class Program
         Console.WriteLine($"  rocks:              {Spread(rocks)}");
         Console.WriteLine($"  pieces by kind:     {string.Join(", ", kinds.OrderByDescending(k => k.Value).Select(k => $"{k.Key} {k.Value}"))}");
         return refused == 0 && failed == 0 ? 0 : 2;
+    }
+
+    /// <summary>
+    /// Every track's fingerprint, as the game works it out when it loads one (PIECES-PLAN, "Pinned"): the game's
+    /// own tracks, and with <c>--fingerprints=&lt;folder&gt;</c> every track file in that folder too (a scratch copy
+    /// of his saved tracks, never the folder itself). On generated ground the bed is laid under the route of a
+    /// sound track and under every piece of an unsound one, and only a sound track has rocks, as in the game.
+    /// Run before and after a change to the pieces or the track layer, the two outputs must match line for line.
+    /// </summary>
+    private static int FingerprintsArm(string[] args)
+    {
+        var catalogue = Sandrail.Core.Tracks.PieceCatalogue.Parse(
+            Directory.GetFiles(Path.Combine(ContentRoot(), "pieces"), "*.json")
+                .OrderBy(f => f, StringComparer.Ordinal)
+                .Select(f => (Path.GetFileName(f), File.ReadAllText(f))));
+        var folders = new List<string> { Path.Combine(ContentRoot(), "tracks") };
+        string? extra = args.FirstOrDefault(a => a.StartsWith("--fingerprints=", StringComparison.Ordinal))?["--fingerprints=".Length..];
+        if (!string.IsNullOrEmpty(extra))
+        {
+            folders.Add(extra);
+        }
+
+        foreach (string folder in folders)
+        {
+            foreach (string file in Directory.GetFiles(folder, "*.json").OrderBy(f => f, StringComparer.Ordinal))
+            {
+                Sandrail.Core.Tracks.Track track;
+                try
+                {
+                    track = Sandrail.Core.Tracks.Track.Parse(File.ReadAllText(file));
+                }
+                catch (InvalidDataException e)
+                {
+                    Console.WriteLine($"{Path.GetFileName(file)}: not read: {e.Message}");
+                    continue;
+                }
+
+                Sandrail.Core.Tracks.LaidTrack laid = track.Lay(catalogue);
+                bool whole = laid.Problems.Count == 0;
+                string print;
+                if (track.Ground is Sandrail.Core.Tracks.TrackGround ground)
+                {
+                    Terrain bedded = Bed.Lay(new Terrain(ground.Seed, ground.Terrain), whole ? laid.Route : laid.Placed);
+                    IReadOnlyList<Rock> rocks = whole ? Rocks.Scatter(ground.Seed, new RockSettings(), laid, bedded) : [];
+                    print = Sandrail.Core.Tracks.TrackFingerprint.Of(track, catalogue, bedded, rocks);
+                }
+                else
+                {
+                    print = Sandrail.Core.Tracks.TrackFingerprint.Of(track, catalogue);
+                }
+
+                Console.WriteLine($"{Path.GetFileName(file)}: {track.Id} {print} | {laid.Placed.Count} pieces, route {laid.Route.Count}, {laid.LengthM:F1} m | "
+                    + (whole ? "sound" : $"{laid.Problems.Count} problems: {string.Join("; ", laid.Problems)}"));
+            }
+        }
+
+        return 0;
     }
 
     /// <summary>The game's content folder, found by walking up from where the bench runs.</summary>
