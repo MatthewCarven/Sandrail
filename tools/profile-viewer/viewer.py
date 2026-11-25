@@ -10,8 +10,7 @@ Trellis grid: a viewer needs sorting, frozen columns and only the rows on screen
 none of an editor's cells, save or undo. Its error lines come from trellis-errors when it's installed.
 
 Every column is as wide as its widest cell, over every run and not only those on screen, or its header, whichever is
-wider; a long header is angled above the table so the numbers set the width. Right-click a run to copy it, its shown
-columns as one line separated by commas.
+wider; a long header is angled above the table so the numbers set the width. Right-click a cell to copy it.
 
     python viewer.py [folder or sheet.csv] [--sheet=All tracks] [--groups=Run,Summary,Car]
                      [--sort=when:desc --sort=track --sort=time s] [--headers=angled|wrapped|one line]
@@ -20,8 +19,6 @@ columns as one line separated by commas.
 
 from __future__ import annotations
 
-import csv
-import io
 import json
 import os
 import sys
@@ -121,17 +118,9 @@ def text_width(text: str) -> float | None:
     return size[0] if size else None
 
 
-def row_csv(cells: list[str]) -> str:
-    """A run's cells as one line separated by commas, as a CSV has them: a cell holding a comma, a quote or a line
-    break goes in quotes, so a spreadsheet splits the line where the cells do."""
-    out = io.StringIO()
-    csv.writer(out, lineterminator="").writerow(cells)
-    return out.getvalue()
-
-
 #: How long the status line says what was copied before it goes back to the sheet's summary, in seconds.
 COPIED_FOR = 4.0
-#: How much of a copied line the status line shows.
+#: How much of a copied cell the status line shows (the differences from the stock car run long).
 COPIED_SHOWN = 140
 
 
@@ -234,10 +223,12 @@ class Viewer:
         with dpg.handler_registry():
             dpg.add_key_press_handler(dpg.mvKey_F5, callback=lambda: self.reload(force=True))
 
-        # Every run's first cell wears this: it spans the row, so a right-click anywhere along the run lands on it
+        # Every run's first cell wears this: it spans the row, so a right-click anywhere along the run lands on it, and
+        # the column the mouse is over says which cell (the cells' own text never reports a hover: the span takes it)
         with dpg.item_handler_registry(tag=self.RIGHT_CLICK):
-            dpg.add_item_clicked_handler(button=dpg.mvMouseButton_Right,
-                                         callback=lambda s, a: self.copy_row(dpg.get_item_user_data(a[1])))
+            dpg.add_item_clicked_handler(
+                button=dpg.mvMouseButton_Right,
+                callback=lambda s, a: self.copy_cell(dpg.get_item_user_data(a[1]), self.hovered_column()))
 
     def _browse(self) -> None:
         start = self.folder if self.folder.is_dir() else Path.home()
@@ -438,7 +429,7 @@ class Viewer:
         with dpg.table_row(parent=self.table_id, user_data=r) as row_id:
             cells = []
             for c, text in enumerate(row):
-                if c == 0:  # click a run to mark it, to keep your place scrolling sideways; right-click to copy it
+                if c == 0:  # click a run to mark it, to keep your place scrolling sideways; right-click copies a cell
                     cells.append(dpg.add_selectable(label=text, span_columns=True, user_data=r))
                     dpg.bind_item_handler_registry(cells[-1], self.RIGHT_CLICK)
                 else:
@@ -449,14 +440,23 @@ class Viewer:
         self.row_ids.append(row_id)
         self.cell_ids.append(cells)
 
-    def copy_row(self, r: int) -> str:
-        """Puts a run on the clipboard (a right-click on it): its shown columns, in their order, as one line separated
-        by commas. Says so on the status line for a few seconds."""
+    def hovered_column(self) -> int | None:
+        """The shown column the mouse is over, as Dear ImGui has it: anywhere in the column, not only on its text."""
+        return next((i for i, col_id in enumerate(self.col_ids)
+                     if self._shown(i) and dpg.get_item_state(col_id).get("hovered")), None)
+
+    def copy_cell(self, r: int, c: int | None) -> str | None:
+        """Puts run r's cell in column c on the clipboard (a right-click on it), the whole of it as the sheet has it,
+        and says so on the status line for a few seconds. No column (the mouse in none) copies nothing."""
+        if c is None:
+            return None
         row = self.table.rows[r]
-        text = row_csv([cell for i, cell in enumerate(row) if self._shown(i)])
+        text = row[c] if c < len(row) else ""
         dpg.set_clipboard_text(text)
         shown = text if len(text) <= COPIED_SHOWN else text[:COPIED_SHOWN] + "..."
-        self.status(f"Copied to the clipboard: {shown}")
+        name = self.table.columns[c].name
+        self.status(f'Copied "{name}" to the clipboard: {shown}' if text
+                    else f'Copied "{name}" to the clipboard: it\'s blank')
         self._status_back = time.monotonic() + COPIED_FOR
         return text
 
@@ -612,7 +612,7 @@ class Viewer:
                 if missing:
                     bits.append(f"not sorted by {', '.join(missing)}: this sheet hasn't {'it' if len(missing) == 1 else 'them'}")
                 text = ", ".join(b for b in bits if b) + (". Sort with the boxes above, or click a header (Shift-click "
-                                                          "adds the next). Right-click a run to copy it.")
+                                                          "adds the next). Right-click a cell to copy it.")
                 text += "".join(" " + n for n in t.notes)
         dpg.set_value(self.STATUS, text)
 

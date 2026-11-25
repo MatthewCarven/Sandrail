@@ -247,8 +247,8 @@ number) is angled above the table, his pick of three styles, so the numbers set 
 from 10,600 px wide to 4,200. A column refits when a new run needs more room, a column dragged wider keeps its width,
 and Fit columns fits them all again.
 
-**Right-click a run to copy it** (2026-11-26, at his ask). The run goes on the clipboard as one line separated by
-commas: the columns shown, in the order shown, with a cell holding a comma quoted as a CSV has it.
+**Right-click a cell to copy it** (2026-11-26, at his ask). It copies the whole cell as the sheet has it. At first a
+right-click copied the whole run as a CSV line; then at his word, "just copy the cell you click on".
 
 ### P4 — profile ghosts
 

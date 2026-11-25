@@ -36,9 +36,9 @@ Run `dist\SandrailProfiles.exe` (after `build.cmd`), or `python viewer.py`.
   **Fit columns**, which fits every column again. Double-clicking an edge is Dear ImGui's own fit, to the runs on screen
   only.
 - **Click a run** to mark it, to keep your place while scrolling sideways.
-- **Right-click a run to copy it**: its cells go on the clipboard as one line separated by commas, the columns shown
-  in the order shown (a hidden group isn't copied). A cell with a comma or a quote in it is put in quotes, as a CSV
-  has it. The status line says what was copied for a few seconds. A right-click doesn't mark the run.
+- **Right-click a cell to copy it**: the whole of it, as the sheet has it (the differences from the stock car too,
+  however long), anywhere in the cell and not only on its text. The status line says what was copied for a few
+  seconds. A right-click doesn't mark the run.
 - **New runs appear by themselves**: the sheet is checked twice a second and `cars.csv` with it. F5 re-reads now.
 
 From a command line, for a look or a screenshot: `viewer.py [folder or sheet.csv] [--sheet="All tracks"]
@@ -71,8 +71,10 @@ with PyInstaller. The exe isn't committed. Antivirus sometimes looks twice at a 
   and a sortable table reports a sort by its first column on its first frame unless a column is its
   `default_sort`.
 - **The right-click** is an item handler on each run's first cell, the selectable that spans the row, so it's heard
-  anywhere along the run, over the frozen columns or the scrolled ones. DearPyGui's `get_clipboard_text` crashes the
-  process when the clipboard holds no text (an image, say), so the viewer only ever sets it.
+  anywhere along the run, over the frozen columns or the scrolled ones. Which cell is told by the column: a table
+  column's state has `hovered`, true with the mouse anywhere in it. The cells' own text never reports a hover, since
+  the spanning selectable takes it. DearPyGui's `get_clipboard_text` crashes the process when the clipboard holds no
+  text (an image, say), so the viewer only ever sets it.
 - **The widths** (`fit_column` in `viewer.py`, tested with a stand-in for the font) are the viewer's own, because Dear
   ImGui's fit only measures the rows it draws, and with the clipper that's the rows on screen. More DearPyGui 2.3
   things found on the way:

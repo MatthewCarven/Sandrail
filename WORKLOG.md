@@ -2,23 +2,36 @@
 
 Newest first. What happened and why; findings worth keeping.
 
-## 2026-11-26 — Right-click a run in the profile viewer to copy it
+## 2026-11-26 — Right-click a cell in the profile viewer to copy it
 
-His ask: *"when you right click a row it copies it to the clipboard separated by commas"*. A right-click anywhere along
-a run puts its cells on the clipboard as one line, the columns shown in the order shown, so a hidden group isn't
-copied. A cell with a comma or a quote is quoted, as a CSV has it (`row_csv`), so a spreadsheet splits the line where
-the cells do. The status line says what was copied for 4 s, then goes back to the sheet's summary, which now ends
-"Right-click a run to copy it". A right-click doesn't mark the run. The handler sits on each run's first cell, the
-selectable that already spans the row for marking, so it's heard over the frozen columns and the scrolled ones alike.
+His ask, first: *"when you right click a row it copies it to the clipboard separated by commas"*. That was built
+(`6a02172`): the run's shown columns as one CSV line. He then found it didn't copy. His exe had been built from the
+commit before, since his checkout hadn't been pulled. Then, his last word on it: *"just copy the cell you click on"*.
+So a right-click now copies the one cell under the mouse: the whole of it as the sheet has it, unquoted, the long
+differences column too. The status line says what was copied for 4 s (or that it's blank), then goes back to the
+sheet's summary, which now ends "Right-click a cell to copy it". A right-click doesn't mark the run.
 
-**Checks**: 72 tests (5 new: the line's quoting, the run clicked copied wherever the sort put it, a group shown or
-hidden copied or not, a run the game added since, the status line going back). A live window on a scratch copy, with
-real right-clicks: one over `19 straight s` scrolled into view, one over the frozen `driver` column further down. Each
-copied its own run exactly, and neither marked it.
+**How it knows the cell**: the handler sits on each run's first cell, the selectable that already spans the row for
+marking, so it's heard anywhere along the run, over the frozen columns or the scrolled ones. The column comes from
+DearPyGui: a table column's state has `hovered`, true with the mouse anywhere in the column, even in the space beside
+a short cell's text. The text items themselves never report a hover, since the spanning selectable takes it.
 
-**Found on the way**: DearPyGui 2.3's `get_clipboard_text` crashes the whole process (an access violation) when the
-clipboard holds no text, an image say. The viewer only ever sets the clipboard. His clipboard held a screenshot during
-the check; it was saved first and put back byte for byte.
+**Checks**: 74 tests (7 for this: the cell under the mouse wherever the sort put its run, the first column, a long
+cell whole, a blank one, a car column once shown, no column copying nothing, a run the game added since, the status
+line going back). A live window on a scratch copy, with real right-clicks. All five copied exactly their cell, and
+none marked its run:
+- `19 straight s`, scrolled into view
+- the space right of `stock` in the car column
+- a blank cell
+- the frozen `when` column
+- the frozen `caution` column
+
+**Found on the way**:
+- DearPyGui 2.3's `get_clipboard_text` crashes the whole process (an access violation) when the clipboard holds no
+  text, an image say. The viewer only ever sets the clipboard.
+- His clipboard held a screenshot, then a row he'd copied, during the checks. Each was saved first and put back exactly.
+- With the table scrolled sideways, `get_item_state` gives frozen columns' cells a wrong `rect_min`, which sent the
+  probe's mouse off the window. Frozen cells are measured before scrolling.
 
 ## 2026-11-25 — The profile viewer's columns fit themselves, long headers angled
 

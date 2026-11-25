@@ -2,7 +2,6 @@
 rows, their order after a sort, the new rows after the game appends and the column groups are all checked here.
 What only a screen shows (the header's arrows, the frozen columns, the font) is checked with --screenshot."""
 
-import csv
 import time
 
 import pytest
@@ -414,14 +413,7 @@ def test_the_headers_stay_put_under_angled_ones(fitted, folder):
     assert dpg.get_item_configuration(flat.table_id)["freeze_rows"] == 1
 
 
-# ---------------------------------------------------------------------- right-click a run to copy it (2026-11-26)
-
-def test_a_run_as_one_line_separated_by_commas():
-    assert viewer.row_csv(["2026-11-25 00:35:06", "0.50", "", "120.05"]) == "2026-11-25 00:35:06,0.50,,120.05"
-    # a cell with a comma or a quote in it is quoted, so a spreadsheet splits the line where the cells do
-    assert viewer.row_csv(["Mass 1004 kg, Grip 1.4", 'the "heavy" one', "x"]) == \
-        '"Mass 1004 kg, Grip 1.4","the ""heavy"" one",x'
-
+# ---------------------------------------------------------------------- right-click a cell to copy it (2026-11-26)
 
 @pytest.fixture
 def clipboard(monkeypatch):
@@ -430,52 +422,60 @@ def clipboard(monkeypatch):
     return copied
 
 
-def right_click(v, r):
-    """What a right-click on run r does: its first cell, which spans the row, carries the handler."""
+def right_click(v, r, column, monkeypatch):
+    """A right-click on run r with the mouse over a column (None: over none). The run's first cell, which spans the
+    row, carries the handler; Dear ImGui says which column the mouse is over, here told by hand."""
+    over = v.col_ids[v.table.index(column)] if column else None
+    real = dpg.get_item_state
+    monkeypatch.setattr(dpg, "get_item_state", lambda item: dict(real(item), hovered=item == over))
     cell = v.cell_ids[r][0]
     assert dpg.get_item_info(cell)["handlers"] == viewer.Viewer.RIGHT_CLICK
     handler = dpg.get_item_children(viewer.Viewer.RIGHT_CLICK, 1)[0]
     dpg.get_item_callback(handler)(handler, [dpg.mvMouseButton_Right, cell])
 
 
-def copied_cells(text):
-    return next(csv.reader([text]))
-
-
-def test_a_right_click_copies_that_run_with_its_shown_columns(view, clipboard):
+def test_a_right_click_copies_the_cell_under_the_mouse(view, clipboard, monkeypatch):
     view.sort_by([("time s", False)])  # the run clicked, wherever the sort has put it
-    right_click(view, 2)
-    cells = copied_cells(clipboard[-1])
-    shown = [c.name for i, c in enumerate(view.table.columns) if view._shown(i)]
-    assert len(cells) == len(shown)
-    assert cells[shown.index("when")] == "2026-11-25 00:36:46"
-    assert cells[shown.index("differences from the stock car")] == "Mass 1004 kg (stock 650); Grip 1.4 (stock 1.1)"
-    assert cells[shown.index("lap 1 s")] == ""  # a blank cell keeps its place
-    assert "base:wing-none" not in cells  # the car's columns are hidden, so not copied
-    assert dpg.get_value(viewer.Viewer.STATUS).startswith("Copied to the clipboard: 2026-11-25 00:36:46,")
+    right_click(view, 2, "time s", monkeypatch)
+    right_click(view, 3, "when", monkeypatch)  # the first column, the one that marks a run on a left-click
+    right_click(view, 0, "caution", monkeypatch)
+    assert clipboard == ["30.00", "2026-11-25 00:40:00", "0.50"]
+    assert dpg.get_value(viewer.Viewer.STATUS).startswith('Copied "caution" to the clipboard: 0.50')
 
 
-def test_a_group_shown_or_hidden_is_copied_or_not(view, clipboard):
+def test_the_whole_of_a_long_cell_is_copied_as_it_is(view, clipboard, monkeypatch):
+    right_click(view, 2, "differences from the stock car", monkeypatch)
+    assert clipboard == ["Mass 1004 kg (stock 650); Grip 1.4 (stock 1.1)"]  # no quotes, nothing cut
+
+
+def test_a_blank_cell_copies_blank_and_says_so(view, clipboard, monkeypatch):
+    right_click(view, 2, "lap 1 s", monkeypatch)
+    assert clipboard == [""]
+    assert "blank" in dpg.get_value(viewer.Viewer.STATUS)
+
+
+def test_a_cars_cell_once_its_group_is_shown(view, clipboard, monkeypatch):
     view.show_group(sheets.CAR, True)
-    view.show_group(sheets.RUN, False)
-    right_click(view, 3)
-    cells = copied_cells(clipboard[-1])
-    assert "base:wing-none" in cells and "1004" in cells
-    assert "0.0.1+abc" not in cells  # the version, a Run column, hidden
-    assert cells[0] == "2026-11-25 00:40:00"  # pinned columns are always shown, so always copied
+    right_click(view, 2, "Mass (kg)", monkeypatch)
+    assert clipboard == ["1004"]
 
 
-def test_a_new_run_from_the_game_can_be_copied_too(view, folder, clipboard):
+def test_no_column_under_the_mouse_copies_nothing(view, clipboard, monkeypatch):
+    right_click(view, 2, None, monkeypatch)
+    assert clipboard == []
+
+
+def test_a_new_run_from_the_game_can_be_copied_too(view, folder, clipboard, monkeypatch):
     append(folder / SHEET, ROWS[0].replace("00:35:06", "00:50:00"))
     view.reload()
-    right_click(view, 4)
-    assert copied_cells(clipboard[-1])[0] == "2026-11-25 00:50:00"
+    right_click(view, 4, "when", monkeypatch)
+    assert clipboard == ["2026-11-25 00:50:00"]
 
 
-def test_the_status_line_says_what_was_copied_then_goes_back(view, clipboard):
-    right_click(view, 0)
-    assert dpg.get_value(viewer.Viewer.STATUS).startswith("Copied to the clipboard")
+def test_the_status_line_says_what_was_copied_then_goes_back(view, clipboard, monkeypatch):
+    right_click(view, 0, "time s", monkeypatch)
+    assert dpg.get_value(viewer.Viewer.STATUS).startswith('Copied "time s"')
     view.tick(time.monotonic())
-    assert dpg.get_value(viewer.Viewer.STATUS).startswith("Copied to the clipboard")
+    assert dpg.get_value(viewer.Viewer.STATUS).startswith('Copied "time s"')
     view.tick(time.monotonic() + viewer.COPIED_FOR + 0.1)
     assert "4 runs" in dpg.get_value(viewer.Viewer.STATUS)
