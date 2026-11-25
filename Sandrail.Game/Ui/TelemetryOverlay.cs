@@ -41,7 +41,8 @@ public partial class TelemetryOverlay : Label
 
     public override void _Process(double delta)
     {
-        _sinceRefresh += delta;
+        // Real time, so it reads as often at ×16 and in slow motion: Godot's delta is game time.
+        _sinceRefresh += delta / Engine.TimeScale;
         if (!Visible || _sinceRefresh < 0.05)
         {
             return;

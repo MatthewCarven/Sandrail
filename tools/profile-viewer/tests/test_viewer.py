@@ -32,7 +32,7 @@ def append(path, line):
 
 
 def test_opens_the_first_sheet_with_every_run(view):
-    assert view.current.path.name == SHEET
+    assert view.current.key == "Shakedown 8a6323aa" and view.current.holds(SHEET)
     assert len(view.row_ids) == 4
     assert view.row_order() == [0, 1, 2, 3]
     assert "4 runs" in dpg.get_value(viewer.Viewer.STATUS)
@@ -108,7 +108,7 @@ def test_the_long_column_has_its_whole_text_on_hover(view):
 def test_picking_another_sheet(view, folder):
     write_sheet(folder / "Seed 5 0070ecd8.csv", ["when,driver,car,caution,time s", "2026-11-25 01:00:00,auto,stock,0.80,60.00"])
     view.refresh_list()
-    view.open_sheet(next(s for s in view.sheet_files if s.track == "Seed 5"))
+    view.open_sheet(next(s for s in view.entries if s.track == "Seed 5"))
     assert len(view.row_ids) == 1 and view.table.pinned == 4
 
 
@@ -138,7 +138,7 @@ def test_a_missing_folder_says_so(view, tmp_path):
 def test_a_sheets_own_path_opens_its_folder_and_it(view, folder):
     write_sheet(folder / "Seed 5 0070ecd8.csv", ["when,time s", "x,1"])
     view.set_folder(folder / SHEET)
-    assert view.folder == folder and view.current.path.name == SHEET
+    assert view.folder == folder and view.current.holds(SHEET)
 
 
 def test_settings_remember_folder_sheet_and_groups(folder, tmp_path):
@@ -150,7 +150,7 @@ def test_settings_remember_folder_sheet_and_groups(folder, tmp_path):
     finally:
         dpg.destroy_context()
     saved = viewer.load_settings(path)
-    assert saved["folder"] == str(folder) and saved["sheet"] == SHEET and saved["groups"][sheets.CAR]
+    assert saved["folder"] == str(folder) and saved["sheet"] == "Shakedown 8a6323aa" and saved["groups"][sheets.CAR]
 
 
 def test_command_line():
@@ -158,3 +158,103 @@ def test_command_line():
     assert args["path"] == "C:/x" and not args["settings"]
     assert args["groups"][sheets.CAR] and args["groups"][sheets.RUN] and not args["groups"][sheets.SUMMARY]
     assert args["sort"] == [("time s", True)]
+    args = viewer.parse_args(["--sort=when:desc", "--sort=track", "--sort=time s", "--sheet=All tracks"])
+    assert args["sort"] == [("when", True), ("track", False), ("time s", False)] and args["sheet"] == "All tracks"
+
+
+# ------------------------------------------------------------------ the sort boxes (2026-11-25)
+
+def boxes():
+    return [(dpg.get_value(viewer.Viewer.SORT_COLUMN.format(k)),
+             dpg.get_item_configuration(viewer.Viewer.SORT_WAY.format(k))["label"]) for k in range(viewer.SORT_KEYS)]
+
+
+def test_the_boxes_offer_every_column_and_start_empty(view):
+    items = dpg.get_item_configuration(viewer.Viewer.SORT_COLUMN.format(0))["items"]
+    assert items[0] == viewer.NO_COLUMN and "time s" in items and "Mass (kg)" in items
+    assert boxes() == [(viewer.NO_COLUMN, viewer.UP)] * 3
+
+
+def test_three_columns_from_the_boxes(view):
+    dpg.set_value(viewer.Viewer.SORT_COLUMN.format(0), "car")
+    dpg.set_value(viewer.Viewer.SORT_COLUMN.format(1), "clean")
+    view._turn_way(1)  # clean: yes before no
+    dpg.set_value(viewer.Viewer.SORT_COLUMN.format(2), "time s")
+    view._sort_from_boxes()
+    assert view.sort_keys == [("car", False), ("clean", True), ("time s", False)]
+    assert times(view) == ["110.00", "30.00", "116.91", "120.05"]
+    assert boxes()[1] == ("clean", viewer.DOWN)
+
+
+def test_a_box_left_empty_or_a_column_twice_is_passed_over(view):
+    dpg.set_value(viewer.Viewer.SORT_COLUMN.format(0), viewer.NO_COLUMN)
+    dpg.set_value(viewer.Viewer.SORT_COLUMN.format(1), "time s")
+    dpg.set_value(viewer.Viewer.SORT_COLUMN.format(2), "time s")
+    view._sort_from_boxes()
+    assert view.sort_keys == [("time s", False)]
+    assert boxes() == [("time s", viewer.UP), (viewer.NO_COLUMN, viewer.UP), (viewer.NO_COLUMN, viewer.UP)]
+
+
+def test_a_header_click_fills_the_boxes(view):
+    caution, time = (view.col_ids[view.table.index(n)] for n in ("caution", "time s"))
+    view._on_sort([[caution, 1], [time, -1]])
+    assert boxes() == [("caution", viewer.UP), ("time s", viewer.DOWN), (viewer.NO_COLUMN, viewer.UP)]
+
+
+def test_the_report_of_a_table_just_built_keeps_the_other_columns(view):
+    view.set_sort([("caution", False), ("time s", True)])
+    assert view._fresh_table  # a new first column built the table again
+    view._on_sort([[view.col_ids[view.table.index("caution")], 1]])  # Dear ImGui's first frame
+    assert view.sort_keys == [("caution", False), ("time s", True)]
+    view._on_sort([[view.col_ids[view.table.index("caution")], 1]])  # a real click on it
+    assert view.sort_keys == [("caution", False)]
+
+
+def test_clear_is_the_files_order(view):
+    view.set_sort([("time s", False)])
+    view.set_sort([])
+    assert view.row_order() == [0, 1, 2, 3] and boxes()[0] == (viewer.NO_COLUMN, viewer.UP)
+
+
+def test_the_sort_stays_on_another_sheet_and_a_column_it_hasnt_is_said(view, folder):
+    write_sheet(folder / "Seed 5 0070ecd8.csv", ["when,driver,car,caution,time s",
+                                                  "2026-11-25 01:00:00,auto,stock,0.80,60.00",
+                                                  "2026-11-25 01:01:00,auto,stock,0.85,58.00"])
+    view.set_sort([("lap 1 s", False), ("time s", False)])
+    view.refresh_list()
+    view.open_sheet(next(e for e in view.entries if e.track == "Seed 5"))
+    assert view.sort_keys == [("lap 1 s", False), ("time s", False)]
+    assert times(view) == ["58.00", "60.00"]
+    assert "not sorted by lap 1 s" in dpg.get_value(viewer.Viewer.STATUS)
+
+
+def test_all_tracks_is_first_in_the_list_and_has_every_run(view, folder):
+    write_sheet(folder / "Seed 5 0070ecd8.csv", ["when,driver,car,caution,time s",
+                                                  "2026-11-25 01:00:00,auto,stock,0.80,60.00"])
+    view.refresh_list()
+    assert view.entries[0].everything
+    view.open_sheet(view.entries[0])
+    assert len(view.row_ids) == 5 and view.table.pinned == 5
+    view.set_sort([("track", True), ("time s", False)])
+    track = view.table.index("track")
+    assert [view.table.rows[r][track] for r in view.row_order()] == ["Shakedown"] * 4 + ["Seed 5"]
+    assert "All tracks (2): 5 runs" in dpg.get_value(viewer.Viewer.STATUS)
+
+
+def test_a_new_file_beside_the_sheet_joins_it(view, folder):
+    write_sheet(folder / "Shakedown 8a6323aa (2).csv", [
+        "when,track,version,driver,car,car fingerprint,caution,time s",
+        "2026-11-25 18:00:00,Shakedown,0.0.1+b,auto,stock,4f918acd,0.80,56.73"])
+    view.tick(10_000.0)
+    assert view.current.label == "Shakedown  8a6323aa  (2 files)" and len(view.row_ids) == 5
+
+
+def test_settings_remember_the_sort(folder, tmp_path):
+    path = tmp_path / "settings" / "viewer.json"
+    dpg.create_context()
+    try:
+        v = viewer.Viewer(folder, settings=path)
+        v.set_sort([("when", True), ("time s", False)])
+    finally:
+        dpg.destroy_context()
+    assert viewer.load_settings(path)["sort"] == [["when", True], ["time s", False]]

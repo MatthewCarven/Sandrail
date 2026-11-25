@@ -229,6 +229,11 @@ trellis-gui and PyBindery, on DearPyGui's own table. Checks: the reader and the 
 the real game profiling the stock car into a scratch folder while the viewer had it open, with all 8 rows in the sheet
 and on screen, none kept aside; his real sheets read and left untouched.
 
+**Sorting by three columns, a track's files as one, and All tracks** (2026-11-25, at his ask: "sort by date then by
+track name and maybe a 3rd"). Three boxes above the table, a column and a way each; a track's `(2)` and `(written
+while open)` files read as one sheet, every row with a track; and All tracks, every track's runs with the columns
+they share (the run, the summary, the car), so a sort by track means something. The worklog has the rest.
+
 ### P4 — profile ghosts
 
 **Built 2026-11-25.** Each car's ghost is `ghosts/<track fingerprint>/profile-<car fingerprint>.ghost`, filed by the

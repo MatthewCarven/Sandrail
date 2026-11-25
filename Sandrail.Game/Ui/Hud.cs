@@ -14,8 +14,10 @@ public partial class Hud : CanvasLayer
     private Label _banner = null!;
     private Label _message = null!;
     private Label _keys = null!;
+    private Label _time = null!;
     private double _messageLeft;
 
+    private static readonly Color Behind = new(1.0f, 0.75f, 0.3f);
     public required Buggy Car { get; init; }
 
     public RunRecorder? Recorder { get; set; }
@@ -46,6 +48,12 @@ public partial class Hud : CanvasLayer
         _speed = new Label { LabelSettings = Settings(40) };
         Pin(_speed, 0.0f, 0.0f, new Vector2(24.0f, 16.0f));
         AddChild(_speed);
+
+        // How fast time goes, beside the speed when it isn't its own: asked for, and how fast it really runs, amber
+        // when the computer can't keep up (2026-11-25).
+        _time = new Label { LabelSettings = Settings(22), Visible = false };
+        Pin(_time, 0.0f, 0.0f, new Vector2(24.0f, 30.0f));
+        AddChild(_time);
 
         _recording = new Label
         {
@@ -116,8 +124,23 @@ public partial class Hud : CanvasLayer
 
     public override void _Process(double delta)
     {
-        _speed.Text = $"{(SpeedOverrideMps ?? Car.LinearVelocity.Length()) * 3.6f:F0} km/h"
-            + (System.Math.Abs(Engine.TimeScale - 1.0) > 1e-6 ? $"   time ×{Engine.TimeScale:0.##}" : string.Empty);
+        _speed.Text = $"{(SpeedOverrideMps ?? Car.LinearVelocity.Length()) * 3.6f:F0} km/h";
+        GameClock.Measure();
+        double scale = GameClock.Scale;
+        _time.Visible = System.Math.Abs(scale - 1.0) > 1e-6;
+        if (_time.Visible)
+        {
+            double running = GameClock.Running;
+            _time.Text = $"time ×{scale:0.##}  ·  running ×{running.ToString(running < 1.0 ? "0.00" : "0.0", System.Globalization.CultureInfo.InvariantCulture)}";
+            Color colour = GameClock.Behind ? Behind : Colors.White;
+            if (_time.LabelSettings.FontColor != colour)
+            {
+                _time.LabelSettings.FontColor = colour;
+            }
+
+            _time.OffsetLeft = _time.OffsetRight = _speed.OffsetLeft + _speed.Size.X + 18.0f;
+        }
+
         _keys.Visible = ShowKeys;
 
         bool recording = Recorder?.Recording ?? false;
@@ -136,7 +159,7 @@ public partial class Hud : CanvasLayer
 
         if (_messageLeft > 0.0)
         {
-            _messageLeft -= delta;
+            _messageLeft -= delta / Engine.TimeScale;  // real seconds: Godot's delta is game time, 16 times faster at ×16
             _message.Visible = _messageLeft > 0.0;
         }
     }

@@ -59,20 +59,19 @@ public partial class Main
         + (_track.Problems.Count > 0 ? $"UNTIMED      the track has {_track.Problems.Count} thing{(_track.Problems.Count == 1 ? string.Empty : "s")} to do" : "UNTIMED      the race is from the start gate")
         + "\nKEYS         R: back to here  ·  Tab: back to the editor";
 
-    /// <summary>How fast time can go, ×0.1 to ×2: what , and . step through.</summary>
-    private static readonly double[] TimeScales = [0.1, 0.25, 0.5, 1.0, 2.0];
-
     /// <summary>
     /// , and . (his ask, 2026-11-24: "It will make tuning funer"): time slower or faster. It's Godot's own time
     /// scale with the tick rate to match (<see cref="GameClock"/>), so a tick stays 1/120 s of game time and the race clock counts game time: a lap in
-    /// slow motion is timed as it would be at full speed, and ghosts keep in step.
+    /// slow motion is timed as it would be at full speed, and ghosts keep in step. Since 2026-11-25 it goes up to ×16
+    /// (<see cref="GameClock.Steps"/>), and the board says how fast it really runs.
     /// </summary>
     private void ChangeTime(int way)
     {
-        int now = Array.FindIndex(TimeScales, s => Math.Abs(s - Engine.TimeScale) < 1e-6);
-        int next = Math.Clamp((now < 0 ? Array.IndexOf(TimeScales, 1.0) : now) + way, 0, TimeScales.Length - 1);
-        GameClock.SetScale(TimeScales[next]);
-        _hud?.Flash(TimeScales[next] == 1.0 ? "Time at its own speed." : $"Time ×{TimeScales[next]:0.##}: , and . change it.", 2.0);
+        double[] steps = GameClock.Steps;
+        int now = Array.FindIndex(steps, s => Math.Abs(s - Engine.TimeScale) < 1e-6);
+        int next = Math.Clamp((now < 0 ? Array.IndexOf(steps, 1.0) : now) + way, 0, steps.Length - 1);
+        GameClock.SetScale(steps[next]);
+        _hud?.Flash(steps[next] == 1.0 ? "Time at its own speed." : $"Time ×{steps[next]:0.##}: , and . change it.", 2.0);
     }
 
     /// <summary>The piece catalogue for the game's Load list, read the first time it's opened.</summary>

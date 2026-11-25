@@ -101,10 +101,67 @@ def test_the_track_column_goes_with_the_run(tmp_path):
     assert column(table, "track") == ["Seed 5, a sprint"]
 
 
+OLD = ["when,version,driver,car,car fingerprint,caution,time s,top km/h,01 start s",
+       "2026-11-25 01:00:00,0.0.1+a,auto,stock,4f918acd,0.50,90.00,100.0,4.00",
+       "2026-11-25 03:00:00,0.0.1+a,auto,stock,4f918acd,0.55,88.00,101.0,3.90"]
+NEW = ["when,track,version,driver,car,car fingerprint,caution,time s,top km/h,01 start s",
+       "2026-11-25 02:00:00,Seed 5,0.0.1+b,you,stock,4f918acd,,95.00,99.0,4.20",
+       "2026-11-25 17:00:00,Seed 5,0.0.1+b,auto,stock,4f918acd,0.60,86.66,102.0,3.80"]
+LOOP = ["when,track,version,driver,car,car fingerprint,caution,time s,lap 1 s,top km/h,01 start-finish s",
+        "2026-11-25 04:00:00,4,0.0.1+b,auto,heavy,5d844085,0.50,120.00,40.00,140.0,2.00"]
+
+
+@pytest.fixture
+def two_tracks(tmp_path):
+    write_sheet(tmp_path / "Seed 5 0070ecd8.csv", OLD)
+    write_sheet(tmp_path / "Seed 5 0070ecd8 (2).csv", NEW)
+    write_sheet(tmp_path / "4 847ed7b9.csv", LOOP)
+    write_sheet(tmp_path / "cars.csv", CARS)
+    return tmp_path
+
+
+def test_a_tracks_files_are_one_entry_after_all_tracks(two_tracks):
+    entries = sheets.list_tracks(two_tracks)
+    assert [e.label for e in entries] == ["All tracks", "4  847ed7b9", "Seed 5  0070ecd8  (2 files)"]
+    assert entries[0].everything and len(entries[0].files) == 3
+    assert entries[2].key == "Seed 5 0070ecd8"
+    assert entries[2].holds("Seed 5 0070ecd8 (2).csv") and entries[2].holds("Seed 5 0070ecd8")
+    assert sheets.list_tracks(two_tracks / "nope") == []
+
+
+def test_merged_headers_keep_each_column_where_its_file_put_it():
+    assert sheets.merge_headers([["when", "version", "time s"], ["when", "track", "version", "time s"]]) \
+        == ["when", "track", "version", "time s"]
+    assert sheets.merge_headers([["when", "track", "a"], ["when", "a", "b"]]) == ["when", "track", "a", "b"]
+
+
+def test_a_tracks_old_and_new_files_read_as_one_sheet_in_the_order_driven(two_tracks):
+    entry = sheets.list_tracks(two_tracks)[2]
+    table = sheets.load(entry, two_tracks)
+    assert column(table, "when") == ["2026-11-25 01:00:00", "2026-11-25 02:00:00", "2026-11-25 03:00:00",
+                                     "2026-11-25 17:00:00"]
+    assert column(table, "track") == ["Seed 5"] * 4  # the old file's rows from its name
+    assert column(table, "time s") == ["90.00", "95.00", "88.00", "86.66"]
+    assert column(table, "Mass (kg)") == ["650"] * 4
+
+
+def test_all_tracks_has_every_run_with_the_shared_columns_and_the_track_pinned(two_tracks):
+    table = sheets.load(sheets.list_tracks(two_tracks)[0], two_tracks)
+    names = [c.name for c in table.columns]
+    assert names[:5] == ["when", "track", "driver", "car", "caution"] and table.pinned == 5
+    assert "time s" in names and "top km/h" in names and "Mass (kg)" in names
+    assert not any(n.startswith("01 ") or n.startswith("lap ") for n in names)
+    assert column(table, "track") == ["Seed 5", "Seed 5", "Seed 5", "4", "Seed 5"]
+    order = sheets.sort_order(table, [(table.index("track"), False), (table.index("time s"), False)])
+    assert [table.rows[i][table.index("time s")] for i in order] == ["120.00", "86.66", "88.00", "90.00", "95.00"]
+
+
 def test_pinned_columns_first_then_the_files_order(folder):
     table = sheets.load(folder / "Shakedown 8a6323aa.csv")
     names = [c.name for c in table.columns]
-    assert names[:5] == ["when", "driver", "car", "caution", "version"]
+    # an older sheet without a track column gets one, from the file's name, after when
+    assert names[:6] == ["when", "driver", "car", "caution", "track", "version"]
+    assert set(column(table, "track")) == {"Shakedown"}
     assert table.pinned == 4
     assert names.index("time s") < names.index("01 start-finish s") < names.index("Mass (kg)")
 
@@ -222,4 +279,13 @@ def test_his_real_sheets_read_and_are_left_untouched():
         lines = [l for l in sheets.read_text(f.path).splitlines() if l]
         assert len(table.rows) == len(lines) - 1
         assert table.columns[0].name == "when"
+    runs = 0
+    for entry in sheets.list_tracks(REAL):
+        table = sheets.load(entry, REAL)
+        if entry.everything:
+            everything = len(table.rows)
+        else:
+            runs += len(table.rows)
+        assert all(r[table.index("track")] for r in table.rows)
+    assert everything == runs
     assert {f.path: sheets.stamp(f.path) for f in files} == before

@@ -2,6 +2,85 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — Time up to ×16, and the board says how fast it really runs
+
+His ask: *"can we adjust the time multiplier so it allows up to 16x but otherwise still does all the ticks required
+to get there accurately i dont mind if the computer has to run slower just indicate the speed to me please"*; ×4, ×8
+and ×16 as the new steps (*"yes thanks"*).
+
+**The accuracy was already there.** A tick is always 1/120 s of game time (`GameClock`, 2026-11-24). A computer
+that can't keep up never takes longer steps: Godot just runs the ticks later, so game time goes slower than asked.
+What stopped ×16 was Godot's limit of 8 ticks a drawn frame, which is about ×4 at 60 frames a second. The profiler
+already got round it at ×16 by allowing 64 ticks a frame.
+
+**What changed:**
+- **`,` and `.` (and the D-pad) step through ×0.1, ¼, ½, 1, 2, 4, 8 and 16**, from `GameClock.Steps`. `--time=` is held
+  to ×0.01 to ×16.
+- **The most ticks a frame rises with the speed**, in `GameClock.SetScale`: enough to keep up down to 30 frames a
+  second, at least Godot's 8. That's 16 at ×4, 32 at ×8 and 64 at ×16. The profiler's own setting went, since this
+  is the same rule; its rows are unchanged.
+- **The board shows the speed** beside the km/h whenever it isn't ×1: `time ×16 · running ×15.7`. The second number
+  is the ticks Godot really ran over the last two seconds, measured four times a second, and it turns amber when
+  it's a tenth or more short. A frame half a second late or more (the Esc menu, a load) starts the measure again.
+- **The messages at the bottom and the F3 readout count real seconds**, since Godot's frame delta is game time. At
+  ×16 a two-second message had lasted an eighth of a second, and at ×0.1 twenty seconds.
+
+**What it runs at on this computer**, the autodriver at 80% in the 1152 × 648 window, at about 130 frames a second:
+- shakedown at ×16: ×15.8 over the drive, 56.73, splits 21.52 and 40.61, as at ×1;
+- seed 5 at ×16: ×15.6 over the drive, and ×14.8 to ×16.0 two seconds at a time; 1:26.39, as at ×1.
+
+**Why it isn't quite ×16, and why the readout averages two seconds.** Godot's frame timing loses a little even far
+from the limit: allowing 96 ticks a frame made no difference. Half a second at a time the reading swung from ×13.6 to
+×16.9 (a frame's hitch, then the catching up after it), and a second at a time from ×14.8 to ×16.3. At ×16 a tenth
+short is ×14.4, so normal running stays white.
+
+**Checks:**
+- **Same results at ×16 as at ×1:** the autodriver's ghost from each drive, snapshots compared byte for byte,
+  identical on the shakedown and on seed 5.
+- **The profile is unchanged:** the stock car on the shakedown headless gave the same `Profile:` lines and rows,
+  in 30.2 s against 30.0 s before.
+- **Seen on screen** at ×16 and at ×0.25 (reading ×0.25), with a probe since removed.
+- Tests (349) and the headless check pass, and the seventeen oracles match P4's line for line (`track` 56.76,
+  `ghost` 1704 snapshots, on `4f918acd`).
+
+## 2026-11-25 — The viewer sorts by three columns, joins a track's files, and has All tracks
+
+His ask: *"the best way to implement multi sort columns like i want to sort by date then by track name and maybe a
+3rd? 3 drop down boxes with the column above the sheet?"*. Two things stood in the way. First, each sheet is one
+track, so sorting by track changed nothing. Second, the viewer could already sort by several columns (Shift-click a
+header), but nothing showed the order. His choices, all as recommended:
+- **Date means date and time.** The sort uses `when` itself; no `day` column.
+- **All tracks with the shared columns only** (*"yes please"*).
+- **A track's old and new files joined into one sheet** (*"yes please"*).
+
+**What's built** (`tools/profile-viewer/`; the game is unchanged):
+- **Three boxes above the table:** `Sort by [column] [↑] then [column] [↑] then [column] [↑] [Clear]`. Each box lists
+  every column of the sheet, the car's included, or (none), and its arrow sets the way (up: smallest, earliest or A
+  first). Clear goes back to the order driven.
+  - A header click fills the boxes (Shift-click the next).
+  - The sort stays from sheet to sheet, and between launches in the viewer's settings. A column a sheet hasn't is
+    passed over, and the line at the bottom says so.
+  - A new first column builds the table again, so its header shows the arrow. Dear ImGui's report from a table just
+    built is told apart from a click, so it doesn't throw away the other two columns.
+- **A track's files read as one sheet.** The list says `Seed 5  0070ecd8  (2 files)` for its `(2)` and `(written
+  while open)` files. Headers are merged with each column where its own file put it (`track` after `when`), rows go in
+  the order driven, and an older row's track comes from its file's name.
+- **All tracks at the top of the list:** every track's runs, with the run's, the summary's and the car's columns, and
+  `track` kept at the left with when, driver, car and caution. Splits, laps and pieces stay on the tracks' own sheets,
+  since `03 straight` is a different piece on each track.
+- **From a command line**, `--sort=` is given once per column, and `--sheet="All tracks"` picks the entry.
+
+**Checks:**
+- **Tests:** the viewer's 53 (14 new) pass, and they read his real profiles folder and leave it untouched.
+- **His folder on screen** (`--no-settings`, which writes nothing): All tracks sorted by when (latest first), then
+  track, then time.
+- **A joined sheet on screen:** a scratch copy of the shakedown's old and new files, 19 runs, the old ones given
+  `Shakedown`.
+- **His folder now holds only today's track `4` sheet**, started at 17:16 with this morning's build: the older sheets
+  are no longer there. So he'll see a joined sheet only once a header changes again.
+- The arrows needed no font range: DearPyGui 2.3 loads a font's characters as they're drawn.
+- `SandrailProfiles.exe` is rebuilt in the main checkout's `tools/profile-viewer/dist/`.
+
 ## 2026-11-25 — Every profile row says its track
 
 He asked whether the map's name is kept with the car's data (*"can we just check that the map name is stored in the

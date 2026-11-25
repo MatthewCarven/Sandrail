@@ -40,8 +40,7 @@ public partial class Main
     private const float ProfileFirst = 0.50f;
     private const float ProfileLast = 1.00f;
     private const float ProfileStep = 0.05f;
-    private const double ProfileScale = 16.0;
-    private const int ProfileTicksPerFrame = 64;
+    private const double ProfileScale = GameClock.Fastest;
     private const float ProfileStuckSeconds = 8.0f;
     private const double ProfileTimeLimitS = 600.0;
 
@@ -53,7 +52,6 @@ public partial class Main
     private static int _profileRows;
     private static string? _profileReturnCar;
     private static float _profileOldCaution = Autodriver.DefaultCaution;
-    private static int _profileOldTicksPerFrame = 8;
     private static bool _profileFromFlag;
     private static bool _profileFlagUsed;
     private static string? _profileSaidAfter;
@@ -149,7 +147,6 @@ public partial class Main
         ProfileGhostsKept.Clear();
         _profileReturnCar = driving;
         _profileOldCaution = _caution;
-        _profileOldTicksPerFrame = Engine.MaxPhysicsStepsPerFrame;
         _profileActive = true;
         GD.Print($"Profiling {(every ? $"every car ({_profileCarsTotal})" : Garage.NameOf(driving))} on {_track.Track.Id} ({_trackPrint}), "
             + $"cautions {ProfileFirst * 100.0f:F0}% to {ProfileLast * 100.0f:F0}%, into {_profilesFolder}");
@@ -186,7 +183,6 @@ public partial class Main
 
         _sweeping = true;
         _profileCaution = ProfileFirst;
-        Engine.MaxPhysicsStepsPerFrame = ProfileTicksPerFrame;
         GameClock.SetScale(ProfileScale);
         if (_tuning.Visible)
         {
@@ -304,7 +300,6 @@ public partial class Main
         _sweeping = false;
         _autodriver = null;
         _caution = _profileOldCaution;
-        Engine.MaxPhysicsStepsPerFrame = _profileOldTicksPerFrame;
         GameClock.SetScale(1.0);
         if (_hud is not null)
         {

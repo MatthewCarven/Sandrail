@@ -124,7 +124,8 @@ it on two specs and read the flying lap, the corner speeds and where it left the
 whether a car (or a track) can be finished at all.
 
 **The car profile's viewer**, `SandrailProfiles.exe`, a program of its own (Python and DearPyGui, not part of
-the solution): the profiles folder's sheets, sorted by any column, the car's numbers from `cars.csv` joined on
+the solution): the profiles folder's sheets, a track's files read as one and All tracks at the top, sorted by up
+to three columns from the boxes above the table (or a header click), the car's numbers from `cars.csv` joined on
 the fingerprint, new rows picked up as the game writes them. It only reads. `build.cmd` runs its tests and
 compiles it into `tools/profile-viewer/dist/` (not committed); `python -m pytest tools/profile-viewer/tests`
 tests it alone; `viewer.py <folder> --screenshot=<png>` is how Claude sees it (its README):
@@ -158,8 +159,9 @@ scratch folder**, so his bests are never touched), `--saved=<folder>` (where tra
 `--replay-camera=trackside|chase|free` (a saved best's replay from the start, M4d, for a look or a
 screenshot; in the game Enter watches the last run and the Esc menu offers the bests),
 `--time=<scale>` (how fast time goes, `0.25` for a quarter speed; in the game `,` and `.`, or the D-pad's left and
-right, step through ×0.1 to ×2, and laps, ghosts and runs stay timed in game time because `GameClock` turns the
-tick rate down with it), and `--screenshot=<path.png>`, which saves a frame at rest and one driving, then quits; with it,
+right, step through ×0.1 to ×16, and laps, ghosts and runs stay timed in game time because `GameClock` turns the
+tick rate with it; past ×1 the board says how fast it really runs, `time ×16 · running ×15.7`, amber when it's a
+tenth short), and `--screenshot=<path.png>`, which saves a frame at rest and one driving, then quits; with it,
 `--drive=throttle,steer[,wide,handbrake,brake]` sets how it drives (the fifth number, the brake, reverses it from rest) and `--camera=x,y,z:x,y,z` looks at the ground from a fixed
 point instead of following the car. It opens a window for a few seconds, and it is how Claude sees
 anything at all. `--padcheck` is a sensor run on a gamepad instead of a drive: it waits for a touch,
@@ -216,8 +218,9 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
-  physics interpolation; `GameClock` keeps a tick 1/120 s of game time at any time scale (count ticks with its
-  `TicksPerSecond`, never `Engine.PhysicsTicksPerSecond`, which slow motion turns down). `Cars/` is the `Buggy`, its `CarLooks` (the grey boxes and wing, a node a ghost
+  physics interpolation; `GameClock` keeps a tick 1/120 s of game time at any time scale, ×0.01 to ×16, raises the
+  most ticks a frame with it and measures how fast game time really runs (count ticks with its `TicksPerSecond`,
+  never `Engine.PhysicsTicksPerSecond`, which the time scale turns up and down). `Cars/` is the `Buggy`, its `CarLooks` (the grey boxes and wing, a node a ghost
   can wear too), the `GhostCar` (a best run see-through beside you, on the race clock), its `ChaseCamera`,
   `CarReadout`, the `RunRecorder`, `MeterRead` (the one rule for off the road and a slide, for the profile's
   meter), the `Garage` (the stock car, `user://tunes/` and the inactive cars in `tunes/inactive/`; `Main.Garage.cs` is the Esc menu's Change car) and the

@@ -8,11 +8,21 @@ the car's numbers from `cars.csv` included. It only reads, and the game can keep
 Run `dist\SandrailProfiles.exe` (after `build.cmd`), or `python viewer.py`.
 
 - **The folder** is the game's profiles folder unless you change it: type a path and press Enter, or Browse.
-  Your folder, sheet and ticked groups are remembered in `%LOCALAPPDATA%\SandrailProfiles\viewer.json`.
-- **The sheets** are down the left, one a track, `(2)` and `(written while open)` files included. `cars.csv`
+  Your folder, sheet, ticked groups and sort are remembered in `%LOCALAPPDATA%\SandrailProfiles\viewer.json`.
+- **The sheets** are down the left, one a track. A track's `(2)` and `(written while open)` files are read with
+  it as one sheet, the list saying how many files (a newer game's header starts a `(2)`, as the track column did
+  on 2026-11-25). Every row has a `track`, from the file's name for a row older than that column. `cars.csv`
   isn't listed: its numbers are joined onto every run. LibreOffice's `.~lock` files are ignored.
-- **Click a header to sort** by it; click again to reverse it, and Shift-click another to sort by that next.
-  Numbers sort as numbers, and blank cells (a piece a run never reached) go last whichever way you sort.
+- **All tracks**, at the top of the list, is every track's runs in one table, so they sort by track too. It has
+  the columns every track shares (the run, the summary and the car); splits, laps and pieces are a different
+  thing on each track, so they stay on the tracks' own sheets. The track stays at the left there.
+- **Sort by up to three columns** with the boxes above the table: a column in each, the first the most
+  significant, and the arrow beside it for its way (up: smallest, earliest or A first). Clear goes back to the
+  order the runs were driven. The sort stays as you go from sheet to sheet; a column a sheet hasn't is passed over,
+  and the line at the bottom says so.
+- **Or click a header to sort** by it; click again to reverse it, and Shift-click another to sort by that next.
+  The boxes follow. Numbers sort as numbers, and blank cells (a piece a run never reached) go last whichever way
+  you sort.
 - **Show** ticks groups of columns on and off: Run, Laps and splits, Summary, Piece times, Piece speeds, and Car
   (the car's 50 numbers from `cars.csv`, off at first). When, driver, car and caution are always shown and
   stay at the left while you scroll sideways.
@@ -20,8 +30,9 @@ Run `dist\SandrailProfiles.exe` (after `build.cmd`), or `python viewer.py`.
   stock car to read all of them.
 - **New runs appear by themselves**: the sheet is checked twice a second and `cars.csv` with it. F5 re-reads now.
 
-From a command line, for a look or a screenshot: `viewer.py [folder or sheet.csv] [--groups=Run,Car]
-[--sort=time s[:desc]] [--screenshot=shot.png] [--quit-after=seconds] [--no-settings]`.
+From a command line, for a look or a screenshot: `viewer.py [folder or sheet.csv] [--sheet="All tracks"]
+[--groups=Run,Car] [--sort=when:desc --sort=track --sort="time s"] [--screenshot=shot.png] [--quit-after=seconds]
+[--no-settings]` (`--sort=` once a column, the first the most significant).
 
 ## Build
 
