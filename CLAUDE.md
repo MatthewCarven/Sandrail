@@ -151,7 +151,8 @@ again), and holding R for a second or pressing Backspace starts again, clock and
 `--oracle=<name>`, `--panels=tuning,telemetry` (opens either at start),
 `--record` (starts a run at start), `--autodrive` (the autodriver from the start; with `--station=6`),
 `--caution=` (the autodriver's aggression, the share of grip it plans for, 0.5 to 1, 0.8 by default:
-for the game and the `lap` oracle alike; in the game - and + change it),
+for the game and the `lap` oracle alike; in the game - and + change it, and since 2026-11-25 a change stays put
+from one track to the next, over the flag, until the game is closed),
 `--ghost=you|auto|none|<car>` (whose ghost shows on a track, M4c; since P4 a car profiled on the track, by its name or
 fingerprint, `--ghost=stock`; G changes it in the game) and
 `--ghosts=<folder>` (where ghosts and bests are kept, `user://ghosts` unless told: **point checks at a

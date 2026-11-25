@@ -2,6 +2,24 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — The autodriver's aggression stays put between tracks
+
+His ask: *"make the driver aggression stay the same between tracks so once you have changed it down it stays put until
+the next restart"*. Until now every load (a new track, a seed, a change of car, the editor's test drive, a profile's
+next car) began the scene again at `--caution=` or 80%, so a change with - or + lasted only as long as the track.
+
+**What's built**: - and + now also keep what they set in a static, `Main._cautionChosen`, which outlives the scene the
+way `NextArgs` does and goes when the game is closed. A scene takes it before anything else, and over `--caution=`,
+since every load carries the flag along. Until - or + is pressed nothing changes: a launch, the oracles and the
+profiles start where they did.
+- **A profile is untouched**: it sets the caution run by run (50% up by 5%) without going through - and +, and when it
+  ends it hands back the caution it began with, which is now his chosen one on every track of Profile every car on
+  every track as well.
+
+**Checks**: headless, with a temporary hook (since removed) pressing - twice: launched on the shakedown with
+`--caution=0.9`, 90%; after two presses, 80%; Seed 5 loaded from there, 80%; a change of car there, 80%. The headless
+check passes. Nothing the oracles drive reads it.
+
 ## 2026-11-25 — A fresh physics world for each load: a run is the same however it's reached
 
 His yes to option 1 of "Why a run depends on what was loaded before it", two entries down: *"Yes, build it"*.

@@ -106,6 +106,15 @@ public partial class Main : Node3D
     private RacingLine? _lapLine;
     private Autodriver? _autodriver;
     private float _caution = Autodriver.DefaultCaution;
+
+    /// <summary>
+    /// The aggression last set with - and +, kept from one load to the next until the game is closed (2026-11-25, his
+    /// ask: "once you have changed it down it stays put until the next restart"); null until it's changed, when a scene
+    /// takes <c>--caution=</c> or the default. Static, so it outlives the scene, like <see cref="NextArgs"/>. A profile
+    /// sets the caution run by run but never this, and hands back to it when it ends.
+    /// </summary>
+    private static float? _cautionChosen;
+
     private MeshInstance3D? _lineView;
 
     // The corner lap's timer, and the laps it has timed: his and the autodriver's are kept apart.
@@ -297,6 +306,12 @@ public partial class Main : Node3D
                 System.Globalization.CultureInfo.InvariantCulture, out float caution))
         {
             _caution = Math.Clamp(caution, Autodriver.MinCaution, Autodriver.MaxCaution);
+        }
+
+        // Changed with - and + since the game began, it beats the flag, which every load carries along.
+        if (_cautionChosen is float chosen)
+        {
+            _caution = chosen;
         }
 
         CarSpec spec;
@@ -1229,8 +1244,9 @@ public partial class Main : Node3D
 
     /// <summary>
     /// - and +: the autodriver's aggression, the share of the tyres' grip it plans corners and braking for,
-    /// a step at a time. It holds between handovers, and the drawn line recolours to the new plan, so it can
-    /// be set before pressing P as well as while it drives.
+    /// a step at a time. It holds between handovers and from one track to the next until the game is closed
+    /// (<see cref="_cautionChosen"/>), and the drawn line recolours to the new plan, so it can be set before
+    /// pressing P as well as while it drives.
     /// </summary>
     private void ChangeAggression(int steps)
     {
@@ -1242,6 +1258,7 @@ public partial class Main : Node3D
         // Rounded to the step, so a dozen presses each way land back on 80% exactly.
         float wanted = MathF.Round((_caution + (steps * Autodriver.CautionStep)) / Autodriver.CautionStep) * Autodriver.CautionStep;
         _caution = Math.Clamp(wanted, Autodriver.MinCaution, Autodriver.MaxCaution);
+        _cautionChosen = _caution;
         if (_autodriver is not null)
         {
             _autodriver.Caution = _caution;
