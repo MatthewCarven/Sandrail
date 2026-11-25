@@ -241,6 +241,12 @@ track name and maybe a 3rd"). Three boxes above the table, a column and a way ea
 while open)` files read as one sheet, every row with a track; and All tracks, every track's runs with the columns
 they share (the run, the summary, the car), so a sort by track means something. The worklog has the rest.
 
+**Columns that fit** (2026-11-25, at his ask: "autosizeing columns for the grid"). Each column is as wide as its widest
+cell over every run, not only the runs on screen, or its header, whichever is wider. A long header (a piece, a car
+number) is angled above the table, his pick of three styles, so the numbers set the width: the shakedown's sheet went
+from 10,600 px wide to 4,200. A column refits when a new run needs more room, a column dragged wider keeps its width,
+and Fit columns fits them all again.
+
 ### P4 — profile ghosts
 
 **Built 2026-11-25.** Each car's ghost is `ghosts/<track fingerprint>/profile-<car fingerprint>.ghost`, filed by the

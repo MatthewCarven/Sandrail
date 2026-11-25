@@ -126,7 +126,8 @@ whether a car (or a track) can be finished at all.
 **The car profile's viewer**, `SandrailProfiles.exe`, a program of its own (Python and DearPyGui, not part of
 the solution): the profiles folder's sheets, a track's files read as one and All tracks at the top, sorted by up
 to three columns from the boxes above the table (or a header click), the car's numbers from `cars.csv` joined on
-the fingerprint, new rows picked up as the game writes them. It only reads. `build.cmd` runs its tests and
+the fingerprint, new rows picked up as the game writes them, each column fitted to its widest cell over every run with
+long headers angled above (his pick). It only reads. `build.cmd` runs its tests and
 compiles it into `tools/profile-viewer/dist/` (not committed); `python -m pytest tools/profile-viewer/tests`
 tests it alone; `viewer.py <folder> --screenshot=<png>` is how Claude sees it (its README):
 

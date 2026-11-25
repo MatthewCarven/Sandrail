@@ -26,13 +26,22 @@ Run `dist\SandrailProfiles.exe` (after `build.cmd`), or `python viewer.py`.
 - **Show** ticks groups of columns on and off: Run, Laps and splits, Summary, Piece times, Piece speeds, and Car
   (the car's 50 numbers from `cars.csv`, off at first). When, driver, car and caution are always shown and
   stay at the left while you scroll sideways.
-- **Click a run** to mark it, to keep your place while scrolling sideways. Hover over the differences from the
-  stock car to read all of them.
+- **The columns fit themselves**: each is as wide as its widest cell, over every run and not only those on screen, or
+  its header, whichever is wider. A header much wider than its numbers (a piece's time or speed, most of the car's
+  numbers) is angled above the table instead, so the numbers set the width. Sort by one of those by clicking the short
+  header cell under its slanted name. The differences from the stock car stay at 300 px: hover over them to read all
+  of them.
+- **A column refits by itself** when a new run needs more room (a longer car name), keeping your scroll and marked
+  runs. Drag a column's edge to make it wider or narrower and it keeps that width until you open another sheet or press
+  **Fit columns**, which fits every column again. Double-clicking an edge is Dear ImGui's own fit, to the runs on screen
+  only.
+- **Click a run** to mark it, to keep your place while scrolling sideways.
 - **New runs appear by themselves**: the sheet is checked twice a second and `cars.csv` with it. F5 re-reads now.
 
 From a command line, for a look or a screenshot: `viewer.py [folder or sheet.csv] [--sheet="All tracks"]
-[--groups=Run,Car] [--sort=when:desc --sort=track --sort="time s"] [--screenshot=shot.png] [--quit-after=seconds]
-[--no-settings]` (`--sort=` once a column, the first the most significant).
+[--groups=Run,Car] [--sort=when:desc --sort=track --sort="time s"] [--headers=angled|wrapped|"one line"]
+[--screenshot=shot.png] [--quit-after=seconds] [--no-settings]` (`--sort=` once a column, the first the most
+significant; `--headers=` lays the long headers out another way, wrapped onto up to three lines or on one).
 
 ## Build
 
@@ -58,6 +67,22 @@ with PyInstaller. The exe isn't committed. Antivirus sometimes looks twice at a 
 - Two DearPyGui 2.3 things worth knowing: a table column is hidden with `enabled=False` (its `show` does nothing),
   and a sortable table reports a sort by its first column on its first frame unless a column is its
   `default_sort`.
+- **The widths** (`fit_column` in `viewer.py`, tested with a stand-in for the font) are the viewer's own, because Dear
+  ImGui's fit only measures the rows it draws, and with the clipper that's the rows on screen. More DearPyGui 2.3
+  things found on the way:
+  - A column's width is taken only as the table is built (`init_width_or_weight`); `configure_item(width=)` does
+    nothing after. So the table is built again to refit it, keeping the scroll (put back two frames later, once the
+    new table knows its size), the marked runs and any dragged widths. That takes about 150 ms for All tracks with
+    every column.
+  - `get_text_size` gives None until the first frame is drawn, so the first table is Dear ImGui's fit, and the first
+    frame's tick fits it.
+  - A column's `rect_size` (from `get_item_state`) is the room for its cells, the same measure as
+    `init_width_or_weight`, which is how a dragged column is told apart.
+  - A header needs 27 px beside its label at 18 px: 15 for the sort arrow and 12 for the 2 or 3 after a Shift-click.
+    Short of that, Dear ImGui cuts the label to `Ce...`, every line of a wrapped one.
+  - Angled headers (`angled_header` with `no_header_label`) are a row of their own above the headers, there whenever
+    any column has one, shown or not, so two rows are frozen, not one. None are drawn above the frozen columns, so
+    theirs stay flat.
 - The columns are grouped by the names `CarSheet.cs` writes (`split 1 s`, `lap 1 s`, `best lap s`, `NN <piece> s`,
   `NN <piece> km/h`, the six summary names); a column it doesn't know goes with the run. If those names change in
   `CarSheet.cs`, change `sheets.py` and its tests with them.

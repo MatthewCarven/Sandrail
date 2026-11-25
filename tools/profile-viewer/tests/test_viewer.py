@@ -8,7 +8,7 @@ dpg = pytest.importorskip("dearpygui.dearpygui")
 
 import sheets
 import viewer
-from conftest import CARS, ROWS, write_sheet
+from conftest import CARS, HEADER, ROWS, write_sheet
 
 SHEET = "Shakedown 8a6323aa.csv"
 
@@ -258,3 +258,142 @@ def test_settings_remember_the_sort(folder, tmp_path):
     finally:
         dpg.destroy_context()
     assert viewer.load_settings(path)["sort"] == [["when", True], ["time s", False]]
+
+
+# ------------------------------------------------------------------ column widths (2026-11-25)
+
+def m(text):
+    """A stand-in for the font: 8 px a character, as the window measures with DearPyGui once a frame is drawn."""
+    return 8 * len(text)
+
+
+def narrow_spaces(text):
+    return 8 * len(text.replace(" ", "")) + 2 * text.count(" ")
+
+
+def test_a_column_is_as_wide_as_its_widest_cell_or_its_header():
+    assert viewer.fit_column("time s", ["64.33", "120.05"], m, viewer.ONE_LINE).width == 48 + viewer.SORT_ROOM
+    assert viewer.fit_column("car", ["stock", "matthew-2026-11-23"], m, viewer.ONE_LINE).width == 8 * 18
+    assert viewer.fit_column("car", [], m, viewer.ONE_LINE).width == 24 + viewer.SORT_ROOM
+
+
+def test_the_long_column_is_held_to_its_cap():
+    f = viewer.fit_column("differences from the stock car", ["Mass 1004 kg (stock 650); " * 10], m, cap=300)
+    assert f.width == 300 and f.label == "differences from the stock car" and not f.angled
+
+
+def test_a_long_header_is_angled_and_a_short_one_stays_flat():
+    f = viewer.fit_column("32 corner-30-banked left km/h", ["61.5", "100.2"], m)
+    assert f.angled and f.width == 40  # the numbers set the width
+    assert viewer.fit_column("spins", ["0"], m).width == viewer.SORT_ROOM  # room for the sort arrow below it
+    f = viewer.fit_column("car", ["matthew-2026-11-23"], m)
+    assert not f.angled and f.width == 8 * 18
+    # angled only when the header would make the column at least NARROWER_BY wider than its cells
+    assert not viewer.fit_column("abcd", ["x" * 7], m).angled  # 59 against 56
+    assert viewer.fit_column("abcd", ["x" * 5], m).angled  # 59 against 40
+
+
+def test_wrapped_headers_are_as_narrow_as_three_lines_allow():
+    assert viewer.wrap_header("Centre of mass drop (m)", 0, m) == ["Centre", "of mass", "drop (m)"]
+    assert viewer.wrap_header("time s", 200, m) == ["time s"]  # room for it on one line
+    f = viewer.fit_column("Centre of mass drop (m)", ["0.25"], m, viewer.WRAPPED)
+    assert f.label == "Centre\nof mass\ndrop (m)" and f.width == 64 + viewer.SORT_ROOM and not f.angled
+    # a wrap that saves less than NARROWER_BY isn't worth the lines
+    assert viewer.fit_column("abcdefghijk l", ["0.25"], narrow_spaces, viewer.WRAPPED).label == "abcdefghijk l"
+
+
+def config(v, name):
+    return dpg.get_item_configuration(v.col_ids[v.table.index(name)])
+
+
+@pytest.fixture
+def fitted(folder):
+    dpg.create_context()
+    v = viewer.Viewer(folder, settings=None, measure=m)
+    yield v
+    dpg.destroy_context()
+
+
+def test_columns_fit_every_run_not_only_those_on_screen(folder):
+    rows = [ROWS[0].replace("00:35:06", f"01:{i:02}:00") for i in range(59)]
+    rows.append(ROWS[0].replace("00:35:06", "02:00:00").replace(",stock,", ",a-long-name-on-the-last-run,"))
+    write_sheet(folder / SHEET, [HEADER] + rows)
+    dpg.create_context()
+    try:
+        v = viewer.Viewer(folder, settings=None, measure=m)
+        assert config(v, "car")["init_width_or_weight"] == 8 * len("a-long-name-on-the-last-run")
+    finally:
+        dpg.destroy_context()
+
+
+def test_the_window_angles_long_headers_but_not_the_frozen_columns(fitted):
+    piece = config(fitted, "02 corner-30-banked left s")
+    assert piece["angled_header"] and piece["no_header_label"] and piece["init_width_or_weight"] == 32
+    caution = config(fitted, "caution")  # frozen: Dear ImGui draws no angled header there
+    assert not caution["angled_header"] and caution["init_width_or_weight"] == 56 + viewer.SORT_ROOM
+    assert config(fitted, "differences from the stock car")["init_width_or_weight"] == 300
+
+
+def test_a_hidden_group_is_fitted_too_so_showing_it_builds_nothing(fitted):
+    table_id = fitted.table_id
+    mass = config(fitted, "Mass (kg)")
+    assert mass["init_width_or_weight"] == 32 and mass["angled_header"] and not mass["enabled"]
+    fitted.show_group(sheets.CAR, True)
+    assert fitted.table_id == table_id
+
+
+def test_a_new_run_too_wide_for_its_column_fits_it_again(fitted, folder):
+    dpg.set_value(fitted.cell_ids[1][0], True)  # a marked run
+    table_id = fitted.table_id
+    append(folder / SHEET, ROWS[0].replace("00:35:06", "00:50:00").replace(",stock,", ",a-much-longer-car-name,"))
+    assert fitted.reload()
+    assert fitted.table_id != table_id and len(fitted.row_ids) == 5
+    assert config(fitted, "car")["init_width_or_weight"] == 8 * len("a-much-longer-car-name")
+    assert dpg.get_value(fitted.cell_ids[1][0]) and not dpg.get_value(fitted.cell_ids[0][0])
+
+
+def test_a_new_run_that_fits_is_only_added(fitted, folder):
+    table_id = fitted.table_id
+    append(folder / SHEET, ROWS[0].replace("00:35:06", "00:50:00"))
+    assert fitted.reload()
+    assert fitted.table_id == table_id and len(fitted.row_ids) == 5
+
+
+def test_a_dragged_column_keeps_its_width_until_fit_columns(fitted, monkeypatch):
+    car = fitted.col_ids[fitted.table.index("car")]
+    real = dpg.get_item_state
+    monkeypatch.setattr(dpg, "get_item_state", lambda item: {"rect_size": [500, 0]} if item == car else real(item))
+    fitted.set_sort([("time s", False)])  # builds the table again, for the header's arrow
+    assert config(fitted, "car")["init_width_or_weight"] == 500
+    fitted.set_sort([("caution", False)])  # and again: still his width
+    assert config(fitted, "car")["init_width_or_weight"] == 500
+    fitted.fit_columns()
+    assert config(fitted, "car")["init_width_or_weight"] == 24 + viewer.SORT_ROOM  # its header, wider than "stock"
+    assert [n for n, _ in fitted.sort_keys] == ["caution"]
+
+
+def test_the_columns_are_fitted_once_text_can_be_measured(folder):
+    ready = []
+    dpg.create_context()
+    try:
+        v = viewer.Viewer(folder, settings=None, measure=lambda text: m(text) if ready else None)
+        assert v.fits is None and config(v, "car")["init_width_or_weight"] == 0  # Dear ImGui's own fit meanwhile
+        ready.append(True)  # the first frame has been drawn
+        v.tick(0.0)
+        assert v.fits is not None and config(v, "car")["init_width_or_weight"] == 24 + viewer.SORT_ROOM
+    finally:
+        dpg.destroy_context()
+
+
+def test_headers_from_the_command_line():
+    assert viewer.parse_args(["--headers=Wrapped"])["headers"] == viewer.WRAPPED
+    assert viewer.parse_args([])["headers"] is None
+
+
+def test_the_headers_stay_put_under_angled_ones(fitted, folder):
+    # angled headers are a row of their own, so two rows are frozen: the angled ones and the headers under them
+    assert dpg.get_item_configuration(fitted.table_id)["freeze_rows"] == 2
+    dpg.destroy_context()
+    dpg.create_context()
+    flat = viewer.Viewer(folder, settings=None, measure=m, headers=viewer.ONE_LINE)
+    assert dpg.get_item_configuration(flat.table_id)["freeze_rows"] == 1

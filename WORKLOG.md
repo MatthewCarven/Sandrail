@@ -2,6 +2,37 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — The profile viewer's columns fit themselves, long headers angled
+
+His ask: *"autosizeing columns for the grid on the data viewer"*. Screenshots of a scratch copy of his profiles showed
+two things wrong. **The headers set most widths**: a piece's column was as wide as `32 corner-30-banked left km/h`
+for `61.5`, and the shakedown's sheet was 10,600 px wide where its numbers needed 4,000. **The widths were measured
+on the rows on screen only**: Dear ImGui fits a column to what it draws, and the clipper draws about 24 rows. So All
+tracks fitted its track column to the Seed 5 runs at the top and cut `Shakedown` to `Shakedc` further down. The
+widths also changed when a new first sort column built the table again, and a new run wider than its column was cut.
+
+**What's built**: each column is as wide as its widest cell over every run, or its header with room for the sort
+arrow, whichever is wider, measured in the window's own font. A header that would make its column at least 16 px
+wider than its numbers is angled above the table. That was his pick of three, shown real (one line, wrapped onto three
+lines at 8,300 px, angled at 4,200): *"I liked the headers at the 45 degree angle"*. The slant is Dear ImGui's own,
+35° off upright. The frozen columns' headers stay flat, since Dear ImGui draws no angled header above them.
+- **It keeps fitting**: a new run that needs more room (a longer car name) builds the table again, keeping the
+  scroll, the marked runs and any column dragged to a width of its own; one that fits is only added. Hidden groups
+  are fitted too, so ticking one builds nothing. **Fit columns** fits every column again, dragged ones included.
+- **Why the table is built again**: DearPyGui 2.3 takes a column's width only as the table is built. The viewer's
+  README has that and the other findings (when text can first be measured, the 27 px a header needs beside its
+  label, two frozen rows under angled headers).
+- `--headers=wrapped` or `"one line"` lays them out the other ways.
+
+**Checks**: 66 tests (13 new: the rule with a stand-in font, columns fitted over all 60 rows of a sheet, a new run
+refitting with its marks kept, a dragged column kept until Fit columns, two frozen rows). A live window on a scratch
+copy: a run with a longer car name appended while scrolled took the car column from 344 to 471 px, with the scroll
+(900, 280) and the marked run kept, and the first dozen columns were drawn at exactly the widths they were fitted
+to. Before and after screenshots sent to him.
+
+**Left as it was**: `--sheet=<a file's name>` opens All tracks rather than that track, since All tracks holds every
+file and is first in the list; `--sheet=<track key>` (`--sheet="Shakedown 8a6323aa"`) works.
+
 ## 2026-11-25 — The autodriver's aggression stays put between tracks
 
 His ask: *"make the driver aggression stay the same between tracks so once you have changed it down it stays put until

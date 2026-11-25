@@ -9,9 +9,12 @@ On the same stack as Matthew's trellis-gui and PyBindery (DearPyGui), but on Dea
 Trellis grid: a viewer needs sorting, frozen columns and only the rows on screen drawn, which that table has, and
 none of an editor's cells, save or undo. Its error lines come from trellis-errors when it's installed.
 
+Every column is as wide as its widest cell, over every run and not only those on screen, or its header, whichever is
+wider; a long header is angled above the table so the numbers set the width.
+
     python viewer.py [folder or sheet.csv] [--sheet=All tracks] [--groups=Run,Summary,Car]
-                     [--sort=when:desc --sort=track --sort=time s] [--screenshot=shot.png] [--quit-after=seconds]
-                     [--no-settings]
+                     [--sort=when:desc --sort=track --sort=time s] [--headers=angled|wrapped|one line]
+                     [--screenshot=shot.png] [--quit-after=seconds] [--no-settings]
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ import json
 import os
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 import dearpygui.dearpygui as dpg
@@ -42,6 +46,78 @@ FOLDER_POLL = 2.0
 #: The one long column, cut to this width with the whole text on hover.
 LONG_COLUMNS = {"differences from the stock car": 300}
 
+#: Room a header keeps right of its label for Dear ImGui's sort arrow (FontSize * 0.65 + FramePadding.x: 15 px at
+#: 18 px) and the 2 or 3 it adds after a Shift-click (ItemInnerSpacing.x and a digit: 12 px). A label with less room
+#: is cut to "Ce...", every line of it.
+SORT_ROOM = 27
+
+#: How headers are laid out (2026-11-25): on one line, wrapped onto up to HEADER_LINES lines, or angled above the
+#: table, his pick of the three ("I liked the headers at the 45 degree angle"). Wrapped and angled are only for a
+#: header that would otherwise make its column at least NARROWER_BY wider than its cells; the rest stay on one line.
+ONE_LINE, WRAPPED, ANGLED = "one line", "wrapped", "angled"
+HEADER_STYLES = (ONE_LINE, WRAPPED, ANGLED)
+HEADER_LINES = 3
+NARROWER_BY = 16
+
+
+@dataclass
+class Fit:
+    """How one column is built: its width (the cells' room, without Dear ImGui's padding), its header as shown (lines
+    joined by newlines), and whether that header is angled above the table instead."""
+
+    width: float
+    label: str
+    angled: bool = False
+
+
+def wrap_header(name: str, room: float, measure, lines: int = HEADER_LINES) -> list[str]:
+    """The header's words on at most ``lines`` lines, as narrow as that allows but never narrower than ``room``."""
+    words = name.split(" ")
+
+    def wrapped(width: float) -> list[str]:
+        out, line = [], ""
+        for word in words:
+            longer = f"{line} {word}" if line else word
+            if line and measure(longer) > width:
+                out.append(line)
+                line = word
+            else:
+                line = longer
+        return out + [line]
+
+    runs = sorted({measure(" ".join(words[i:j])) for i in range(len(words)) for j in range(i + 1, len(words) + 1)})
+    for width in runs:  # a wrap at the width of some run of words; the whole name is one, on one line
+        attempt = wrapped(max(width, room))
+        if len(attempt) <= lines:
+            return attempt
+    return [name]
+
+
+def fit_column(name: str, cells, measure, style: str = ANGLED, cap: float | None = None) -> Fit:
+    """A column as wide as its widest cell (every row's, not only those on screen) or its header and sort arrow,
+    whichever is wider, the widest cell held to ``cap`` if given. A header that would make the column at least
+    NARROWER_BY wider than its cells is wrapped or angled, if the style says to."""
+    widest = max((measure(text) for text in cells if text), default=0)
+    if cap is not None:
+        widest = min(widest, cap)
+    one_line = measure(name) + SORT_ROOM
+    if style == ONE_LINE or one_line < widest + NARROWER_BY:
+        return Fit(max(widest, one_line), name)
+    if style == ANGLED:
+        return Fit(max(widest, SORT_ROOM), name, angled=True)
+    lines = wrap_header(name, widest - SORT_ROOM, measure)
+    width = max(widest, max(measure(line) for line in lines) + SORT_ROOM)
+    if width > one_line - NARROWER_BY:
+        return Fit(one_line, name)
+    return Fit(width, "\n".join(lines))
+
+
+def text_width(text: str) -> float | None:
+    """The text's width in the bound font; None until the first frame is drawn, when DearPyGui can measure."""
+    size = dpg.get_text_size(text)
+    return size[0] if size else None
+
+
 DEFAULT_GROUPS = {g: g != sheets.CAR for g in sheets.GROUPS}
 
 #: How many columns the boxes above the table sort by, the first the most significant (his ask, 2026-11-25).
@@ -60,12 +136,20 @@ class Viewer:
     DIALOG = "folder dialog"
     SORT_COLUMN = "sort column {}"
     SORT_WAY = "sort way {}"
+    FIT = "fit columns"
 
     def __init__(self, folder: Path, sheet: str | None = None, groups: dict[str, bool] | None = None,
-                 settings: Path | None = None, sort: list[tuple[str, bool]] | None = None):
+                 settings: Path | None = None, sort: list[tuple[str, bool]] | None = None,
+                 headers: str = ANGLED, measure=text_width):
         self.folder = Path(folder)
         self.settings = settings
         self.groups = dict(DEFAULT_GROUPS, **(groups or {}))
+        self.headers = headers if headers in HEADER_STYLES else ANGLED
+        self.measure = measure  # text -> width in pixels, or None while it can't yet (see text_width)
+        self._widths: dict[str, float] = {}  # each text's width, measured once
+        self.fits: list[Fit] | None = None  # how the table's columns were built; None: not measured, Dear ImGui's fit
+        self.by_hand: dict[str, float] = {}  # widths columns were dragged to before the table was last built
+        self._scroll_to = None  # (x, y, frames to wait) after building the table again
         self.entries: list[sheets.TrackSheet] = []
         self.current: sheets.TrackSheet | None = None
         self.table: sheets.Table | None = None
@@ -115,6 +199,11 @@ class Viewer:
                             with dpg.tooltip(self.SORT_WAY.format(k)):
                                 dpg.add_text("Up: smallest, earliest or A first. Down: largest, latest or Z first.")
                         dpg.add_button(label="Clear", callback=lambda: self.set_sort([]))
+                        dpg.add_spacer(width=12)
+                        dpg.add_button(label="Fit columns", tag=self.FIT, callback=lambda: self.fit_columns())
+                        with dpg.tooltip(self.FIT):
+                            dpg.add_text("Every column as wide as its widest cell or its header, over every run, "
+                                         "undoing any you've dragged.", wrap=420)
                     with dpg.group(tag=self.HOLDER):
                         pass
             dpg.add_text(tag=self.STATUS)
@@ -220,10 +309,61 @@ class Viewer:
 
     def _clear_table(self) -> None:
         dpg.delete_item(self.HOLDER, children_only=True)
-        self.table, self.table_id = None, None
+        self.table, self.table_id, self.fits = None, None, None
         self.col_ids, self.row_ids, self.cell_ids, self.tip_ids = [], [], [], {}
 
-    def _build_table(self, table: sheets.Table) -> None:
+    # ------------------------------------------------------------------ widths
+
+    def _width(self, text: str) -> float:
+        w = self._widths.get(text)
+        if w is None:
+            w = self._widths[text] = self.measure(text) or 0
+        return w
+
+    def fit(self, table: sheets.Table) -> list[Fit] | None:
+        """Each column's width and header, measured over every row; None if text can't be measured yet."""
+        if self.measure("0") is None:
+            return None
+        # Dear ImGui draws no angled header above the frozen columns, so theirs wrap instead
+        return [fit_column(c.name, [row[i] for row in table.rows], self._width,
+                           WRAPPED if self.headers == ANGLED and i < table.pinned else self.headers,
+                           LONG_COLUMNS.get(c.name))
+                for i, c in enumerate(table.columns)]
+
+    def dragged(self) -> dict[str, float]:
+        """The columns dragged by hand to another width than they were built with, by name: those of this build, and
+        the ones before it on this sheet."""
+        out = dict(self.by_hand)
+        for i, (col_id, f) in enumerate(zip(self.col_ids, self.fits or [])):
+            width = dpg.get_item_state(col_id).get("rect_size", [0])[0] if self._shown(i) else 0
+            if width and abs(width - f.width) > 1:  # Dear ImGui reports the cells' room, as init_width_or_weight is
+                out[self.table.columns[i].name] = width
+        return out
+
+    def fit_columns(self) -> None:
+        """Fits every column again, the ones dragged by hand too (the Fit columns button)."""
+        if self.table is not None and self.table_id is not None:
+            self._build_table(self.table, again=True, keep_dragged=False)
+            self.sort_rows()
+
+    def _outgrown(self, table: sheets.Table) -> bool:
+        """Whether a column not dragged by hand needs more room for these rows than it was built with."""
+        if self.fits is None:
+            return False
+        dragged = self.dragged()
+        new = self.fit(table)
+        return new is not None and any(n.width > f.width + 0.5 or (n.label, n.angled) != (f.label, f.angled)
+                                       for c, f, n in zip(table.columns, self.fits, new) if c.name not in dragged)
+
+    def _build_table(self, table: sheets.Table, again: bool = False, keep_dragged: bool = True) -> None:
+        """Builds the table, its columns fitted. Built ``again`` (the same sheet), it keeps the scroll, the marked runs
+        and, unless told not to, the widths columns were dragged to: Dear ImGui takes a column's width only as it's
+        built, so building again is how a column is fitted to new rows."""
+        kept = None
+        if again and self.table_id is not None:
+            kept = (dpg.get_x_scroll(self.table_id), dpg.get_y_scroll(self.table_id),
+                    [r for r, cells in enumerate(self.cell_ids) if dpg.get_value(cells[0])])
+        self.by_hand = self.dragged() if again and keep_dragged else {}
         self._clear_table()
         self.table = table
         for k in range(SORT_KEYS):
@@ -232,10 +372,13 @@ class Viewer:
         if not table.columns:
             dpg.add_text("This sheet is empty.", parent=self.HOLDER)
             return
+        self.fits = self.fit(table)
+        # Angled headers are a row of their own above the headers, there while any column has one, shown or not
+        angled = self.fits is not None and any(f.angled for f in self.fits)
         self.table_id = dpg.add_table(
             parent=self.HOLDER, header_row=True, sortable=True, sort_multi=True, sort_tristate=False,
             callback=lambda s, a: self._on_sort(a), resizable=True, hideable=False, reorderable=False,
-            policy=dpg.mvTable_SizingFixedFit, scrollX=True, scrollY=True, freeze_rows=1,
+            policy=dpg.mvTable_SizingFixedFit, scrollX=True, scrollY=True, freeze_rows=2 if angled else 1,
             freeze_columns=table.pinned, row_background=True, borders_innerV=True, borders_outerV=True,
             borders_outerH=True, clipper=True, height=-26, width=-1)
         # Dear ImGui always sorts by something, and on a new table's first frame it reports the first column
@@ -244,15 +387,27 @@ class Viewer:
         self._fresh_table = True
         primary, descending = self.sort_keys[0] if self.sort_keys else (None, False)
         for i, col in enumerate(table.columns):
-            long = LONG_COLUMNS.get(col.name)
+            if self.fits is not None:
+                f = self.fits[i]
+                if col.name in self.by_hand:  # the width it was dragged to, the header as fitted
+                    f = self.fits[i] = Fit(self.by_hand[col.name], f.label, f.angled)
+                size = dict(label=f.label, width_fixed=True, init_width_or_weight=f.width, angled_header=f.angled,
+                            no_header_label=f.angled)
+            else:  # until the first frame, when text can be measured: Dear ImGui's own fit, then tick fits it
+                long = LONG_COLUMNS.get(col.name)
+                size = dict(label=col.name, width_fixed=long is not None, init_width_or_weight=long or 0)
             first = col.name == primary
             self.col_ids.append(dpg.add_table_column(
-                label=col.name, parent=self.table_id, user_data=i, enabled=self._shown(i),
-                width_fixed=long is not None, init_width_or_weight=long or 0,
-                default_sort=first, prefer_sort_descending=first and descending,
-                prefer_sort_ascending=not (first and descending)))
+                parent=self.table_id, user_data=i, enabled=self._shown(i), default_sort=first,
+                prefer_sort_descending=first and descending, prefer_sort_ascending=not (first and descending), **size))
         for row in table.rows:
             self._add_row(row)
+        if kept:
+            for r in kept[2]:
+                if r < len(self.cell_ids):
+                    dpg.set_value(self.cell_ids[r][0], True)
+            if kept[0] or kept[1]:
+                self._scroll_to = (kept[0], kept[1], 2)  # once the new table has been drawn and knows its size
 
     def _add_row(self, row: list[str]) -> None:
         r = len(self.row_ids)
@@ -271,6 +426,9 @@ class Viewer:
 
     def _update_rows(self, table: sheets.Table) -> None:
         """The same columns: change the cells that changed (a car newly in cars.csv) and add the new runs."""
+        if self._outgrown(table):  # a column too narrow for the new rows: built again, fitted to them
+            self._build_table(table, again=True)
+            return
         old, self.table = self.table, table
         for r, (before, after) in enumerate(zip(old.rows, table.rows)):
             for c, (a, b) in enumerate(zip(before, after)):
@@ -317,7 +475,7 @@ class Viewer:
         self.sort_keys = list(keys)[:SORT_KEYS]
         self._show_sort()
         if self.table is not None and self.table_id is not None and self.sort_keys[:1] != old:
-            self._build_table(self.table)
+            self._build_table(self.table, again=True)
         self.sort_rows()
         self.save_settings()
 
@@ -372,7 +530,21 @@ class Viewer:
     # ------------------------------------------------------------------ polling, status, settings
 
     def tick(self, now: float) -> None:
-        """Called every frame: notice new sheets and new rows."""
+        """Called every frame: fit the columns once text can be measured, put the scroll back after building the table
+        again, and notice new sheets and new rows."""
+        if self.table is not None and self.table_id is not None and self.fits is None and self.measure("0") is not None:
+            self._build_table(self.table, again=True)
+            self.sort_rows()
+        if self._scroll_to is not None:
+            x, y, frames = self._scroll_to
+            if self.table_id is None:
+                self._scroll_to = None
+            elif frames > 0:
+                self._scroll_to = (x, y, frames - 1)
+            else:
+                dpg.set_x_scroll(self.table_id, x)
+                dpg.set_y_scroll(self.table_id, y)
+                self._scroll_to = None
         if now >= self._next_folder_poll:
             self._next_folder_poll = now + FOLDER_POLL
             if self.refresh_list() and (self.current is None
@@ -438,9 +610,11 @@ def load_settings(path: Path) -> dict:
 
 def parse_args(argv: list[str]) -> dict:
     args = {"path": None, "sheet": None, "groups": None, "sort": None, "screenshot": None, "quit_after": None,
-            "settings": True}
+            "settings": True, "headers": None}
     for a in argv:
-        if a.startswith("--groups="):
+        if a.startswith("--headers="):
+            args["headers"] = a[10:].strip().lower()
+        elif a.startswith("--groups="):
             shown = {g.strip().casefold() for g in a[9:].split(",")}
             args["groups"] = {g: g.casefold() in shown for g in sheets.GROUPS}
         elif a.startswith("--sort="):  # once a column, the first the most significant
@@ -473,7 +647,7 @@ def main(argv: list[str] | None = None) -> None:
     if FONT.is_file():  # the units' ° and ² and the sort boxes' arrows aren't in DearPyGui's own font
         with dpg.font_registry():
             dpg.bind_font(dpg.add_font(str(FONT), 18))
-    viewer = Viewer(folder, sheet, groups, SETTINGS if args["settings"] else None, sort)
+    viewer = Viewer(folder, sheet, groups, SETTINGS if args["settings"] else None, sort, args["headers"] or ANGLED)
 
     dpg.create_viewport(title=TITLE, width=1500, height=860)
     dpg.setup_dearpygui()
