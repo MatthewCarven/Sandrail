@@ -75,6 +75,9 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>How long a car's lock stays open before it shuts by itself.</summary>
     private const ulong UnlockedMs = 5000;
 
+    /// <summary>The least room left above and below the menu when it fills the window's height.</summary>
+    private const float WindowMargin = 16.0f;
+
     /// <summary>The profile (P3): the car being driven, swept over this track; null where there's no race to profile on.</summary>
     public Action? Profile { get; init; }
 
@@ -104,6 +107,8 @@ public partial class SeedMenu : CanvasLayer
     private ScrollContainer _trackList = null!;
     private VBoxContainer _trackRows = null!;
     private PanelContainer _panel = null!;
+    private ScrollContainer _scroll = null!;
+    private VBoxContainer _rows = null!;
     private LineEdit _seed = null!;
     private Label _note = null!;
 
@@ -133,9 +138,27 @@ public partial class SeedMenu : CanvasLayer
         });
         AddChild(_panel);
 
-        var rows = new VBoxContainer { CustomMinimumSize = new Vector2(420.0f, 0.0f) };
+        // The rows scroll when the menu is taller than the window (his yes, 2026-11-25): a menu that ran off the
+        // default 1152 x 648 window had cut SANDRAIL off the top, and the profiled cars' bests (P4) cut off Quit. The
+        // note stays under the rows, outside the scroll, so what a button says is always in sight.
+        var outer = new VBoxContainer();
+        outer.AddThemeConstantOverride("separation", 10);
+        _panel.AddChild(outer);
+        _scroll = new ScrollContainer
+        {
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            FollowFocus = true,
+        };
+        outer.AddChild(_scroll);
+
+        var rows = new VBoxContainer
+        {
+            CustomMinimumSize = new Vector2(420.0f, 0.0f),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
         rows.AddThemeConstantOverride("separation", 10);
-        _panel.AddChild(rows);
+        _scroll.AddChild(rows);
+        _rows = rows;
 
         rows.AddChild(Text("SANDRAIL", 30));
         rows.AddChild(Text(Where, 18));
@@ -297,7 +320,30 @@ public partial class SeedMenu : CanvasLayer
 
         _note = Text("Esc closes this.", 15);
         _note.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        rows.AddChild(_note);
+        outer.AddChild(_note);
+
+        _rows.MinimumSizeChanged += FitToWindow;
+        _note.MinimumSizeChanged += FitToWindow;
+        GetViewport().SizeChanged += FitToWindow;
+        FitToWindow();
+    }
+
+    public override void _ExitTree()
+    {
+        GetViewport().SizeChanged -= FitToWindow;
+    }
+
+    /// <summary>
+    /// The rows as tall as they are, or as tall as the window leaves room for beside the note, a margin and the panel's
+    /// own; they scroll for the rest. Fitted again whenever the rows, the note or the window change size.
+    /// </summary>
+    private void FitToWindow()
+    {
+        float panel = _panel.GetThemeStylebox("panel").GetMinimumSize().Y;
+        float room = GetViewport().GetVisibleRect().Size.Y - (2.0f * WindowMargin) - panel
+            - _note.GetCombinedMinimumSize().Y - 10.0f;
+        float tall = Math.Min(_rows.GetCombinedMinimumSize().Y, Math.Max(room, 120.0f));
+        _scroll.CustomMinimumSize = new Vector2(0.0f, tall);
     }
 
     public override void _Process(double delta)
@@ -316,6 +362,7 @@ public partial class SeedMenu : CanvasLayer
             else if (EscTaken?.Invoke() != true)
             {
                 ShowReplays();
+                _scroll.ScrollVertical = 0;
                 _panel.Visible = true;
                 GetTree().Paused = true;
                 _seed.GrabFocus();

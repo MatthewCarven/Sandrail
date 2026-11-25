@@ -2,6 +2,30 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — The Esc menu scrolls when it's taller than the window
+
+The menu ran off the default 1152 × 648 window. SANDRAIL was already cut off the top, and P4's Watch a car's profile best
+also cut off half of Quit (the entry below). Now it scrolls, at his word (*"Yes, make it scroll"*).
+- **When it fits, nothing changes.** In a 1152 × 1000 window with no list open, it shows whole and centred as before.
+- **When it doesn't fit**, the menu fills the window's height with 16 px above and below, and its rows scroll, with a
+  scrollbar beside them. Godot widens the menu by the scrollbar's 8 px, so the rows keep their width.
+- **The note stays in sight.** It sits under the rows, outside the scroll, so what a button says, such as "Saved to
+  ...", can't be scrolled out of view.
+- **It opens at the top** every time, and the menu follows keyboard focus, so Tab never leaves the focused button out of
+  sight.
+- **It fits itself again** whenever the rows, the note or the window change size.
+- **Lists inside it are unchanged.** Load a track, Change car and the profiled cars' list keep their own scrolls and the
+  height the window leaves them.
+
+How it was seen: a temporary probe, since removed, opened the menu on seed 5 against a scratch copy of his cars and the
+P4 ghosts. It took six pictures:
+- at 1152 × 648: the top; scrolled to the bottom (Resume, Quit and the note all in view); the profiled cars' list open
+  and scrolled down; Change car's list open;
+- at 1152 × 1000: no list open (no scroll); Change car's list open (scrolls).
+
+At 648 the rows are 724 px tall, or 862 with the profiled cars' list open, inside a 616 px menu. Tests (349) and the
+headless check pass. No oracle builds the menu, so none could change.
+
 ## 2026-11-25 — P4: profile ghosts
 
 Decision 7, taken as recommended with the rest on 2026-11-24 (*"everything else as you put it please and thanks
@@ -89,7 +113,7 @@ auto-respawn comes in those three ticks, the run ends as finished.
 - **The Esc menu is taller than the default window** (1152 × 648; noted 2026-11-25 with SANDRAIL cut off at the top). The
   new button, which shows only on a track with a profiled car's ghost, adds a row, so half of Quit goes off the bottom
   too, and with the list open Resume and Quit are off it. Esc still closes the menu. A menu that scrolls when it's
-  taller than the window would fix all of it; not done unasked.
+  taller than the window would fix all of it; not done unasked. (Done the same day at his yes: the entry above.)
 - **The first run of a sweep can differ by a hundredth with how the scene began.** `matthew-2026-11-23` at 50% on seed 5
   is 1:25.16 launched with `--spec=` and `--profile=this`, and 1:25.17 when Profile every car started the scene again
   with it (splits 18.71, 52.59, 1:08.88 against 18.72, 52.61, 1:08.89); from 55% on they agree. It isn't P4's doing: the
