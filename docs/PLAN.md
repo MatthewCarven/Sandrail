@@ -119,7 +119,8 @@ catalogue is data, loaded the way Overburden loads mods.
 
 A starter set: straight; a corner in two radii; slope up and down a level; a short and a long launch ramp
 with a landing ramp; a banked corner; a loop; a gap jump (a launch, empty tiles, a landing); a chicane;
-start and finish gates; a checkpoint arch. Pipes, corkscrews and bridges come after.
+start and finish gates; a checkpoint arch. Pipes, corkscrews and bridges come after. **Planned
+2026-11-26**, at his ask for more pieces: [PIECES-PLAN.md](PIECES-PLAN.md), crossings first, its decisions his.
 
 ## The generator, point-to-point first
 
