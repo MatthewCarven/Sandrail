@@ -49,9 +49,11 @@ wheel spin is M1e's to talk over, not this plan's to build.
    is the answer, and nothing needs averaging.** A change to the car's physics code changes every figure, so a
    row carries the game's version. **One exception, found 2026-11-25**: a run can come out a little differently
    at launch than after a scene reload (a change of car, the next track), or after one track than after another.
-   Where two road pieces meet, which one a wheel's ray reports depends on the order the physics engine holds them
-   in, and what was loaded before changes that order. A clean run moves by a hundredth or two at most, and most
-   don't move at all; a run that has already gone wrong (off the road, spinning) can go another way by seconds.
+   Where the chassis touches the road (in the loop, on landings), Jolt solves its contacts in an order set by the
+   bodies' IDs, and a reload, or the track loaded before, hands out other IDs. The wheels' rays never tie (worklog,
+   "Why a run depends on what was loaded before it": a fresh physics world for each load would end it, his to
+   choose). A clean run moves by a hundredth or two at most, and most don't move at all; a run that has already
+   gone wrong (off the road, spinning) can go another way by seconds.
    **Whether a run is clean, and so each car's limit and best clean time, came out the same in every
    comparison**: 48 cars on tracks, each profiled three ways. Each way on its own is the same every time.
 2. **The machine drives about ten times faster than real, headless.** The shakedown's 56.76 s took 58.1 s of

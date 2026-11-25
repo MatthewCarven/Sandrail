@@ -2,6 +2,89 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — Why a run depends on what was loaded before it: the chassis on the road, not the rays
+
+Profile every car on every track left this found and not fixed: the same profile run can come out a little
+differently at launch, after a scene reload, or after another track, and building the shakedown's pieces in reverse
+moved the same cells. The working theory was a wheel's ray meeting two pieces at a seam at the same distance, with Jolt
+reporting whichever it held first. **That theory is wrong**, and the real cause has a cheap fix that touches neither
+the car nor the track. It's written here for him to choose; nothing is changed.
+
+**No wheel ray ever ties.** A temporary probe logged every wheel ray of the stock car's sweep on the shakedown, tick by
+tick, and cast each ray a second time with the collider it hit left out:
+- **The shakedown**: 8 runs, 54,625 ticks, four rays a tick. No second collider within a millimetre of the first, in
+  launch order or with the pieces built in reverse.
+- **Seed 635508** (the 3-lap circuit where two clean times moved by 0.01 and 0.02 s), on the generator's own ground:
+  8 runs, 152,616 ticks. No exact tie. The nearest was a wheel past the road's edge that met the slab's side 0.6 mm
+  before the ground, and the nearer one is reported whatever the order.
+- **The ground is built not to**: level road is lifted 5 cm above the plain (`TestGroundLayout.Lift`), and the bed is
+  set 20 cm under the road (`Bed.UnderRoadM`). Where two pieces meet, a ray lands on one side of the seam or the other.
+
+**It's the chassis touching the road.** Logged in both build orders, every run that reaches the loop is the same bit
+for bit up to it. In every one of them the first difference comes on a tick where the chassis box is touching the
+loop, two contacts becoming four or six. On that tick all four rays report the same piece, distance and normal both
+ways, so the car's own forces are the same, and yet the velocity coming out of the tick differs in its last bits. The
+difference is in how Jolt solved the box's contacts. Seed 635508's runs part first at its loop too, 7 of 8, on ticks
+where all four rays agree both ways (the eighth goes wrong before the loop and is the same both ways). Six of its rows
+moved by a hundredth or a tenth of a km/h, all clean both ways.
+- **Where the chassis touches**: about 150 ticks (1.25 s) in the loop, and 1 to 8 ticks on each jump's take-off and
+  landing. That's the bottoming M1c found (the `loop` oracle's 2.89 s on the bump stop). The wheel's compression stops
+  at its travel, so past that the box carries the car.
+- **Why order matters there**: Jolt solves a tick's contacts in an order sorted on a hash of the two bodies' IDs and
+  the triangles touched. With several contacts at once (the loop's six), the IDs choose the order, and the order
+  changes the last bits.
+- **Why a reload changes the IDs**: a Jolt body ID is a slot and a count of how often the slot has been used. A freed
+  slot is handed out again last freed first, with its count one higher. So after a reload every body's ID differs from
+  the launch's, even in the same slots, and after another track the slots differ too. Reversing the build gave the
+  loop another slot, and moved the same cells. (Jolt's source: `SubShapeIDPair::GetHash` over both `BodyID`s,
+  `ContactConstraintManager::SortContacts`, `BodyManager`'s free list.)
+
+**Seen on the way: the contact monitor changes the car.** Turning on Godot's contact reporting for the car (to log the
+touches) also turns off Jolt's manifold reduction for it, and that alone moved three of the sweep's eight rows by a
+hundredth or a tenth of a km/h. Nothing in the game turns it on. The figures above that compare rows came from the probe
+with it off, which matched the plain game cell for cell.
+
+**The options**:
+1. **A fresh physics world for each scene load** (recommended). `Main` gives the window a new `World3D` as it enters
+   the tree, before any of its bodies exist. Each world has a Jolt of its own, so its IDs start from nothing, and a
+   scene builds its bodies in the same order every time, so a run reached by any road gets the same IDs as at launch.
+   - **Tried, then taken out**. The shakedown reached after Seed 5 (`--profile=everywhere`) had 3 rows of 8 apart
+     from a launch. With a fresh world it was the launch's, cell for cell, and so was Seed 5. A launch with it is the
+     same as without, cell for cell. **All seventeen oracles printed the same lines with it, character for
+     character.**
+   - **Costs**: a few lines in `Main`, no change to the car or the track, no oracle moves, and no fingerprint or ghost
+     changes. Clean and unclean runs alike, whatever touches what.
+   - **One wrinkle to tidy**: the swap as tried prints one engine error at the start (`scenario is null`, from the
+     renderer letting go of the old world). The frame is right (sky, sun, shadows, the car on its start) and the run
+     goes on. The real version would find the clean way to swap, or show the error is only noise.
+   - **What it doesn't do**: rows already in his sheets from a reload stay as they are; profiling them again tidies
+     them. It makes a run the same however it was reached on this machine. Whether another machine gives the same
+     figures is a separate question.
+2. **Keep the chassis off the road in a clean run**: more travel, or a bump stop that holds the car off the road
+   past the travel. A clean run then never touches, and the order can't matter. **But it's the car's physics**: it moves
+   every oracle with a jump or the loop, it changes how landings feel, and the bottoming is his lever to bring to his
+   play. Unclean runs (spins, rolls, rocks, banks) still touch, so they'd still differ. Worth his play for the feel,
+   not for this.
+3. **A launch for every track**: each launch is already the same every time. But it means restarting the game for
+   every track and car, which a menu button can't do neatly. Option 1 gets the same result without the restart.
+4. **Not these**, the ones the theory pointed at:
+   - **A tie-break in the wheel raycast**: there are no ties to break.
+   - **One collider for the whole road**: the hash holds the car's own ID too, and a merged road's ID changes on a
+     reload like any body's.
+   - **Pieces without shared seams**: seams don't tie.
+
+**For him**: option 1? It's small, it moves no figure he has, and after it a profile row is the same whether it came
+at launch, after a change of car, or after any other track.
+
+**Checks** (scratch `--ghosts=`, `--profiles=`, `--tunes=` and `--saved=` throughout, his folders untouched):
+- The stock car's sweep on the shakedown, plain, twice, with six games running at once: the same, cell for cell.
+- The probe's extra rays, contact monitor off: the same as plain, cell for cell. With it on, 3 rows moved.
+- `--profile=everywhere` over the game's two tracks against a plain launch of each: the shakedown, reached after Seed 5,
+  3 rows apart. With a fresh world: none.
+- A launch with a fresh world: the same rows. The oracles with and without: the same 23 lines.
+- In the window: one screenshot run with a fresh world, a frame at rest and one driving, both right.
+- The probe and the fresh-world switch are taken out again; the game is as it was.
+
 ## 2026-11-25 — Profile every car on every track
 
 His ask: one more button, every car on every track. He knows the menu is getting long and is fine with one more.
