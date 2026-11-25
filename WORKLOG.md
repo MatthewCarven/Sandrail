@@ -2,6 +2,31 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — The Profile buttons under one Profile button
+
+His word on the suggestion at the end of the Profile every car on every track entry: *"Yes, nest them"*.
+
+**What changed** (`Ui/SeedMenu.cs` only; `Main.cs` passes the same three actions as before):
+- **Profile this car, Profile every car and Profile every car on every track** now sit under one **Profile** button,
+  where the three were. It opens them as a list under it, the way Change car opens the garage, in the list rows'
+  smaller type.
+- **The note under the menu** says what each does while the list is open: *"This car: yours, here, from 50% aggression
+  until a run isn't clean; every car: the stock car and your active ones; every track: each of Load a track's in
+  turn, then back here. Esc stops it; the rows written stay."*
+- **One list at a time**, as before: opening Profile closes Change car's or Load a track's list, and the other way
+  round. Closing the menu closes it too.
+- **On the test ground** the list holds only Profile every car on every track, since there's no race to profile there.
+- Open the profiles folder stays a button of its own.
+
+**Checks:**
+- **The menu in the default window** (1152 × 648), through a temporary probe (since removed) that pressed the real
+  Escape key and clicked the real buttons:
+  - On his `gen-746109v1`: the menu closed; Profile open with its three rows; Change car opened, which closed the
+    Profile list; Profile opened and closed again.
+  - On the test ground: Profile open with its one row.
+- The headless check passes on the test ground and on the shakedown, tests (349) pass, and the profile code isn't
+  touched.
+
 ## 2026-11-25 — Why a run depends on what was loaded before it: the chassis on the road, not the rays
 
 Profile every car on every track left this found and not fixed: the same profile run can come out a little
@@ -173,7 +198,8 @@ moves every oracle, so it's his to choose.
 - **His three active cars aren't clean even at 50% on any of the 12 tracks.** Each drives one run a track, and only the
   stock car sweeps (clean to 65-85%; on his `3` not at all).
 - **The menu**: the three Profile buttons could go under one Profile button that opens them, the way Change car opens
-  its list. Not done: his to say.
+  its list. Not done: his to say. (Done the same evening at his word: "The Profile buttons under one Profile button",
+  above.)
 
 ## 2026-11-25 — Time up to ×16, and the board says how fast it really runs
 

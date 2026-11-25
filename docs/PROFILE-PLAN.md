@@ -277,6 +277,8 @@ profile ghosts and the rows held for an open spreadsheet work as before.
   the same, with each unfinished track's first problem.
 - **`--profile=everywhere`** does it from the command line, needs no `--track=`, and quits at the end.
 - It's offered on the test ground too, which has no profile of its own, since it doesn't profile the place it starts.
+- **The three Profile buttons sit under one Profile button** since the same evening (his word, *"Yes, nest them"*): it
+  opens them as a list, the way Change car opens the garage.
 
 **On his tracks** (scratch copies, 2026-11-25): 14 tracks in the list. His `1` is unfinished, so it's left out, and
 his `gen-5.json` is the game's Seed 5 under another name, so it's skipped. That leaves 12 tracks and 4 cars (the stock

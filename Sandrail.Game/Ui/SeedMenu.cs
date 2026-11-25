@@ -78,13 +78,16 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>The least room left above and below the menu when it fills the window's height.</summary>
     private const float WindowMargin = 16.0f;
 
-    /// <summary>The profile (P3): the car being driven, swept over this track; null where there's no race to profile on.</summary>
+    /// <summary>
+    /// The profile (P3): the car being driven, swept over this track; null where there's no race to profile on. This and
+    /// the two below are rows under one Profile button, which shows when any of them is there.
+    /// </summary>
     public Action? Profile { get; init; }
 
     /// <summary>The profile of every car in the garage over this track.</summary>
     public Action? ProfileAll { get; init; }
 
-    /// <summary>Profile every car on every track there is to load, then back here (2026-11-25); null hides the button.</summary>
+    /// <summary>Profile every car on every track there is to load, then back here (2026-11-25); null leaves its row out.</summary>
     public Action? ProfileEverywhere { get; init; }
 
     /// <summary>Opens the folder the profile sheets are in; says which.</summary>
@@ -93,10 +96,16 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>Done before Quit quits: rows still waiting for the sheet are kept in a file beside it.</summary>
     public Action? Quitting { get; init; }
 
-    /// <summary>Which list is open under its button: the tracks, the cars or the profiled cars' bests; null for none.</summary>
+    /// <summary>Which list is open under its button: the tracks, the cars, the profiles or the profiled cars' bests; null for none.</summary>
     private string? _listing;
 
     private const string ProfilesList = "profiles";
+
+    /// <summary>The list under Profile: this car, every car, every car on every track (his word, 2026-11-25).</summary>
+    private const string ProfileActions = "profile";
+
+    private VBoxContainer? _profileActions;
+    private string _profileActionsNote = string.Empty;
 
     /// <summary>The car lock that's open, the button it shows, and when it opened; one at a time.</summary>
     private LockButton? _unlocked;
@@ -235,33 +244,45 @@ public partial class SeedMenu : CanvasLayer
             rows.AddChild(_trackList);
         }
 
-        // The profile (P3): the menu closes and the autodriver drives the sweep; Esc stops it.
+        // The profiles (P3, and every track since 2026-11-25) under one Profile button, which opens them as a list the way
+        // Change car opens the garage (his word: "Yes, nest them"). Picking one closes the menu and the autodriver drives
+        // the sweep; Esc stops it. On the test ground only every car on every track is there, since it has no race.
+        var actions = new List<(string Label, Action Start, string Says)>();
         if (Profile is Action profile)
         {
-            rows.AddChild(Button("Profile this car", () =>
-            {
-                Close();
-                profile();
-            }));
+            actions.Add(("Profile this car", profile, "this car: yours, here, from 50% aggression until a run isn't clean"));
         }
 
         if (ProfileAll is Action profileAll)
         {
-            rows.AddChild(Button("Profile every car", () =>
-            {
-                Close();
-                profileAll();
-            }));
+            actions.Add(("Profile every car", profileAll, "every car: the stock car and your active ones"));
         }
 
-        // Every car on every track (2026-11-25): Load a track's tracks one after another, unattended, then back here.
         if (ProfileEverywhere is Action everywhere)
         {
-            rows.AddChild(Button("Profile every car on every track", () =>
+            actions.Add(("Profile every car on every track", everywhere, "every track: each of Load a track's in turn, then back here"));
+        }
+
+        if (actions.Count > 0)
+        {
+            rows.AddChild(Button("Profile", ToggleProfileActions));
+            _profileActions = new VBoxContainer { Visible = false, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            _profileActions.AddThemeConstantOverride("separation", 6);
+            foreach ((string label, Action start, string _) in actions)
             {
-                Close();
-                everywhere();
-            }));
+                Button row = Button(label, () =>
+                {
+                    Close();
+                    start();
+                });
+                row.AddThemeFontSizeOverride("font_size", 16);
+                row.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                _profileActions.AddChild(row);
+            }
+
+            rows.AddChild(_profileActions);
+            string says = string.Join("; ", actions.Select(a => a.Says));
+            _profileActionsNote = $"{char.ToUpperInvariant(says[0])}{says[1..]}. Esc stops it; the rows written stay.";
         }
 
         if (OpenProfiles is Func<string> open)
@@ -394,6 +415,21 @@ public partial class SeedMenu : CanvasLayer
         IReadOnlyList<(string Label, Action Load)> tracks = Tracks?.Invoke() ?? [];
         FillList("tracks", tracks.Select(t => (Control)RowButton(t.Label, t.Load)).ToList(),
             tracks.Count == 0 ? "No tracks to load." : $"{tracks.Count} tracks: the game's own, then the ones you've saved, newest first.");
+    }
+
+    /// <summary>Opens the list under Profile, or closes it: the profiles there are to run here, and what each does.</summary>
+    private void ToggleProfileActions()
+    {
+        if (CloseList(ProfileActions) || _profileActions is null)
+        {
+            return;
+        }
+
+        Relock();
+        HideLists();
+        _profileActions.Visible = true;
+        _listing = ProfileActions;
+        _note.Text = _profileActionsNote;
     }
 
     /// <summary>Opens the list of the profiled cars' bests on this track, read afresh, or closes it (P4).</summary>
@@ -550,12 +586,17 @@ public partial class SeedMenu : CanvasLayer
         return true;
     }
 
-    /// <summary>Both lists out of sight: the one under Load a track and Change car, and the profiled cars' bests (P4).</summary>
+    /// <summary>Every list out of sight: the one under Load a track and Change car, the profiles under Profile, and the profiled cars' bests (P4).</summary>
     private void HideLists()
     {
         if (_trackList is not null)
         {
             _trackList.Visible = false;
+        }
+
+        if (_profileActions is not null)
+        {
+            _profileActions.Visible = false;
         }
 
         _profileList.Visible = false;
