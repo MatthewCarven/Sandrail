@@ -347,7 +347,7 @@ public partial class Main
         SheetShape shape = SheetShape.Of(_track);
         string name = CarName;
         _stockSpec ??= Garage.Read(Garage.StockPath).Spec ?? new CarSpec();
-        var row = new SheetRow(DateTime.Now, GameVersion, driver, name, CarPrint, caution, CarSheet.Differences(_car.Spec, _stockSpec), run);
+        var row = new SheetRow(DateTime.Now, _track.Track.Name, GameVersion, driver, name, CarPrint, caution, CarSheet.Differences(_car.Spec, _stockSpec), run);
         PendingRows.Add((_profilesFolder, CarSheet.FileName(_track.Track.Name, _trackPrint), CarSheet.Line(CarSheet.Header(shape)),
             CarSheet.Line(CarSheet.Cells(shape, row)), name, _car.Spec));
         FlushPendingRows();

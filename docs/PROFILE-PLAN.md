@@ -111,7 +111,8 @@ on the best lap).
 track's route. Two files, both in `user://profiles/` (`%APPDATA%\Godot\app_userdata\Sandrail\profiles\`):
 
 - **`<track name> <fingerprint>.csv`**, one per track, one row per run, newest at the bottom:
-  - who and what: when, the game's version, driver (`auto` or `you`), the car's name and fingerprint, the
+  - who and what: when, the track's name (since 2026-11-25, at his ask, so a row says where it was driven even
+    copied out of its file), the game's version, driver (`auto` or `you`), the car's name and fingerprint, the
     caution, clean or not, and **the car's differences from the stock car in words** (`grip 1.31 (1.1); mass
     974 kg (650); wing twin-plane (none)`, his working car against the stock one);
   - the run: finished, time, splits, lap times, best lap, top speed, time off the road, worst slide, spins;

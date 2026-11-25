@@ -120,7 +120,7 @@ public class ProfileTests
         Assert.Equal(2, shape.Checkpoints);
         Assert.Equal(0, shape.Laps);
         Assert.StartsWith("01 ", shape.Pieces[0], StringComparison.Ordinal);
-        Assert.Equal(10 + 2 + 6 + (2 * track.Route.Count), header.Count);
+        Assert.Equal(11 + 2 + 6 + (2 * track.Route.Count), header.Count);
         Assert.Contains("split 2 s", header);
         Assert.DoesNotContain("best lap s", header);
         Assert.Equal($"{shape.Pieces[^1]} km/h", header[^1]);
@@ -145,7 +145,7 @@ public class ProfileTests
         Drive(meter, 0, 150, 20.0f, 30.0f);
         Drive(meter, 1, 90, 18.0f, 18.0f);
         RunSummary run = meter.Summary(false, [1.75]);
-        var row = new SheetRow(new DateTime(2026, 11, 24, 23, 5, 0), "0.0.1+abc", "auto", "stock", "4f918acd", 0.5f, "the stock car", run);
+        var row = new SheetRow(new DateTime(2026, 11, 24, 23, 5, 0), "Seed 5, his \"favourite\"", "0.0.1+abc", "auto", "stock", "4f918acd", 0.5f, "the stock car", run);
 
         CultureInfo was = CultureInfo.CurrentCulture;
         try
@@ -157,6 +157,8 @@ public class ProfileTests
             string Cell(string column) => cells[header.ToList().IndexOf(column)];
 
             Assert.Equal("2026-11-24 23:05:00", Cell("when"));
+            Assert.Equal("Seed 5, his \"favourite\"", Cell("track"));
+            Assert.Equal("track", header[1]);
             Assert.Equal("0.50", Cell("caution"));
             Assert.Equal("no", Cell("finished"));
             Assert.Equal(string.Empty, Cell("time s"));

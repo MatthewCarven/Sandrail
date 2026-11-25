@@ -29,6 +29,8 @@ public sealed record SheetShape(IReadOnlyList<string> Pieces, int Checkpoints, i
 
 /// <summary>One run for the sheet: who drove what, and what the run came to.</summary>
 /// <param name="When">When the run was driven.</param>
+/// <param name="Track">The track's name, in every row as well as in the file's name (his ask, 2026-11-25), so a row says where it was
+/// driven wherever it's copied to.</param>
 /// <param name="Version">The game's version, since a change to the car's physics changes every figure (PROFILE-PLAN fact 1).</param>
 /// <param name="Driver"><c>auto</c> for the autodriver, <c>you</c> for him.</param>
 /// <param name="Car">The car's name: its file's, in practice (fact 7).</param>
@@ -36,7 +38,7 @@ public sealed record SheetShape(IReadOnlyList<string> Pieces, int Checkpoints, i
 /// <param name="Caution">The autodriver's caution; null for his runs.</param>
 /// <param name="Differences">The car against the stock car, in words (<see cref="CarSheet.Differences"/>).</param>
 /// <param name="Run">What the run came to.</param>
-public sealed record SheetRow(DateTime When, string Version, string Driver, string Car, string CarPrint, float? Caution, string Differences, RunSummary Run);
+public sealed record SheetRow(DateTime When, string Track, string Version, string Driver, string Car, string CarPrint, float? Caution, string Differences, RunSummary Run);
 
 /// <summary>
 /// The profile sheet (PROFILE-PLAN, P1, decision 3): runs as rows of plain numbers and words in a CSV a spreadsheet
@@ -72,7 +74,7 @@ public static class CarSheet
     {
         var cells = new List<string>
         {
-            "when", "version", "driver", "car", "car fingerprint", "caution", "clean", "differences from the stock car",
+            "when", "track", "version", "driver", "car", "car fingerprint", "caution", "clean", "differences from the stock car",
             "finished", "time s",
         };
         cells.AddRange(Enumerable.Range(1, shape.Checkpoints).Select(i => $"split {i} s"));
@@ -100,6 +102,7 @@ public static class CarSheet
         var cells = new List<string>
         {
             row.When.ToString("yyyy-MM-dd HH:mm:ss", Inv),
+            row.Track,
             row.Version,
             row.Driver,
             row.Car,

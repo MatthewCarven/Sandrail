@@ -88,6 +88,19 @@ def test_columns_grouped_by_the_names_the_game_writes(folder):
     assert sheets.group_of("split 3 s") == sheets.LAPS
 
 
+def test_the_track_column_goes_with_the_run(tmp_path):
+    """Since 2026-11-25 every row says its track, after when; older sheets have no such column."""
+    write_sheet(tmp_path / "Seed 5 0070ecd8.csv", [
+        "when,track,version,driver,car,car fingerprint,caution,time s",
+        '2026-11-25 18:00:00,"Seed 5, a sprint",0.0.1+abc,auto,stock,4f918acd,0.80,86.66',
+    ])
+    table = sheets.load(tmp_path / "Seed 5 0070ecd8.csv")
+    names = [c.name for c in table.columns]
+    assert names[:5] == ["when", "driver", "car", "caution", "track"]
+    assert table.columns[table.index("track")].group == sheets.RUN
+    assert column(table, "track") == ["Seed 5, a sprint"]
+
+
 def test_pinned_columns_first_then_the_files_order(folder):
     table = sheets.load(folder / "Shakedown 8a6323aa.csv")
     names = [c.name for c in table.columns]

@@ -2,6 +2,30 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — Every profile row says its track
+
+He asked whether the map's name is kept with the car's data (*"can we just check that the map name is stored in the
+car data please its just i couldn't see it"*). It wasn't in the rows:
+- **Profile sheets:** the track's name was only in the sheet's file name (`Seed 5 0070ecd8.csv`, `4 847ed7b9.csv`).
+  The viewer's list showed it, but no row did, in the viewer's table or in a spreadsheet.
+- **`cars.csv`:** this is one row per car, the same on every track, so it has no track and still doesn't.
+- **Ghosts:** a ghost's header already carries the track's name, ID and fingerprint.
+
+At his word (*"Yes, add it"*), **every row now has a `track` column**, the track's name, right after `when`. It holds
+`Shakedown`, `Seed 5`, or the name he gave a track of his own.
+
+Since the header changed, an older sheet is left as it is and the next row starts a new file beside it, as the sheet
+has always done: `Seed 5 0070ecd8 (2).csv`. His `Seed 5 0070ecd8.csv` and `4 847ed7b9.csv` keep their rows, and the
+viewer lists the new file under them as `Seed 5  0070ecd8  (2)`. The viewer needed no change, since a column it
+doesn't know goes with the run, shown at first. A test says so now.
+
+**Checked:**
+- Profiled the stock car on the shakedown into a scratch copy of P4's folder, whose sheet has the old header. The rows
+  went into `Shakedown 8a6323aa (2).csv`, with `track` reading `Shakedown`.
+- Its eight rows are the old file's eight stock rows, cell for cell, apart from `when`, the new cell and the version
+  stamp (`c9bf1d4` against `c972d6c`). It was clean to 80% (56.73), as before.
+- Tests (349) and the viewer's tests (39) pass.
+
 ## 2026-11-25 — The Esc menu scrolls when it's taller than the window
 
 The menu ran off the default 1152 × 648 window. SANDRAIL was already cut off the top, and P4's Watch a car's profile best
