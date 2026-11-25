@@ -173,7 +173,7 @@ public partial class TuningPanel : PanelContainer
 
     private Control BuildRow(Tunable tunable)
     {
-        float step = NiceStep((tunable.Max - tunable.Min) / 400.0f);
+        float step = tunable.Step;
         float value = tunable.Get(Car.Spec);
 
         var name = new Label
@@ -466,14 +466,6 @@ public partial class TuningPanel : PanelContainer
         var button = new Button { Text = text, FocusMode = FocusModeEnum.None };
         button.Pressed += pressed;
         return button;
-    }
-
-    /// <summary>The largest of 1, 2 or 5 times a power of ten that doesn't exceed <paramref name="rough"/>.</summary>
-    private static float NiceStep(float rough)
-    {
-        float power = MathF.Pow(10.0f, MathF.Floor(MathF.Log10(rough)));
-        float scaled = rough / power;
-        return power * (scaled >= 5.0f ? 5.0f : scaled >= 2.0f ? 2.0f : 1.0f);
     }
 
     private sealed record Row(Tunable Tunable, Label Name, HSlider Slider, SpinBox Box);

@@ -38,6 +38,22 @@ public class TunableTests
     }
 
     [Fact]
+    public void TheStepIsTheSlidersAndANumberGoesOnIt()
+    {
+        Tunable mass = CarSpec.Tunables.Single(t => t.Name == nameof(CarSpec.MassKg));
+        Tunable grip = CarSpec.Tunables.Single(t => t.Name == nameof(CarSpec.Grip));
+
+        // 1,200 kg over 400 steps is 3, rounded down to 2; 1.7 over 400 is 0.00425, rounded down to 0.002.
+        Assert.Equal(2.0f, mass.Step);
+        Assert.Equal(0.002f, grip.Step);
+        Assert.Equal(812.0f, mass.OnStep(812.9f));
+        Assert.Equal(1.234f, grip.OnStep(1.2341f));
+        Assert.Equal("1.234", grip.OnStep(1.2341f).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(1500.0f, mass.OnStep(9000.0f));
+        Assert.Equal(0.3f, grip.OnStep(-1.0f));
+    }
+
+    [Fact]
     public void TunablesComeInTheOrderTheyreDeclared()
     {
         Assert.Equal(nameof(CarSpec.MassKg), CarSpec.Tunables[0].Name);

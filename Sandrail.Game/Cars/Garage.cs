@@ -124,8 +124,45 @@ public static class Garage
     public static string PathFor(string name) => $"{TunesPath}/{Slug(name)}.json";
 
     /// <summary>Whether a car of this name is in the garage, active or not.</summary>
-    public static bool Taken(string name) =>
-        FileAccess.FileExists(PathFor(name)) || FileAccess.FileExists($"{InactivePath}/{Slug(name)}.json");
+    public static bool Taken(string name) => Find(name) is not null;
+
+    /// <summary>Where the car of this name is kept, active or inactive; null if there's none.</summary>
+    public static string? Find(string name)
+    {
+        string active = PathFor(name);
+        string inactive = $"{InactivePath}/{Slug(name)}.json";
+        return FileAccess.FileExists(active) ? active : FileAccess.FileExists(inactive) ? inactive : null;
+    }
+
+    /// <summary>
+    /// How each random car was made, a line a car beside the cars (2026-11-26): its seed, the car it was made around and
+    /// that car's fingerprint, the spread and the groups, which together make it again. Not a car, so the garage never
+    /// reads it.
+    /// </summary>
+    public static string RandomListPath => $"{TunesPath}/random-cars.csv";
+
+    /// <summary>A line added to <see cref="RandomListPath"/>, under its header if the file is new; null if it was written, else why not.</summary>
+    public static string? NoteRandom(string line)
+    {
+        DirAccess.MakeDirRecursiveAbsolute(TunesPath);
+        bool fresh = !FileAccess.FileExists(RandomListPath);
+        using FileAccess? file = fresh
+            ? FileAccess.Open(RandomListPath, FileAccess.ModeFlags.Write)
+            : FileAccess.Open(RandomListPath, FileAccess.ModeFlags.ReadWrite);
+        if (file is null)
+        {
+            return FileAccess.GetOpenError().ToString();
+        }
+
+        file.SeekEnd();
+        if (fresh)
+        {
+            file.StoreString("made,name,fingerprint,seed,around,around fingerprint,spread %,groups\n");
+        }
+
+        file.StoreString(line + "\n");
+        return null;
+    }
 
     /// <summary>A name no car has yet, active or not, from a start: <c>my-car</c>, then <c>my-car-2</c> and on.</summary>
     public static string FreeName(string start)

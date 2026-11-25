@@ -2,6 +2,71 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-26 — Random cars, into the garage, for the profile
+
+His ask: a *"generate random cars dialog"*, cars made at random into his garage so the profile can test them. Four
+questions first, and his answers: the Esc menu beside Change car, how many and a first seed, cars named `random-<seed>`;
+around the car being driven, with a spread slider; F2's groups ticked, steering off to start, the wing going with its
+group; and no Profile the new cars button of their own (*"No, Profile every car is enough"*). PROFILE-PLAN has the
+section.
+
+**What's built**:
+- **Core's `RandomCars.Make(around, seed, spread, groups)`.** Each number in a ticked group lands within `spread` of its
+  own, as a share of its slider's range either side, kept on the slider, so 100% is anywhere on it.
+  - **The draws come from `Hash64` only** (non-negotiable 2), each keyed by the number's name rather than its place, so
+    a number added to the spec later leaves every other draw where it was (non-negotiable 4's idea).
+  - **A drawn number goes on the slider's steps**, so a car reads like one F2 could set: `grip 1.436`, `springNPerM
+    8500`. The panel's step moved into Core as `Tunable.Step`, with `Tunable.OnStep`, so there's one rule for it. A
+    number already past its slider (typed into F2's box) is brought back within it.
+  - **The wing**: with Wing ticked, the spread is also the chance of a wing drawn afresh from the four. At 25% about one
+    car in five gets another wing.
+  - **The steering's one rule between two numbers**: if the drawn least lock comes out above the most lock, the two
+    are swapped. Swapped, both stay on their sliders.
+- **The form**, under the Esc menu's Random cars button: how many (1 to 20), the first seed (fresh from the clock each
+  time it opens, or typed), New seed, the spread (5% to 100% by 5), a tick box a group, and Make. It works with the mouse
+  or the keys (Tab and the arrows, Space ticks, Enter makes, Enter in the seed box too), and the game is paused behind
+  the menu, so typing a seed drives nothing. Its choices are kept until the game closes, as the aggression is.
+  - **The menu scrolls to put Random cars at the top** when the form opens, a frame later, once the scroll knows the
+    form's size. On the first try, in the default 1152 × 648 window, Make sat below the fold and a long note took the
+    rest. The notes are short now, and the long words are tooltips.
+  - **Make** writes each car into the garage and says what it made (`Made 5 cars around stock at 25%: random-502802 to
+    random-502806. Change car lists them; Profile every car drives them.`). The seed box then moves on past them. A
+    seed whose car is already there, the same car, isn't made twice. A name taken by a different car gets `-2`, as F2's
+    Save as a new car does.
+- **`tunes/random-cars.csv`**, a line a car: when, name, fingerprint, seed, the car it was made around and its
+  fingerprint, the spread and the groups. A seed alone remakes a car only around the same car with the same spread and
+  groups, so this is what makes it again. It's not a car, so the garage never reads it.
+
+**Checks**:
+- **365 tests**, 16 new:
+  - the same seed makes the same car, and 200 seeds make 200 cars;
+  - seed 1's mass, grip and power pinned;
+  - at four spreads over 400 seeds, every number on its slider and every car drivable;
+  - within the spread and on the slider's steps;
+  - only the ticked groups vary, and the steering is left alone to start;
+  - no spread gives the car itself;
+  - the wing: each of the four about a quarter of the time at 100%, kept when unticked;
+  - a number past its slider brought back, the refusals and the name;
+  - the slider's step.
+- **The headless check passes.**
+- **A temporary probe** (since removed), in the default window, on the shakedown, against a scratch copy of his garage
+  (49 cars). It pressed Esc, clicked Random cars and pressed Enter on Make: five cars, `random-502802` to `random-502806`,
+  around the stock car at 25%. The scratch garage gained those five files and `random-cars.csv`, and nothing else
+  changed. Change car listed them first. In a fresh launch the probe typed 502802 into the seed box and pressed Enter:
+  *"Nothing new made: random-502802 to random-502806 were there already, the same cars."* So the same seed made the
+  same car again in another launch.
+- **`--profile=all --track=base:shakedown` headless**, on a scratch garage holding only those five: 27 runs in 1 min 45
+  s, every car with rows in the sheet and a line in `cars.csv`.
+  - The stock car was clean to 80% (56.73, as ever).
+  - random-502806 was clean to 80% too, at 56.84.
+  - random-502804 was clean to 80%, at 1:02.05.
+  - random-502802 (1:09.01, 8.3 s off the road), 502803 (stuck 636 m along) and 502805 (1:00.20, 0.95 s off the
+    road) weren't clean at 50%.
+- **The oracles weren't rerun**: the car's code is unchanged.
+
+**Levers**: the most cars at once (20), the spread's floor and step (5%), New seed's range (1 to 999,999), whether the
+wing follows the spread, the names.
+
 ## 2026-11-26 — Right-click a cell in the profile viewer to copy it
 
 His ask, first: *"when you right click a row it copies it to the clipboard separated by commas"*. That was built

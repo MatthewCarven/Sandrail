@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Godot;
+using Sandrail.Core.Cars;
 using Sandrail.Core.Generation;
 
 namespace Sandrail.Game.Ui;
@@ -72,6 +74,29 @@ public partial class SeedMenu : CanvasLayer
     /// </summary>
     public sealed record CarRow(string Label, Action? Pick, bool Inactive, Func<string>? Toggle);
 
+    /// <summary>
+    /// Random cars (2026-11-26, his ask): makes cars from seeds around the car being driven, into the garage, and says
+    /// what it made; null hides the button.
+    /// </summary>
+    public Func<RandomCarsAsk, string>? MakeRandomCars { get; init; }
+
+    /// <summary>The car random cars are made around, in words, asked when the form opens: the one being driven.</summary>
+    public Func<string>? RandomAround { get; init; }
+
+    /// <summary>What the Random cars form asks for: how many, the first seed (the rest follow it), the spread (0 to 1) and the groups that vary.</summary>
+    public sealed record RandomCarsAsk(int Count, ulong FirstSeed, float Spread, IReadOnlyList<string> Groups);
+
+    /// <summary>
+    /// The Random cars form as he last left it, kept until the game is closed, as the autodriver's aggression is: a
+    /// change of car or track starts the scene again, menu and all.
+    /// </summary>
+    private static int _randomCount = 5;
+    private static float _randomSpread = 0.25f;
+    private static readonly HashSet<string> RandomTicked = [.. RandomCars.DefaultGroups];
+
+    private const string RandomForm = "random";
+    private const int RandomMost = 20;
+
     /// <summary>How long a car's lock stays open before it shuts by itself.</summary>
     private const ulong UnlockedMs = 5000;
 
@@ -96,7 +121,7 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>Done before Quit quits: rows still waiting for the sheet are kept in a file beside it.</summary>
     public Action? Quitting { get; init; }
 
-    /// <summary>Which list is open under its button: the tracks, the cars, the profiles or the profiled cars' bests; null for none.</summary>
+    /// <summary>Which list is open under its button: the tracks, the cars, the Random cars form, the profiles or the profiled cars' bests; null for none.</summary>
     private string? _listing;
 
     private const string ProfilesList = "profiles";
@@ -111,6 +136,13 @@ public partial class SeedMenu : CanvasLayer
     private LockButton? _unlocked;
     private Button? _unlockedButton;
     private ulong _unlockedAtMs;
+
+    private VBoxContainer? _randomForm;
+    private Button _randomButton = null!;
+    private Label _randomAround = null!;
+    private SpinBox _randomHowMany = null!;
+    private LineEdit _randomSeed = null!;
+    private Button _randomMake = null!;
 
     private VBoxContainer _replays = null!;
     private Button _profileButton = null!;
@@ -196,11 +228,7 @@ public partial class SeedMenu : CanvasLayer
         seedRow.AddChild(Button("Generate", GenerateTyped));
         rows.AddChild(seedRow);
 
-        rows.AddChild(Button("New random seed", () =>
-        {
-            ulong seed = (Hash64.Mix((ulong)DateTime.UtcNow.Ticks) % 999_999UL) + 1UL;
-            Go(TrackCode.Of(seed));
-        }));
+        rows.AddChild(Button("New random seed", () => Go(TrackCode.Of(FreshSeed()))));
 
         if (Save is not null)
         {
@@ -229,6 +257,15 @@ public partial class SeedMenu : CanvasLayer
             if (Cars is not null)
             {
                 rows.AddChild(Button("Change car", ToggleCars));
+            }
+
+            // Random cars (2026-11-26) beside Change car, his pick: a form that opens under the buttons as the lists do.
+            if (MakeRandomCars is not null)
+            {
+                rows.AddChild(_randomButton = Button("Random cars", ToggleRandomCars));
+                _randomButton.TooltipText = "Cars from seeds around the car you're driving, into your garage: each number in a ticked group lands "
+                    + "within the spread of its own, a share of its F2 slider's range (100% is anywhere on it).";
+                rows.AddChild(_randomForm = BuildRandomForm());
             }
 
             _trackRows = new VBoxContainer();
@@ -471,6 +508,164 @@ public partial class SeedMenu : CanvasLayer
     }
 
     /// <summary>
+    /// The Random cars form (2026-11-26): the car they're made around, how many and the first seed, the spread, a tick box
+    /// for each of F2's groups, and Make. Mouse or keys: Tab and the arrows move between them, Space ticks, Enter makes.
+    /// The game is paused behind the menu, so typing a seed drives nothing.
+    /// </summary>
+    private VBoxContainer BuildRandomForm()
+    {
+        var form = new VBoxContainer { Visible = false, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        form.AddThemeConstantOverride("separation", 8);
+
+        _randomAround = Text(string.Empty, 15);
+        _randomAround.Modulate = new Color(1.0f, 1.0f, 1.0f, 0.7f);
+        _randomAround.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        form.AddChild(_randomAround);
+
+        var seedRow = new HBoxContainer();
+        seedRow.AddThemeConstantOverride("separation", 8);
+        seedRow.AddChild(Text("How many", 16));
+        _randomHowMany = new SpinBox { MinValue = 1, MaxValue = RandomMost, Step = 1, Rounded = true, Value = _randomCount, SelectAllOnFocus = true };
+        _randomHowMany.GetLineEdit().AddThemeFontSizeOverride("font_size", 16);
+        _randomHowMany.ValueChanged += v =>
+        {
+            _randomCount = (int)v;
+            ShowMakeCount();
+        };
+        seedRow.AddChild(_randomHowMany);
+        seedRow.AddChild(Text("First seed", 16));
+        _randomSeed = new LineEdit { PlaceholderText = "a number", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SelectAllOnFocus = true };
+        _randomSeed.AddThemeFontSizeOverride("font_size", 16);
+        _randomSeed.TextSubmitted += _ => MakeRandom();
+        seedRow.AddChild(_randomSeed);
+        Button fresh = Button("New seed", () => _randomSeed.Text = FreshSeed().ToString(CultureInfo.InvariantCulture));
+        fresh.AddThemeFontSizeOverride("font_size", 16);
+        seedRow.AddChild(fresh);
+        form.AddChild(seedRow);
+
+        var spreadRow = new HBoxContainer();
+        spreadRow.AddThemeConstantOverride("separation", 8);
+        spreadRow.AddChild(Text("Spread", 16));
+        var spreadSlider = new HSlider
+        {
+            MinValue = 5,
+            MaxValue = 100,
+            Step = 5,
+            Value = _randomSpread * 100.0f,
+            Scrollable = false,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+            TooltipText = "How far each number can move from the car's own, as a share of its F2 slider's range: 100% is anywhere on it.",
+        };
+        Label spreadWords = Text($"{_randomSpread * 100.0f:0}%", 16);
+        spreadWords.CustomMinimumSize = new Vector2(48.0f, 0.0f);
+        spreadWords.HorizontalAlignment = HorizontalAlignment.Right;
+        spreadSlider.ValueChanged += v =>
+        {
+            _randomSpread = (float)(v / 100.0);
+            spreadWords.Text = $"{v:0}%";
+        };
+        spreadRow.AddChild(spreadSlider);
+        spreadRow.AddChild(spreadWords);
+        form.AddChild(spreadRow);
+
+        var ticks = new GridContainer { Columns = 2, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        ticks.AddThemeConstantOverride("h_separation", 24);
+        foreach (string group in RandomCars.Groups)
+        {
+            var tick = new CheckBox { Text = group, ButtonPressed = RandomTicked.Contains(group), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            tick.AddThemeFontSizeOverride("font_size", 16);
+            tick.TooltipText = group == RandomCars.WingGroup ? "The wing's settings, and the spread is the chance of another wing fitted."
+                : group == RandomCars.SteeringGroup ? "The steering is yours to open: unticked to start." : $"F2's {group} numbers.";
+            tick.Toggled += on =>
+            {
+                if (on)
+                {
+                    RandomTicked.Add(group);
+                }
+                else
+                {
+                    RandomTicked.Remove(group);
+                }
+            };
+            ticks.AddChild(tick);
+        }
+
+        form.AddChild(ticks);
+
+        _randomMake = Button(string.Empty, MakeRandom);
+        form.AddChild(_randomMake);
+        ShowMakeCount();
+        return form;
+    }
+
+    private void ShowMakeCount() => _randomMake.Text = _randomCount == 1 ? "Make 1 car" : $"Make {_randomCount} cars";
+
+    /// <summary>Opens the Random cars form, a fresh seed in it, or closes it.</summary>
+    private void ToggleRandomCars()
+    {
+        if (CloseList(RandomForm) || _randomForm is null)
+        {
+            return;
+        }
+
+        Relock();
+        HideLists();
+        _randomAround.Text = $"Around {RandomAround?.Invoke() ?? "the car being driven"}, the car you're driving.";
+        _randomSeed.Text = FreshSeed().ToString(CultureInfo.InvariantCulture);
+        _randomForm.Visible = true;
+        _listing = RandomForm;
+
+        // Short, so the form has the room: the long words are the tooltips'. In the default window the menu scrolls with the
+        // form open, so it's scrolled to put Random cars at the top, on the next frame, once the scroll knows the form's
+        // size: on this one it's still the menu's without it, and Make stayed below the fold (seen on the first try).
+        _note.Text = "Cars named by their seeds, random-<seed>: the same seed, car, spread and groups make the same car. Change car lists them; Profile every car drives them.";
+        _randomMake.GrabFocus();
+        GetTree().Connect(SceneTree.SignalName.ProcessFrame, Callable.From(() =>
+        {
+            if (_randomForm.Visible)
+            {
+                _scroll.ScrollVertical = (int)_randomButton.Position.Y;
+            }
+        }), (uint)ConnectFlags.OneShot);
+    }
+
+    /// <summary>Make: the cars from the form, and what was made in the note; the seed moves on past them, so Make again makes others.</summary>
+    private void MakeRandom()
+    {
+        if (MakeRandomCars is null)
+        {
+            return;
+        }
+
+        if (!ulong.TryParse(_randomSeed.Text.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out ulong first))
+        {
+            _note.Text = "The first seed is a whole number, like 48213; New seed puts one in.";
+            return;
+        }
+
+        int count = Math.Clamp((int)_randomHowMany.Value, 1, RandomMost);
+        if (first > ulong.MaxValue - (ulong)count)
+        {
+            _note.Text = "That seed's too near the top for that many cars: try a smaller one.";
+            return;
+        }
+
+        List<string> groups = RandomCars.Groups.Where(RandomTicked.Contains).ToList();
+        if (groups.Count == 0)
+        {
+            _note.Text = "Tick a group, or every car would be the one you're driving.";
+            return;
+        }
+
+        _note.Text = MakeRandomCars(new RandomCarsAsk(count, first, _randomSpread, groups));
+        _randomSeed.Text = (first + (ulong)count).ToString(CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>A seed from the clock, 1 to 999,999, for New random seed and the Random cars form: which seed is the player's pick; what it makes is <see cref="Hash64"/>'s.</summary>
+    private static ulong FreshSeed() => (Hash64.Mix((ulong)DateTime.UtcNow.Ticks) % 999_999UL) + 1UL;
+
+    /// <summary>
     /// The garage's list, read afresh: a row a car, and beside each of his a lock (2026-11-25). Opening the lock shows Set
     /// inactive (or Set active), which shuts again after five seconds; an inactive car is still driven when picked, but
     /// Profile every car leaves it out.
@@ -586,7 +781,7 @@ public partial class SeedMenu : CanvasLayer
         return true;
     }
 
-    /// <summary>Every list out of sight: the one under Load a track and Change car, the profiles under Profile, and the profiled cars' bests (P4).</summary>
+    /// <summary>Every list out of sight: the one under Load a track and Change car, the Random cars form, the profiles under Profile, and the profiled cars' bests (P4).</summary>
     private void HideLists()
     {
         if (_trackList is not null)
@@ -597,6 +792,11 @@ public partial class SeedMenu : CanvasLayer
         if (_profileActions is not null)
         {
             _profileActions.Visible = false;
+        }
+
+        if (_randomForm is not null)
+        {
+            _randomForm.Visible = false;
         }
 
         _profileList.Visible = false;

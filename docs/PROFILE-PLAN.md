@@ -302,6 +302,33 @@ one tick less to settle before the clock started. The first run now starts on th
 place as the rest. Rows from a launch are unchanged, cell for cell. The worklog has the rest, and the small difference
 left after a reload (fact 1).
 
+### Random cars (2026-11-26, between P4 and P5)
+
+**Built at his ask**, a *"generate random cars dialog"*: cars made at random into his garage, so the profile has more
+than his own to test. **Not breeding**: nothing looks at how a car drove, and no car is kept or dropped by its rows. He
+presses Make, with the car, the spread and the groups he chose. The profile only measures, as before. His four answers,
+asked first:
+- **Where**: the Esc menu, a **Random cars** button beside Change car. It opens a form with how many (1 to 20, 5 to
+  start), the first seed (a fresh one each time it opens, or typed), the spread, the groups, and Make. Cars are named
+  by their seeds, `random-48213`.
+- **How wild**: around the car being driven, as F2 has it now. Each number lands within a spread of its own, a share of
+  its F2 slider's range either side (5% to 100%, 25% to start). At 100% it can land anywhere on the slider.
+- **Which numbers**: F2's groups, ticked. Steering and pedals starts unticked, since the steering is his to open. The
+  wing goes with the Wing group: the spread is also the chance of another wing (any of the four).
+- **Profiling**: *"No, Profile every car is enough"*. Change car lists the new cars and Profile every car drives them,
+  until he sets them inactive.
+
+**From a seed, through `Hash64`** (non-negotiable 2): Core's `RandomCars`, tested headless. Each number draws from its
+own name, so a number added to the spec later leaves the others' draws alone. Numbers land on the slider's steps (grip
+1.436, not 1.4361237). A seed remakes a car only around the same car with the same spread and groups, so
+`tunes/random-cars.csv` notes each one's seed, the car it was made around (name and fingerprint), the spread and the
+groups. Make again with seeds already made says the same cars are there already and makes nothing twice.
+
+**First look** (scratch folders): five cars at 25% around the stock car, then `--profile=all` on the shakedown with
+only them and the stock car, 27 runs in 1 min 45 s headless. Every car got rows. Two swept clean to 80%: random-502806
+at 56.84 against the stock car's 56.73, and random-502804 at 1:02.05. The other three weren't clean at 50%. The worklog
+has the rest.
+
 ### P5 — his play
 
 His short track, two or three cars (the stock car, his tunes), a sweep each and some laps of his own, and the

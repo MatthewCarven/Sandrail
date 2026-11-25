@@ -194,7 +194,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   search, levels that come back round, banks on a flying lap), and `TrackCode` (M4a: a seed and the
   generator's version, `5v1`; `TrackGenerator.Version`, held to its output by a test that pins seeds 1-10).
   `Cars/` holds `CarSpec`, `Surfaces`, the `Wings` (parts, by ID) and `WheelModel`, the car's laws as
-  plain functions. `Pieces/` is
+  plain functions, and `RandomCars` (2026-11-26: a car from a seed through `Hash64`, around another car, each number
+  in the ticked groups within a spread of its own, on its slider's steps, `Tunable.OnStep`). `Pieces/` is
   the road: `Frame`, the centrelines (line, pitch, banked turn, loop), `Chain`, `Profile`, the `Sweep`
   mesher and the `TestGroundLayout`. `Driving/` is the autodriver: `RacingLine` (samples, curvature,
   bank, speed plan, and `MinimumCurvature`, the racing line inside the wheels' room) and `Autodriver`
@@ -228,7 +229,7 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   any new body inside the scene, built in a fixed order, and never hold a world or space across a reload). `Cars/` is the `Buggy`, its `CarLooks` (the grey boxes and wing, a node a ghost
   can wear too), the `GhostCar` (a best run see-through beside you, on the race clock), its `ChaseCamera`,
   `CarReadout`, the `RunRecorder`, `MeterRead` (the one rule for off the road and a slide, for the profile's
-  meter), the `Garage` (the stock car, `user://tunes/` and the inactive cars in `tunes/inactive/`; `Main.Garage.cs` is the Esc menu's Change car) and the
+  meter), the `Garage` (the stock car, `user://tunes/` and the inactive cars in `tunes/inactive/`; `Main.Garage.cs` is the Esc menu's Change car and Random cars, which notes how each random car was made in `tunes/random-cars.csv`) and the
   replay's `FreeCamera`; `Main.Profile.cs` is the profiler (sweeps through the race's own code, rows to the sheet,
   rows held while a spreadsheet has it open), and `Main.ProfileEverywhere.cs` chains it over every track (Profile every
   car on every track); `Main.Ghosts.cs` loads and saves each
@@ -307,6 +308,13 @@ one **Profile** button in the Esc menu, which opens them as Change car opens the
 because Jolt orders the chassis's contacts with the road (the loop, landings) by its bodies' IDs, which a reload changes;
 the wheels' rays never tie. Now every load starts on a fresh physics world, and a row reached after any reload is the
 launch's, cell for cell, the oracles unchanged.
+**Random cars** (2026-11-26, his ask for a "generate random cars dialog"): the Esc menu's Random cars, beside Change car,
+makes 1 to 20 cars from consecutive seeds around the car being driven (as F2 has it), each number in the groups he ticks
+(all but Steering and pedals to start) within a spread of its own, 5% to 100% of its F2 slider's range (100% is anywhere
+on it), the wing redrawn with the spread as its chance, into the garage as `random-<seed>`. The same seed, car, spread
+and groups make the same car (`RandomCars` in Core, `Hash64` only), and `tunes/random-cars.csv` notes what made each.
+Change car lists them and Profile every car drives them, with no button of their own (his pick). Five at 25% around the
+stock car on the shakedown: two clean to 80% (one 56.84 against the stock car's 56.73), three not clean at 50%.
 **P5, his play with the profile, is next**, then his tuning.
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved

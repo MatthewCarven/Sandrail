@@ -578,6 +578,8 @@ public partial class Main : Node3D
                 EscTaken = () => EscTakenByReplay() || _tuning?.Typing == true || ProfileTakesEsc,
                 Tracks = () => TracksToLoad(args, _menuCatalogue ??= TrackView.LoadCatalogue()),
                 Cars = () => CarsToDrive(args),
+                MakeRandomCars = MakeRandomCars,
+                RandomAround = RandomAroundWords,
                 Profile = _race is not null && _testDriveFrom is null ? () => StartProfile(false) : null,
                 ProfileAll = _race is not null && _testDriveFrom is null ? () => StartProfile(true) : null,
                 ProfileEverywhere = _testDriveFrom is null ? StartProfileEverywhere : null,
