@@ -30,8 +30,11 @@ copy: a run with a longer car name appended while scrolled took the car column f
 (900, 280) and the marked run kept, and the first dozen columns were drawn at exactly the widths they were fitted
 to. Before and after screenshots sent to him.
 
-**Left as it was**: `--sheet=<a file's name>` opens All tracks rather than that track, since All tracks holds every
-file and is first in the list; `--sheet=<track key>` (`--sheet="Shakedown 8a6323aa"`) works.
+**And a fix found on the way**, at his yes: `--sheet=` with a sheet's file name, or a sheet's path, opened All tracks
+rather than that track, because All tracks holds every file and is first in the list. All tracks now answers only to
+its own name (`TrackSheet.holds`). The test that should have caught it only asked whether the sheet shown held the
+file, which All tracks did; it now asks for the track, and a new test opens a track by its file's name and All tracks
+by its name. Both fail on the old code.
 
 ## 2026-11-25 — The autodriver's aggression stays put between tracks
 

@@ -138,7 +138,19 @@ def test_a_missing_folder_says_so(view, tmp_path):
 def test_a_sheets_own_path_opens_its_folder_and_it(view, folder):
     write_sheet(folder / "Seed 5 0070ecd8.csv", ["when,time s", "x,1"])
     view.set_folder(folder / SHEET)
-    assert view.folder == folder and view.current.holds(SHEET)
+    assert view.folder == folder and view.current.key == "Shakedown 8a6323aa"  # not All tracks, first in the list
+
+
+def test_a_sheets_file_name_opens_that_track_and_all_tracks_its_own_name(folder):
+    write_sheet(folder / "Seed 5 0070ecd8.csv", ["when,time s", "x,1"])
+    dpg.create_context()
+    try:
+        v = viewer.Viewer(folder, "Seed 5 0070ecd8.csv", settings=None)
+        assert v.current.key == "Seed 5 0070ecd8"
+        v.set_folder(folder, sheets.ALL_TRACKS)
+        assert v.current.everything
+    finally:
+        dpg.destroy_context()
 
 
 def test_settings_remember_folder_sheet_and_groups(folder, tmp_path):

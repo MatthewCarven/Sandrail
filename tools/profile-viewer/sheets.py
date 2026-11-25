@@ -146,7 +146,10 @@ class TrackSheet:
         return [f.path for f in self.files]
 
     def holds(self, name: str) -> bool:
-        """Whether a remembered name means this entry: its key, its label, or one of its files' names."""
+        """Whether a remembered name means this entry: its key, its label, or one of its files' names. All tracks has
+        every file but answers only to its own name, since a file's name means that file's track."""
+        if self.everything:
+            return name in (self.key, self.label)
         return name in (self.key, self.label) or any(f.path.name == name for f in self.files)
 
 
