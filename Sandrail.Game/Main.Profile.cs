@@ -55,6 +55,7 @@ public partial class Main
     private static bool _profileFromFlag;
     private static bool _profileFlagUsed;
     private static string? _profileSaidAfter;
+    private static double _profileSaidSeconds = 8.0;
     private static string _profilesFolder = string.Empty;
     private static string? _sheetLastFile;
 
@@ -93,15 +94,18 @@ public partial class Main
 
     /// <summary>
     /// Where the sheets go (<c>--profiles=</c> for checks), a profile carried on from the scene before (a change of
-    /// car), or one asked for by <c>--profile=this|all</c>.
+    /// car, or the next track of every track), or one asked for by <c>--profile=this|all|everywhere</c>.
     /// </summary>
     private void SetUpProfiles(string[] args)
     {
         _profilesFolder = ProjectSettings.GlobalizePath(Flag(args, "--profiles=") ?? "user://profiles");
         if (_profileSaidAfter is string said)
         {
+            // Said once the scene is up, after the track's own opening line, which would otherwise cover it at once.
             _profileSaidAfter = null;
-            _hud?.Flash(said, 8.0);
+            double seconds = _profileSaidSeconds;
+            _profileSaidSeconds = 8.0;
+            Callable.From(() => _hud?.Flash(said, seconds)).CallDeferred();
         }
 
         if (_profileActive)
@@ -110,17 +114,33 @@ public partial class Main
             return;
         }
 
+        if (_everywhereActive)
+        {
+            Callable.From(EverywhereArrived).CallDeferred();
+            return;
+        }
+
         if (!_profileFlagUsed && Flag(args, "--profile=") is string which)
         {
             _profileFlagUsed = true;
-            if (which is not ("this" or "all"))
+            if (which is not ("this" or "all" or "everywhere"))
             {
-                Refuse($"--profile={which}: it's this (the car driven) or all (every car in the garage).");
+                Refuse($"--profile={which}: it's this (the car driven), all (every car in the garage) or everywhere (every car on every track).");
                 return;
             }
 
             _profileFromFlag = true;
-            Callable.From(() => StartProfile(which == "all")).CallDeferred();
+            Callable.From(() =>
+            {
+                if (which == "everywhere")
+                {
+                    StartProfileEverywhere();
+                }
+                else
+                {
+                    StartProfile(which == "all");
+                }
+            }).CallDeferred();
         }
     }
 
@@ -182,6 +202,7 @@ public partial class Main
         }
 
         _sweeping = true;
+        _autodriver = null;
         _profileCaution = ProfileFirst;
         GameClock.SetScale(ProfileScale);
         if (_tuning.Visible)
@@ -189,8 +210,16 @@ public partial class Main
             _tuning.Toggle();
         }
 
-        BeginProfileRun();
+        // The first run starts on the next physics tick, in ProfileTick, where every run after it starts. Started here,
+        // after a scene reload (a change of car, the next track), it fell between frames: the car was put at the start a
+        // tick later than the race's two ticks of arming count from, so it had one tick less to settle before the clock
+        // started, and the sweep's first run came out a hundredth slow (2026-11-25). At launch this call lands inside a
+        // tick anyway, which is why only reloads showed it.
+        _profileRunPending = true;
     }
+
+    /// <summary>Whether the sweep's first run starts on the next tick (<see cref="BeginSweep"/>).</summary>
+    private bool _profileRunPending;
 
     /// <summary>
     /// A run from the start gate at this caution, on the line built for the car as it is. The autodriver takes the car
@@ -208,13 +237,25 @@ public partial class Main
         DrawLine(_car.Spec);
         _profileFurthest = 0.0f;
         _profileFurthestTick = _ticks;
-        _hud!.Banner = $"PROFILING   {Garage.NameOf(_tuning!.SpecPath)}{(_profileCarsTotal > 1 ? $", car {_profileCarNumber} of {_profileCarsTotal}" : string.Empty)}"
-            + $"   aggression {_caution * 100.0f:F0}%   Esc stops";
+        string name = Garage.NameOf(_tuning!.SpecPath);
+        // Every car on every track says which track and how far through on a line of its own, and the car under it,
+        // each short enough for the default window beside his longest car names.
+        _hud!.Banner = _everywhereActive
+            ? $"PROFILING   {EverywhereBanner()}   Esc stops\ncar {_profileCarNumber} of {_profileCarsTotal}: {name} at {_caution * 100.0f:F0}%"
+            : $"PROFILING   {name}{(_profileCarsTotal > 1 ? $", car {_profileCarNumber} of {_profileCarsTotal}" : string.Empty)}"
+                + $"   aggression {_caution * 100.0f:F0}%   Esc stops";
     }
 
     /// <summary>Once a tick while sweeping, after the race has seen it: the run's end, if it's come.</summary>
     private void ProfileTick()
     {
+        if (_profileRunPending)
+        {
+            _profileRunPending = false;
+            BeginProfileRun();
+            return;
+        }
+
         // Until the run is armed afresh the last one still reads as finished.
         if (_race is null || _raceArmIn > 0)
         {
@@ -265,6 +306,7 @@ public partial class Main
     {
         RunSummary run = RunSoFar();
         WriteSheetRow("auto", _profileCaution, run);
+        _everywhereRuns++;
         string time = run.Seconds is double s ? LapTime(s) : $"didn't finish ({why ?? "no reason"})";
         string said = $"{Garage.NameOf(_tuning!.SpecPath)} at {_profileCaution * 100.0f:F0}%: {time}, {(run.Clean ? "clean" : "not clean")}";
         GD.Print($"Profile: {said} | splits {string.Join(", ", run.Splits.Select(LapTime))} | top {run.TopMps * 3.6f:F0} km/h, "
@@ -298,6 +340,7 @@ public partial class Main
     {
         _profileActive = false;
         _sweeping = false;
+        _profileRunPending = false;
         _autodriver = null;
         _caution = _profileOldCaution;
         GameClock.SetScale(1.0);
@@ -313,6 +356,14 @@ public partial class Main
             + (PendingRows.Count > 0 ? $"; {PendingRows.Count} waiting for the sheet to be closed" : string.Empty)
             + (ghosts > 0 ? $"; a new best ghost for {ghosts} car{(ghosts == 1 ? string.Empty : "s")}, G to race it" : string.Empty) + ".";
         GD.Print(said);
+
+        // Every car on every track: the next track, or, stopped, back to where that began.
+        if (_everywhereActive)
+        {
+            EverywhereTrackEnded(how);
+            return;
+        }
+
         if (_profileFromFlag)
         {
             HoldPendingRows();

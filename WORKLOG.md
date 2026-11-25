@@ -2,6 +2,96 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — Profile every car on every track
+
+His ask: one more button, every car on every track. He knows the menu is getting long and is fine with one more.
+
+**What's built** (`Main.ProfileEverywhere.cs`, beside the profiler):
+- **Profile every car on every track**, in the Esc menu under Profile every car. It runs Profile every car on each track
+  in turn, unattended, and comes back to the track and car it began on. It's offered on the test ground too, since it
+  doesn't profile the place it starts from.
+- **The tracks are Load a track's**: the game's own, then every saved one, newest first. A track that won't lay soundly
+  is left out at the start (his `1` is one). A track whose fingerprint was already profiled in this run is skipped when
+  its scene comes up: the fingerprint is the one the scene makes as it builds the track, so that costs a load and
+  nothing more. His `gen-5.json`, saved before codes, is the game's Seed 5 under another name, and was skipped. No
+  random seeds.
+- **The cars are Profile every car's**: the stock car and his active ones. Each track starts with the first of them,
+  so its sweep needs no change of car.
+- **Underneath it's Profile every car, unchanged**: the same sweep, rows in each track's own sheet, the profile ghosts,
+  and rows held while a spreadsheet has a sheet open. Tracks start without `--record`, `--autodrive` and `--ghost=`. A
+  `--ghost=<car>` would refuse a track where that car hasn't been profiled, and quit. The way back puts them back.
+- **The board** shows two lines: `PROFILING   track 2 of 13: Shakedown   Esc stops`, then `car 2 of 4:
+  matthew-2026-11-23-original-3-2-2 at 50%`. The race board steps down under a two-line banner; under one line it stays
+  where it was. Saved tracks go by their file names on the board, since a saved generated track and the game's share a
+  name.
+- **Esc** stops the lot and goes back. Going back, at the end or after Esc, the board shows three lines for 15 s: how
+  long it took (and where it stopped), the tracks profiled, runs and new best ghosts, and the skipped tracks with why.
+  The log gets the same on one line, each unfinished track's first problem, and how far in each track started.
+- **`--profile=everywhere`** does it from the command line. It needs no `--track=` or `--seed=`, writes the rows and
+  quits.
+
+**Fixed on the way: a sweep's first run came out a hundredth slow after a change of car.** P4 saw it and left it "not
+pinned down". It's pinned down now. A sweep's first run started from a deferred call:
+- **At launch** that call lands inside the first physics tick, where every later run starts (from `ProfileTick`, in
+  the tick).
+- **After a scene reload** (a change of car, and now every track) it lands between frames. The car was put at the
+  start one tick later than the race's two ticks of arming count from, so it had one tick less to settle before the
+  clock started.
+
+The stock car's 50% on the shakedown was 1:04.34 reached by a reload and 1:04.33 at launch. The first run now starts
+on the next tick, in `ProfileTick`, like the rest: 1:04.33 both ways. Rows from a launch are the same as before, cell
+for cell: the shakedown, Seed 5 and his `4`, profiled before and after. Also fixed: the line Profile every car leaves
+when it comes back to a different car was covered at once by the track's opening line. It now shows after it.
+
+**Found, not fixed: a run can depend a little on what was loaded before it.** With the first-run fix in, a launch and
+a reload still differed in a few cells further up a sweep: a 0.1 km/h here, a loop 0.01 s there. Building the
+shakedown's pieces in reverse order at launch moved those same cells, so it's the order the physics engine holds the
+pieces in. Where two pieces meet, which one a wheel's ray reports depends on that order, and a reload, or the track
+loaded before, changes it. Jolt hands out freed body IDs last freed first, which is most likely how. Measured over his
+tracks (below):
+- **Clean runs** move by a hundredth or two at most, and most don't move at all.
+- **A run that has already gone wrong** (off the road, spinning) can go another way: one crash came out 7.34 s apart,
+  and two stopped somewhere else.
+- **Whether a run is clean never changed**, so neither did any car's limit or best clean time.
+
+Each way on its own is the same every time. Fixing it would mean the car breaking a tie at a seam the same way
+whatever the order, or one collider for the whole road: a change to the car's physics or the track's build, which
+moves every oracle, so it's his to choose.
+
+**Checks**, on scratch copies of his tracks and garage (`--saved=`, `--tunes=`), with scratch `--ghosts=` and
+`--profiles=`:
+- **A small folder first** (the game's two tracks, a copy of `gen-5v1`, his `4`, a half-built track): 3 tracks profiled,
+  the half-built one left out, the copy skipped as Seed 5. Rows match plain `--profile=all` on each track, cell for
+  cell, and match again on the final build.
+- **`--profile=everywhere` on his tracks, headless**: 14 in the list, his `1` left out as unfinished, `gen-5.json`
+  skipped as Seed 5. That leaves **12 tracks profiled, 115 runs, 11 new best ghosts, in 26 min 36 s**. Every track's
+  sheet got its rows (4 to 12 each).
+- **The same in the default window**, from the menu, started on his `gen-746109v1` with `-original-3-2`: **25 min 55
+  s**, the same pace (×16.0 on the board). It came back to that track and car.
+- **Against a plain `--profile=all --track=` on each of the 12 tracks** (run four at a time): the same 115 runs.
+  - 101 rows the same, cell for cell.
+  - Clean runs: finish times differ in two rows, both on Seed 635508 (3 laps of 1.45 km, about 3 minutes a run), by
+    0.01 and 0.02 s.
+  - Unclean runs: some differ as above.
+  - **Each car's limit and best clean time are the same on all 12 tracks**, and the window run's are too: 48 of 48
+    both ways.
+- **Esc in the window**, through a temporary probe (since removed) that pressed the real Escape key and clicked the
+  real menu button. It started on `gen-746109v1` with `-original-3-2` (`def35523`) and pressed Esc 150 m into car 2's
+  run on track 2, the shakedown. The log: *"Every car on every track stopped in 1 min 17 s, stopped on Shakedown
+  (track 2 of 13): 1 track profiled, 16 runs; 2 new best ghosts; 1 skipped: 1.json (unfinished)."* It came back on
+  `gen:746109v1` with `def35523`, the menu closed. Frames of the banner and the summary, before and after the layout
+  fix, are how the two layout problems were found.
+- Tests (349) and the headless check pass. His real tracks and garage, hashed before and after: the same 26 files.
+  The car isn't touched, so the oracles weren't run.
+
+**For him:**
+- **What he's starting when he presses it**: about 26 minutes on his tracks as they are now, about 2 minutes a track.
+  It grows with every track he saves, and with every car that's clean far up the sweep.
+- **His three active cars aren't clean even at 50% on any of the 12 tracks.** Each drives one run a track, and only the
+  stock car sweeps (clean to 65-85%; on his `3` not at all).
+- **The menu**: the three Profile buttons could go under one Profile button that opens them, the way Change car opens
+  its list. Not done: his to say.
+
 ## 2026-11-25 — Time up to ×16, and the board says how fast it really runs
 
 His ask: *"can we adjust the time multiplier so it allows up to 16x but otherwise still does all the ticks required

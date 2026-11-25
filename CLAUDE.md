@@ -155,7 +155,7 @@ for the game and the `lap` oracle alike; in the game - and + change it),
 `--ghost=you|auto|none|<car>` (whose ghost shows on a track, M4c; since P4 a car profiled on the track, by its name or
 fingerprint, `--ghost=stock`; G changes it in the game) and
 `--ghosts=<folder>` (where ghosts and bests are kept, `user://ghosts` unless told: **point checks at a
-scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--tunes=<folder>` (the garage's cars, `user://tunes` unless told: **a scratch copy for checks** too; the Esc menu's Change car picks one, and the lock beside a car there unlocks Set inactive, which moves its file into `inactive/` inside the folder, still listed and drivable but left out of Profile every car; F2's Save as a new car adds one, and Save on the stock car asks for a name, since the game never writes it), `--profile=this|all` with `--track=` or `--seed=` (P3: the autodriver sweeps the car, or every car in the garage, from 50% aggression by 5% until a run isn't clean, writes a row a run and quits; the Esc menu's Profile this car and Profile every car do the same in play, Esc stops it) and `--profiles=<folder>` (where the sheets go, `user://profiles` unless told: **a scratch folder for checks**, since every finished run of his writes a row there too), `--replay=you|auto|<car>` (a profiled car's best by name or fingerprint, P4) with `--replay-at=<seconds>` and
+scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--tunes=<folder>` (the garage's cars, `user://tunes` unless told: **a scratch copy for checks** too; the Esc menu's Change car picks one, and the lock beside a car there unlocks Set inactive, which moves its file into `inactive/` inside the folder, still listed and drivable but left out of Profile every car; F2's Save as a new car adds one, and Save on the stock car asks for a name, since the game never writes it), `--profile=this|all` with `--track=` or `--seed=` (P3: the autodriver sweeps the car, or every car in the garage, from 50% aggression by 5% until a run isn't clean, writes a row a run and quits; the Esc menu's Profile this car and Profile every car do the same in play, Esc stops it), `--profile=everywhere`, needing neither (every car on every track: Profile every car on each of Load a track's tracks in turn, the unfinished ones left out and a fingerprint profiled once; the Esc menu's Profile every car on every track does the same in play and comes back to the track and car it began on, Esc stops it) and `--profiles=<folder>` (where the sheets go, `user://profiles` unless told: **a scratch folder for checks**, since every finished run of his writes a row there too), `--replay=you|auto|<car>` (a profiled car's best by name or fingerprint, P4) with `--replay-at=<seconds>` and
 `--replay-camera=trackside|chase|free` (a saved best's replay from the start, M4d, for a look or a
 screenshot; in the game Enter watches the last run and the Esc menu offers the bests),
 `--time=<scale>` (how fast time goes, `0.25` for a quarter speed; in the game `,` and `.`, or the D-pad's left and
@@ -225,7 +225,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   `CarReadout`, the `RunRecorder`, `MeterRead` (the one rule for off the road and a slide, for the profile's
   meter), the `Garage` (the stock car, `user://tunes/` and the inactive cars in `tunes/inactive/`; `Main.Garage.cs` is the Esc menu's Change car) and the
   replay's `FreeCamera`; `Main.Profile.cs` is the profiler (sweeps through the race's own code, rows to the sheet,
-  rows held while a spreadsheet has it open); `Main.Ghosts.cs` loads and saves each
+  rows held while a spreadsheet has it open), and `Main.ProfileEverywhere.cs` chains it over every track (Profile every
+  car on every track); `Main.Ghosts.cs` loads and saves each
   track's bests as ghosts, and since P4 each profiled car's best clean run (`profile-<car fingerprint>.ghost`, G steps
   through them), and `Main.Replay.cs` plays a run back (trackside, chase or free cameras);
   `Editor/` the `EditorView` (M5: camera, cursor, track laid onto the road's end, the palette, the mouse, problems; `Main.Editor.cs` opens it); `Ui/` the `Hud`, `TelemetryOverlay`, `TuningPanel`, the Esc menu (`SeedMenu`) and its drawn padlock (`LockButton`); `World/` builds the test ground's meshes and
@@ -291,7 +292,11 @@ car's file is moved, unchanged, into `tunes/inactive/`, it stays in the list, di
 every car leaves it out; nothing is ever deleted), and **P4, profile ghosts, is built** (2026-11-25, decision 7: each
 car's fastest clean profile run on a track is kept as its ghost, `ghosts/<track>/profile-<car fingerprint>.ghost`, so G
 can put car A's best beside car B; G steps through his best, the autodriver's, each profiled car's and none; the Esc
-menu's Watch a car's profile best; a fresh profile of the same car at the same caution keeps within 17 mm of its ghost).
+menu's Watch a car's profile best; a fresh profile of the same car at the same caution keeps within 17 mm of its ghost),
+and **Profile every car on every track** (2026-11-25, his ask: Profile every car on each of Load a track's tracks in
+turn, unattended, then back to the track and car it began on; an unfinished track left out, a fingerprint profiled once;
+`--profile=everywhere`; his 12 sound tracks and 4 cars took 26 minutes, the same headless or in the window; on the way,
+a sweep's first run no longer comes out a hundredth slow after a change of car).
 **P5, his play with the profile, is next**, then his tuning.
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved

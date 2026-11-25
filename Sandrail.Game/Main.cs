@@ -545,6 +545,7 @@ public partial class Main : Node3D
                 Cars = () => CarsToDrive(args),
                 Profile = _race is not null && _testDriveFrom is null ? () => StartProfile(false) : null,
                 ProfileAll = _race is not null && _testDriveFrom is null ? () => StartProfile(true) : null,
+                ProfileEverywhere = _testDriveFrom is null ? StartProfileEverywhere : null,
                 OpenProfiles = OpenProfilesFolder,
                 Quitting = HoldPendingRows,
                 NewTrack = () => StartAgainOn(args, "--edit=new"),

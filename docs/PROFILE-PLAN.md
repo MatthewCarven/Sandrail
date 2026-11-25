@@ -47,7 +47,13 @@ wheel spin is M1e's to talk over, not this plan's to build.
    between every commit that didn't touch the car), **and at any speed**: the `track` oracle at ×1, ×8, ×32 and
    ×64 printed the same line, character for character (measured 2026-11-24). **So one run per car and caution
    is the answer, and nothing needs averaging.** A change to the car's physics code changes every figure, so a
-   row carries the game's version.
+   row carries the game's version. **One exception, found 2026-11-25**: a run can come out a little differently
+   at launch than after a scene reload (a change of car, the next track), or after one track than after another.
+   Where two road pieces meet, which one a wheel's ray reports depends on the order the physics engine holds them
+   in, and what was loaded before changes that order. A clean run moves by a hundredth or two at most, and most
+   don't move at all; a run that has already gone wrong (off the road, spinning) can go another way by seconds.
+   **Whether a run is clean, and so each car's limit and best clean time, came out the same in every
+   comparison**: 48 cars on tracks, each profiled three ways. Each way on its own is the same every time.
 2. **The machine drives about ten times faster than real, headless.** The shakedown's 56.76 s took 58.1 s of
    real time at ×1, 8.2 s at ×8, and 6.9 s at both ×32 and ×64, about 1.1 s of each being loading (measured
    2026-11-24). The ceiling is near ×10, some 1,200 physics ticks a second; Godot's limit of eight ticks a frame
@@ -134,7 +140,8 @@ game** (decision 5).
 driven; **Profile every car** sweeps the whole garage. It drives each run from the start gate as fast as the
 machine goes, the camera following, a line on the screen saying which car and caution and how far through; Esc
 stops it, and rows already written stay. The same code runs from the command line: `--profile=this|all` with
-`--track=`, in a window or headless, which is how Claude checks it.
+`--track=`, in a window or headless, which is how Claude checks it. **Profile every car on every track** (since
+2026-11-25) runs Profile every car on each of Load a track's tracks in turn, then comes back; `--profile=everywhere`.
 
 **Profile ghosts** (P4): each car's fastest clean profile run kept as a ghost under the track, so G can put car
 A's best beside him while he drives car B, or the replay can show two cars racing.
@@ -249,6 +256,40 @@ as the `ghost` oracle has it. The worklog has the rest.
 Each car's fastest clean profile run saved as a ghost under the track and car; G steps through his best, the
 autodriver's, and each profiled car's; the replay list offers them. Check: a profile ghost plays against a
 fresh profile run of the same car at the same caution with the `ghost` oracle's worst misses.
+
+### Every car on every track (2026-11-25, between P4 and P5)
+
+**Built at his ask**: one more button in the Esc menu, **Profile every car on every track**, under Profile every car.
+It runs Profile every car on each track in turn, unattended, and comes back to the track and car he started from. It
+chains what was there and changes none of it: each track gets the same sweep, its rows go in its own sheet, and the
+profile ghosts and the rows held for an open spreadsheet work as before.
+- **The tracks are Load a track's**: the game's own and every saved one. A track that won't lay soundly, such as a
+  half-built editor track, is left out. A track whose fingerprint has already been profiled in this run is skipped
+  when it comes up, so his `gen-5.json` (Seed 5, saved before codes) and the game's `gen:5v1` make one sheet. No
+  random seeds.
+- **The cars are Profile every car's**: the stock car and his active ones. Each track starts with the first of them,
+  so its sweep needs no change of car.
+- **The board** shows `PROFILING   track 2 of 13: Shakedown` above the car's line (`stock, car 1 of 4   aggression
+  60%   Esc stops`). Esc stops the lot and goes back. Coming back, at the end or after Esc, the board says for 15 s
+  how long it took, the tracks profiled, the runs, new best ghosts, and which tracks were skipped and why. The log has
+  the same, with each unfinished track's first problem.
+- **`--profile=everywhere`** does it from the command line, needs no `--track=`, and quits at the end.
+- It's offered on the test ground too, which has no profile of its own, since it doesn't profile the place it starts.
+
+**On his tracks** (scratch copies, 2026-11-25): 14 tracks in the list. His `1` is unfinished, so it's left out, and
+his `gen-5.json` is the game's Seed 5 under another name, so it's skipped. That leaves 12 tracks and 4 cars (the stock
+car and his three active ones): 115 runs in **26 min 36 s** headless and **25 min 55 s** in the default window, about
+2 minutes a track. Only the stock car sweeps: his three aren't clean at 50% on any of them, so each drives one run a
+track. Every track's sheet got its rows. Against a plain Profile every car on each track, each car's limit and best
+clean time came out the same on all 12 (fact 1 has the small differences there are).
+
+**A fix on the way: a sweep's first run no longer depends on how the scene began.** P4 found the first run a hundredth
+slow when Profile every car changed car, "not pinned down". The cause: the first run started from a deferred call.
+At launch that call lands inside the first physics tick, where every later run starts; after a scene reload it lands
+between frames. So the car was put at the start a tick later than the race's two ticks of arming count from, and had
+one tick less to settle before the clock started. The first run now starts on the next physics tick, in the same
+place as the rest. Rows from a launch are unchanged, cell for cell. The worklog has the rest, and the small difference
+left after a reload (fact 1).
 
 ### P5 — his play
 

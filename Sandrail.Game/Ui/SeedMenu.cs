@@ -84,6 +84,9 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>The profile of every car in the garage over this track.</summary>
     public Action? ProfileAll { get; init; }
 
+    /// <summary>Profile every car on every track there is to load, then back here (2026-11-25); null hides the button.</summary>
+    public Action? ProfileEverywhere { get; init; }
+
     /// <summary>Opens the folder the profile sheets are in; says which.</summary>
     public Func<string>? OpenProfiles { get; init; }
 
@@ -248,6 +251,16 @@ public partial class SeedMenu : CanvasLayer
             {
                 Close();
                 profileAll();
+            }));
+        }
+
+        // Every car on every track (2026-11-25): Load a track's tracks one after another, unattended, then back here.
+        if (ProfileEverywhere is Action everywhere)
+        {
+            rows.AddChild(Button("Profile every car on every track", () =>
+            {
+                Close();
+                everywhere();
             }));
         }
 

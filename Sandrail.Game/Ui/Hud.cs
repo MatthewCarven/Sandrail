@@ -43,6 +43,9 @@ public partial class Hud : CanvasLayer
     private Label _laps = null!;
     private Label _alert = null!;
 
+    /// <summary>Where the board's top sits, under a banner of one line.</summary>
+    private const float LapsTop = 100.0f;
+
     public override void _Ready()
     {
         _speed = new Label { LabelSettings = Settings(40) };
@@ -83,7 +86,7 @@ public partial class Hud : CanvasLayer
             },
             Visible = false,
         };
-        Pin(_laps, 1.0f, 0.0f, new Vector2(-24.0f, 100.0f));
+        Pin(_laps, 1.0f, 0.0f, new Vector2(-24.0f, LapsTop));
         _laps.GrowHorizontal = Control.GrowDirection.Begin;
         AddChild(_laps);
 
@@ -152,6 +155,11 @@ public partial class Hud : CanvasLayer
 
         _banner.Visible = Banner is not null;
         _banner.Text = Banner ?? string.Empty;
+
+        // The board keeps clear of a banner of two lines (every car on every track, 2026-11-25); under one it stays put.
+        float clear = Banner is null ? 0.0f : _banner.Position.Y + _banner.Size.Y + 8.0f;
+        _laps.OffsetTop = System.Math.Max(LapsTop, clear);
+        _laps.OffsetBottom = _laps.OffsetTop;
         _laps.Visible = Laps is not null;
         _laps.Text = Laps ?? string.Empty;
         _alert.Visible = Alert is not null;
