@@ -220,7 +220,9 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
   physics interpolation; `GameClock` keeps a tick 1/120 s of game time at any time scale, ×0.01 to ×16, raises the
   most ticks a frame with it and measures how fast game time really runs (count ticks with its `TicksPerSecond`,
-  never `Engine.PhysicsTicksPerSecond`, which the time scale turns up and down). `Cars/` is the `Buggy`, its `CarLooks` (the grey boxes and wing, a node a ghost
+  never `Engine.PhysicsTicksPerSecond`, which the time scale turns up and down). `Main._EnterTree` gives every load
+  a fresh physics world, so Jolt's body IDs start from nothing and a run is the same however it was reached (keep
+  any new body inside the scene, built in a fixed order, and never hold a world or space across a reload). `Cars/` is the `Buggy`, its `CarLooks` (the grey boxes and wing, a node a ghost
   can wear too), the `GhostCar` (a best run see-through beside you, on the race clock), its `ChaseCamera`,
   `CarReadout`, the `RunRecorder`, `MeterRead` (the one rule for off the road and a slide, for the profile's
   meter), the `Garage` (the stock car, `user://tunes/` and the inactive cars in `tunes/inactive/`; `Main.Garage.cs` is the Esc menu's Change car) and the
@@ -298,6 +300,10 @@ turn, unattended, then back to the track and car it began on; an unfinished trac
 `--profile=everywhere`; his 12 sound tracks and 4 cars took 26 minutes, the same headless or in the window; on the way,
 a sweep's first run no longer comes out a hundredth slow after a change of car); the three Profile buttons now sit under
 one **Profile** button in the Esc menu, which opens them as Change car opens the garage (his word, "Yes, nest them").
+**A run is the same however it's reached** (2026-11-25, his yes): a run could come out a hundredth apart after a reload,
+because Jolt orders the chassis's contacts with the road (the loop, landings) by its bodies' IDs, which a reload changes;
+the wheels' rays never tie. Now every load starts on a fresh physics world, and a row reached after any reload is the
+launch's, cell for cell, the oracles unchanged.
 **P5, his play with the profile, is next**, then his tuning.
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved

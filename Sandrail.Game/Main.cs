@@ -119,6 +119,26 @@ public partial class Main : Node3D
     private double? _bestYou;
     private double? _bestAuto;
 
+    /// <summary>
+    /// A fresh physics world for every load, at launch and after a reload alike, before any of the scene's bodies
+    /// exist, so a run comes out the same however it was reached (2026-11-25).
+    /// </summary>
+    /// <remarks>
+    /// Where the chassis touches the road (the loop, landings), Jolt solves its contacts in an order hashed from the
+    /// bodies' IDs, and an ID counts how often its slot has been used, so after a reload every body had another and a
+    /// profile run could come out a hundredth apart from the same run at launch. Each world has a Jolt of its own, its
+    /// IDs starting from nothing, and a scene builds its bodies in the same order every time. The old world is let go
+    /// only once the window holds the new one: dropped first, its scenario was freed while the window still used it,
+    /// and the engine said so.
+    /// </remarks>
+    public override void _EnterTree()
+    {
+        Window root = GetTree().Root;
+        World3D old = root.World3D;
+        root.World3D = new World3D();
+        old.Dispose();
+    }
+
     public override void _Ready()
     {
         string version = typeof(Main).Assembly

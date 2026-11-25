@@ -2,6 +2,39 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-25 — A fresh physics world for each load: a run is the same however it's reached
+
+His yes to option 1 of "Why a run depends on what was loaded before it", two entries down: *"Yes, build it"*.
+
+**What's built**: `Main._EnterTree` gives the window a new `World3D` on every load, at launch and after a reload
+alike, before any of the scene's bodies exist. Each world has a Jolt of its own, so its body IDs start from nothing,
+and a scene builds its bodies in the same order every time. The chassis's contacts with the road, which Jolt solves
+in an order hashed from those IDs, now come out the same at launch, after a change of car and after any other track.
+- **The engine error the trial printed is gone.** The trial dropped the old world as it handed the window the new
+  one, and the old world's scenario was freed while the window still used it (`scenario is null`). Now the old world
+  is held until the window has the new one, then let go.
+- **Nothing else changes**: not the car, not the tracks, no fingerprint or ghost. Rows already in his sheets from a
+  reload stay as they were; profiling those tracks again tidies them.
+- **For whoever adds a body later**: build it inside the scene, in a fixed order, and never hold a world or its space
+  across a reload (CLAUDE.md, Layout).
+
+**Checks**, on scratch copies of his tracks and garage, with scratch `--ghosts=` and `--profiles=`:
+- **Every car on every track, three ways**, on his 12 sound tracks with the stock car and his 3 active ones:
+  - chained, as `--profile=everywhere` runs it, every track reached by a reload: 115 runs;
+  - per track, `--profile=all --track=`, four at a time, each car after the first reached by a change of car;
+  - each of his 3 cars on each track from a launch of its own, `--spec= --profile=this`: 36 runs.
+  **All 115 rows are the same all three ways, cell for cell.** The same comparison before had 14 of 115 apart. His
+  unfinished `1` was left out and `gen-5.json` skipped as Seed 5, as before.
+- **The old world is freed on every load**, checked with a temporary probe (since removed) over a launch and two
+  reloads.
+- **His tracks and garage**, hashed before and after: the same 26 files.
+- **The oracles**: all seventeen print the same lines as before, character for character. Tests (349) and the
+  headless check pass.
+- **In the window**: Every car on every track over the game's two tracks (Seed 5, then the shakedown after a reload)
+  matched a launch of each, cell for cell, with no engine error, and a frame on Seed 5 is right (terrain, rocks,
+  shadows, sky).
+- **Comparing rows**: `when` and `version` left out. The version is the commit, so it differs between builds.
+
 ## 2026-11-25 — The Profile buttons under one Profile button
 
 His word on the suggestion at the end of the Profile every car on every track entry: *"Yes, nest them"*.

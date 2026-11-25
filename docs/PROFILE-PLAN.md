@@ -47,15 +47,13 @@ wheel spin is M1e's to talk over, not this plan's to build.
    between every commit that didn't touch the car), **and at any speed**: the `track` oracle at ×1, ×8, ×32 and
    ×64 printed the same line, character for character (measured 2026-11-24). **So one run per car and caution
    is the answer, and nothing needs averaging.** A change to the car's physics code changes every figure, so a
-   row carries the game's version. **One exception, found 2026-11-25**: a run can come out a little differently
-   at launch than after a scene reload (a change of car, the next track), or after one track than after another.
-   Where the chassis touches the road (in the loop, on landings), Jolt solves its contacts in an order set by the
-   bodies' IDs, and a reload, or the track loaded before, hands out other IDs. The wheels' rays never tie (worklog,
-   "Why a run depends on what was loaded before it": a fresh physics world for each load would end it, his to
-   choose). A clean run moves by a hundredth or two at most, and most don't move at all; a run that has already
-   gone wrong (off the road, spinning) can go another way by seconds.
-   **Whether a run is clean, and so each car's limit and best clean time, came out the same in every
-   comparison**: 48 cars on tracks, each profiled three ways. Each way on its own is the same every time.
+   row carries the game's version. **However it was reached** (since 2026-11-25): at first a run could come out
+   a little differently at launch than after a scene reload (a change of car, the next track), a hundredth on a
+   clean run, seconds on one already gone wrong, because Jolt solves the chassis's contacts with the road (in the
+   loop, on landings) in an order set by its bodies' IDs, and a reload hands out other IDs. Every load now starts
+   on a fresh physics world, so the IDs are the launch's, and a run reached after any reload or track is the
+   launch's, cell for cell (worklog, "A fresh physics world for each load"). Whether a run was clean never changed
+   even before.
 2. **The machine drives about ten times faster than real, headless.** The shakedown's 56.76 s took 58.1 s of
    real time at ×1, 8.2 s at ×8, and 6.9 s at both ×32 and ×64, about 1.1 s of each being loading (measured
    2026-11-24). The ceiling is near ×10, some 1,200 physics ticks a second; Godot's limit of eight ticks a frame
