@@ -2,6 +2,24 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-26 — Right-click a run in the profile viewer to copy it
+
+His ask: *"when you right click a row it copies it to the clipboard separated by commas"*. A right-click anywhere along
+a run puts its cells on the clipboard as one line, the columns shown in the order shown, so a hidden group isn't
+copied. A cell with a comma or a quote is quoted, as a CSV has it (`row_csv`), so a spreadsheet splits the line where
+the cells do. The status line says what was copied for 4 s, then goes back to the sheet's summary, which now ends
+"Right-click a run to copy it". A right-click doesn't mark the run. The handler sits on each run's first cell, the
+selectable that already spans the row for marking, so it's heard over the frozen columns and the scrolled ones alike.
+
+**Checks**: 72 tests (5 new: the line's quoting, the run clicked copied wherever the sort put it, a group shown or
+hidden copied or not, a run the game added since, the status line going back). A live window on a scratch copy, with
+real right-clicks: one over `19 straight s` scrolled into view, one over the frozen `driver` column further down. Each
+copied its own run exactly, and neither marked it.
+
+**Found on the way**: DearPyGui 2.3's `get_clipboard_text` crashes the whole process (an access violation) when the
+clipboard holds no text, an image say. The viewer only ever sets the clipboard. His clipboard held a screenshot during
+the check; it was saved first and put back byte for byte.
+
 ## 2026-11-25 — The profile viewer's columns fit themselves, long headers angled
 
 His ask: *"autosizeing columns for the grid on the data viewer"*. Screenshots of a scratch copy of his profiles showed

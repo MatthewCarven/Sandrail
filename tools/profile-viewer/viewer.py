@@ -10,7 +10,8 @@ Trellis grid: a viewer needs sorting, frozen columns and only the rows on screen
 none of an editor's cells, save or undo. Its error lines come from trellis-errors when it's installed.
 
 Every column is as wide as its widest cell, over every run and not only those on screen, or its header, whichever is
-wider; a long header is angled above the table so the numbers set the width.
+wider; a long header is angled above the table so the numbers set the width. Right-click a run to copy it, its shown
+columns as one line separated by commas.
 
     python viewer.py [folder or sheet.csv] [--sheet=All tracks] [--groups=Run,Summary,Car]
                      [--sort=when:desc --sort=track --sort=time s] [--headers=angled|wrapped|one line]
@@ -19,6 +20,8 @@ wider; a long header is angled above the table so the numbers set the width.
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import os
 import sys
@@ -118,6 +121,20 @@ def text_width(text: str) -> float | None:
     return size[0] if size else None
 
 
+def row_csv(cells: list[str]) -> str:
+    """A run's cells as one line separated by commas, as a CSV has them: a cell holding a comma, a quote or a line
+    break goes in quotes, so a spreadsheet splits the line where the cells do."""
+    out = io.StringIO()
+    csv.writer(out, lineterminator="").writerow(cells)
+    return out.getvalue()
+
+
+#: How long the status line says what was copied before it goes back to the sheet's summary, in seconds.
+COPIED_FOR = 4.0
+#: How much of a copied line the status line shows.
+COPIED_SHOWN = 140
+
+
 DEFAULT_GROUPS = {g: g != sheets.CAR for g in sheets.GROUPS}
 
 #: How many columns the boxes above the table sort by, the first the most significant (his ask, 2026-11-25).
@@ -137,6 +154,7 @@ class Viewer:
     SORT_COLUMN = "sort column {}"
     SORT_WAY = "sort way {}"
     FIT = "fit columns"
+    RIGHT_CLICK = "right-click a run"
 
     def __init__(self, folder: Path, sheet: str | None = None, groups: dict[str, bool] | None = None,
                  settings: Path | None = None, sort: list[tuple[str, bool]] | None = None,
@@ -166,6 +184,7 @@ class Viewer:
         self._next_sheet_poll = 0.0
         self._next_folder_poll = 0.0
         self._updated = ""
+        self._status_back = None  # when the status line goes back to the summary after saying what was copied
         self._build()
         self.set_folder(self.folder, sheet, sort)
 
@@ -214,6 +233,11 @@ class Viewer:
 
         with dpg.handler_registry():
             dpg.add_key_press_handler(dpg.mvKey_F5, callback=lambda: self.reload(force=True))
+
+        # Every run's first cell wears this: it spans the row, so a right-click anywhere along the run lands on it
+        with dpg.item_handler_registry(tag=self.RIGHT_CLICK):
+            dpg.add_item_clicked_handler(button=dpg.mvMouseButton_Right,
+                                         callback=lambda s, a: self.copy_row(dpg.get_item_user_data(a[1])))
 
     def _browse(self) -> None:
         start = self.folder if self.folder.is_dir() else Path.home()
@@ -414,8 +438,9 @@ class Viewer:
         with dpg.table_row(parent=self.table_id, user_data=r) as row_id:
             cells = []
             for c, text in enumerate(row):
-                if c == 0:  # click a run to mark it, to keep your place scrolling sideways
-                    cells.append(dpg.add_selectable(label=text, span_columns=True))
+                if c == 0:  # click a run to mark it, to keep your place scrolling sideways; right-click to copy it
+                    cells.append(dpg.add_selectable(label=text, span_columns=True, user_data=r))
+                    dpg.bind_item_handler_registry(cells[-1], self.RIGHT_CLICK)
                 else:
                     cells.append(dpg.add_text(text))
                     if self.table.columns[c].name in LONG_COLUMNS:
@@ -423,6 +448,17 @@ class Viewer:
                             self.tip_ids[(r, c)] = dpg.add_text(text, wrap=560)
         self.row_ids.append(row_id)
         self.cell_ids.append(cells)
+
+    def copy_row(self, r: int) -> str:
+        """Puts a run on the clipboard (a right-click on it): its shown columns, in their order, as one line separated
+        by commas. Says so on the status line for a few seconds."""
+        row = self.table.rows[r]
+        text = row_csv([cell for i, cell in enumerate(row) if self._shown(i)])
+        dpg.set_clipboard_text(text)
+        shown = text if len(text) <= COPIED_SHOWN else text[:COPIED_SHOWN] + "..."
+        self.status(f"Copied to the clipboard: {shown}")
+        self._status_back = time.monotonic() + COPIED_FOR
+        return text
 
     def _update_rows(self, table: sheets.Table) -> None:
         """The same columns: change the cells that changed (a car newly in cars.csv) and add the new runs."""
@@ -545,6 +581,8 @@ class Viewer:
                 dpg.set_x_scroll(self.table_id, x)
                 dpg.set_y_scroll(self.table_id, y)
                 self._scroll_to = None
+        if self._status_back is not None and now >= self._status_back:
+            self.status()
         if now >= self._next_folder_poll:
             self._next_folder_poll = now + FOLDER_POLL
             if self.refresh_list() and (self.current is None
@@ -556,6 +594,7 @@ class Viewer:
             self.reload()
 
     def status(self, text: str | None = None) -> None:
+        self._status_back = None
         if text is None:
             t = self.table
             if self.current is None or t is None:
@@ -572,7 +611,8 @@ class Viewer:
                 missing = [n for n, _ in self.sort_keys if n not in [c.name for c in t.columns]]
                 if missing:
                     bits.append(f"not sorted by {', '.join(missing)}: this sheet hasn't {'it' if len(missing) == 1 else 'them'}")
-                text = ", ".join(b for b in bits if b) + ". Sort with the boxes above, or click a header (Shift-click adds the next)."
+                text = ", ".join(b for b in bits if b) + (". Sort with the boxes above, or click a header (Shift-click "
+                                                          "adds the next). Right-click a run to copy it.")
                 text += "".join(" " + n for n in t.notes)
         dpg.set_value(self.STATUS, text)
 
