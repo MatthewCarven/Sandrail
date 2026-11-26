@@ -42,8 +42,11 @@ public partial class Oracle
 
     public static bool NeedsShowroom(string kind) => kind is Pieces or Pieces2;
 
-    /// <summary>A loop, a jump or a slope as M2b drove them; the crossing driven under its deck; or a corner held at a speed.</summary>
-    private enum TrialKind { Loop, Jump, Slope, Under, Corner }
+    /// <summary>
+    /// A loop, a jump or a slope as M2b drove them; the crossing driven under its deck; a corner held at a speed; or a
+    /// piece that throws the car off its own road (the hump, the tabletop), held to its top and coasted from there.
+    /// </summary>
+    private enum TrialKind { Loop, Jump, Slope, Under, Corner, Fly }
 
     /// <summary>A piece at a speed; or with <paramref name="Station"/>, a station's whole road, as for the crossing.</summary>
     private sealed record PieceTrial(string Piece, float Kmh, TrialKind Kind, string? Station = null);
@@ -85,6 +88,24 @@ public partial class Oracle
         new("base:u-turn-banked", 55.0f, TrialKind.Corner),
         new("base:u-turn-banked", 60.0f, TrialKind.Corner),
         new("base:u-turn-banked", 65.0f, TrialKind.Corner),
+
+        // P2: the hump either side of where it starts throwing the car, and on to where it flies past itself; the
+        // tabletop from landing on its top, through its down-ramp, to landing on its run-out.
+        new("base:hump", 60.0f, TrialKind.Fly),
+        new("base:hump", 70.0f, TrialKind.Fly),
+        new("base:hump", 80.0f, TrialKind.Fly),
+        new("base:hump", 90.0f, TrialKind.Fly),
+        new("base:hump", 100.0f, TrialKind.Fly),
+        new("base:hump", 120.0f, TrialKind.Fly),
+        new("base:hump", 140.0f, TrialKind.Fly),
+        new("base:tabletop", 50.0f, TrialKind.Fly),
+        new("base:tabletop", 60.0f, TrialKind.Fly),
+        new("base:tabletop", 70.0f, TrialKind.Fly),
+        new("base:tabletop", 75.0f, TrialKind.Fly),
+        new("base:tabletop", 80.0f, TrialKind.Fly),
+        new("base:tabletop", 85.0f, TrialKind.Fly),
+        new("base:tabletop", 90.0f, TrialKind.Fly),
+        new("base:tabletop", 100.0f, TrialKind.Fly),
     ];
 
     private static readonly PieceTrial[] Trials =
@@ -123,6 +144,11 @@ public partial class Oracle
     private float _trialLandedPitch;
     private float? _trialLandedAt;
     private readonly List<string> _trialFigures = new();
+
+    /// <summary>A flying trial's top (the hump's crest, the tabletop's lip), the piece's way forward, and how far past the top each of its road's steps ends.</summary>
+    private System.Numerics.Vector3 _flyTakeOff;
+    private System.Numerics.Vector3 _flyForward;
+    private float[] _flyEnds = [];
 
     private void RunPieces()
     {
@@ -175,6 +201,9 @@ public partial class Oracle
                 break;
             case TrialKind.Corner:
                 RunCornerTrial(trial, steer, along);
+                break;
+            case TrialKind.Fly:
+                RunFlyTrial(trial, steer, along);
                 break;
         }
 
@@ -314,6 +343,74 @@ public partial class Oracle
     }
 
     /// <summary>
+    /// A hump or a tabletop at a speed (PIECES-PLAN, P2): the speed held to its top (the hump's crest, the tabletop's lip)
+    /// and coasted from there, steered on the ground and hands off in the air, as the jumps are. How long it was in the
+    /// air, where it came down, by how far past the top and on which part of the piece, its pitch as it landed, and
+    /// whether it stayed upright and on the road. A car that never leaves the ground for three ticks running isn't thrown.
+    /// </summary>
+    private void RunFlyTrial(PieceTrial trial, float steer, float along)
+    {
+        float past = Past(_flyTakeOff, _flyForward);
+        if (_trialInAt is null)
+        {
+            Car.Driver = Hold(trial.Kmh / 3.6f) with { Steer = steer };
+            if (past >= 0.0f)
+            {
+                _trialInAt = Time;
+                _trialInSpeed = Car.LinearVelocity.Length();
+            }
+
+            return;
+        }
+
+        Car.Driver = default(DriverInput) with { Steer = steer };
+        if (_trialUpAt is null && _trialAirRun >= 3)
+        {
+            _trialUpAt = Time;
+        }
+
+        if (_trialUpAt is not null && _trialLandedAt is null && Car.GroundedCount >= 2)
+        {
+            _trialLandedAt = Time;
+            _trialLandedPast = past;
+            _trialLandedPitch = CarReadout.Of(Car).PitchDeg;
+        }
+
+        float leaves = (_trialPiece!.Def.WidthM / 2.0f) - 0.15f - ((Car.Spec.TrackM / 2.0f) + 0.15f) + 0.5f;
+        bool off = MathF.Abs(_trialLine!.LateralOffset(Math.Max(_trialHint, 0), Car.GlobalPosition.ToCore())) > leaves;
+        bool upright = Car.GlobalBasis.Y.Normalized().Y > 0.7f;
+        string top = trial.Piece == "base:tabletop" ? "lip" : "crest";
+        string how = $"{(upright ? string.Empty : ", NOT UPRIGHT")}{(off ? ", OFF THE ROAD" : string.Empty)}";
+        if (_trialLandedAt is float landed && Time - landed > 2.0f)
+        {
+            float air = _trialAirTicks / (float)GameClock.TicksPerSecond;
+            _trialFigures.Add($"{TrialName(trial)} at {_trialInSpeed * 3.6f:F0} km/h: {air:F2} s in the air, lands {_trialLandedPast:F1} m past its {top}, "
+                + $"{FlySpot(trial.Piece, _trialLandedPast)}, pitch {_trialLandedPitch:F0}°{how}");
+        }
+        else if (_trialUpAt is null && along > _trialMainEnd + 20.0f)
+        {
+            _trialFigures.Add($"{TrialName(trial)} at {_trialInSpeed * 3.6f:F0} km/h: wheels down{how}");
+        }
+    }
+
+    /// <summary>Which part of a hump or tabletop a car came down on, from how far past its top: each of its road's steps by name.</summary>
+    private string FlySpot(string piece, float past)
+    {
+        string[] parts = piece == "base:tabletop"
+            ? ["before its lip", "before its lip", "before its lip", "on the top", "on the down-ramp's crest", "on the down-ramp", "at its foot", "on its run-out"]
+            : ["before its crest", "on its far side", "at its foot"];
+        for (int k = 0; k < _flyEnds.Length && k < parts.Length; k++)
+        {
+            if (past < _flyEnds[k])
+            {
+                return parts[k];
+            }
+        }
+
+        return "past it";
+    }
+
+    /// <summary>
     /// The crossing driven under its deck at a speed (PIECES-PLAN, X2): through or not, how high the car's middle rose
     /// over the road under the deck against the headroom there, and its time with a wheel off the road.
     /// </summary>
@@ -389,6 +486,20 @@ public partial class Oracle
 
         start = MathF.Max(start, 0.0f);
 
+        if (trial.Kind == TrialKind.Fly)
+        {
+            // The top is the first of the road's highest ground: the hump's crest, the tabletop's lip.
+            IReadOnlyList<ICentreline> steps = _trialPiece!.Road().Pieces;
+            var samples = steps.SelectMany(c => Enumerable.Range(0, (int)MathF.Ceiling(c.Length / 0.1f) + 1)
+                .Select(k => c.FrameAt(MathF.Min(k * 0.1f, c.Length)))).ToList();
+            float highest = samples.Max(f => f.Position.Y);
+            Frame takeOff = samples.First(f => f.Position.Y >= highest - 0.002f);
+            _flyTakeOff = takeOff.Position;
+            _flyForward = _trialPiece.Start.Forward;
+            var flat = System.Numerics.Vector3.Normalize(new System.Numerics.Vector3(_flyForward.X, 0.0f, _flyForward.Z));
+            _flyEnds = steps.Select(c => System.Numerics.Vector3.Dot(c.FrameAt(c.Length).Position - _flyTakeOff, flat)).ToArray();
+        }
+
         _trialLine = new RacingLine(_trialRoad, closed: false);
         _trialMainStart = start;
         _trialMainEnd = end;
@@ -447,6 +558,8 @@ public partial class Oracle
         "base:corner-70-banked" => "banked 70 m corner",
         "base:u-turn" => "U-turn",
         "base:u-turn-banked" => "banked U-turn",
+        "base:hump" => "hump",
+        "base:tabletop" => "tabletop",
         _ => trial.Piece,
     };
 }

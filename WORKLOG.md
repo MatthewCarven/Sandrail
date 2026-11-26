@@ -2,6 +2,47 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-27 — A hump and a tabletop (PIECES-PLAN, P2)
+
+His *"Yes, go on"*. Two piece files, no Core code:
+- **`base:hump`**: up 2.02 m and down again over two tiles, on four arcs of 50 m, level at both ends. M2 promised *"a
+  one-tile hump that does throw it at 72 km/h"*, but arcs that throw the car there stand only 0.6 m tall in one tile, a
+  bump rather than a hump. Over two tiles the same arcs make 2 m.
+- **`base:tabletop`**: three tiles. A 15° ramp up to a lip 3 m high (an arc of only 3 m, so the car leaves it at any
+  speed worth the name), a flat top 16 m long, a 10° ramp down and a short run-out. No gap: too slow and you drive over
+  it, short and you land on the top, long and you land on the flat.
+
+Both are stunts with a speed hint, so the autodriver keeps to the middle and takes them at the hint, as it takes the
+jumps, rather than holding the car under the crest (M3b's crest rule).
+
+**Measured** (`pieces2`'s new flying trial: the speed held to the top, the hump's crest or the tabletop's lip, then
+coasted, steered on the ground and hands off in the air; how long in the air, where it came down, its pitch as it
+landed; the stock car):
+
+| Hump at | | Tabletop at | |
+|---|---|---|---|
+| 58, 67 km/h | wheels down | 47 km/h | 0.32 s up, lands 5.6 m on, on the top, nose down 10° |
+| 76 | 0.79 s up, lands 13.4 m past the crest, at its foot, nose down 16° | 57, 67 | on the top, 9.8 and 14.9 m, nose down 13° |
+| 86 | 0.98 s, 19.7 m, at its foot, nose down 19° | 72, 77 | on the down-ramp, 19.8 and 26.1 m, nose down 15° and 18° |
+| 95 | 1.10 s, 25.2 m, past it, nose down 22° | 82, 87 | at its foot, 31.8 and 36.0 m |
+| 114, 133 | 1.34 and 2.01 s, 38 and 52 m, past it | 93 | 2.08 s, 40.6 m, on its run-out, nose up 11° |
+
+Upright every time. **The hump throws the car from about 72 km/h**, as M2's arithmetic said once the rebound is counted.
+**Hint 75-90**, where it lands at its foot. **It lands nose first**: following the crest turns the car at v/R, about 24°
+a second at 80 km/h, and it keeps turning in the air. A bigger crest radius, or a longer far side to land on, is the
+lever if that's harsh; holding the throttle in the air (air control) lifts the nose. **The tabletop's down-ramp catches
+the car from 72 to about 80 km/h**, a window as narrow as the short jump's (85-95), but missing it costs a thump on the
+flat rather than a crash. **Hint 72-80.** On a scratch sprint over both, the autodriver finishes clean at 70, 80 and 90%
+(18.13, 18.09, 18.05 s), no wheel off the road.
+
+**The showroom** has them at stations 25 and 26. **The tabletop is the first block to lie on its side**: it found no room
+facing north, so it faces east above a band (P1's rule). Nothing else moved. The palette lists them after the U-turns.
+
+**Checks**: 390 tests (5 for these: the hump's height and middle, the tabletop's lip, top and length, both stunts with
+hints, a sprint over both). `pieces2`'s first 26 figures as before. The other seventeen oracles byte for byte, every
+track's fingerprint (his saved ones from a scratch copy) as before, a thousand seeds with none refused. The headless
+check, and screenshots of both stations.
+
 ## 2026-11-27 — 70 m corners and a U-turn (PIECES-PLAN, P1)
 
 His *"Yes, start them"* for the cheap pieces, in the plan's order. Four piece files, no Core code:

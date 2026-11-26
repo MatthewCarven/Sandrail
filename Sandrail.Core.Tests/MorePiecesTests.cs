@@ -63,6 +63,94 @@ public class MorePiecesTests
         }
     }
 
+    /// <summary>
+    /// The hump (P2) climbs 2 m over four 50 m arcs and comes down again in two tiles, level at both ends; its crest is
+    /// in the middle.
+    /// </summary>
+    [Fact]
+    public void TheHumpRisesTwoMetresAndComesBackLevel()
+    {
+        PlacedPiece hump = Placed("hump", 10, 20);
+        Assert.Equal(2, hump.Tiles.Count());
+        Assert.Equal(new WorldConnector(new Tile(10, 19), Compass.North, 0, ConnectorKind.Road), hump.Out);
+        Assert.True(hump.PathMisfitM() <= PieceDef.FitM);
+
+        (float along, float height) = Highest(hump);
+        Assert.Equal(2.02f, height, 2);
+        Assert.Equal(hump.Road().Pieces.Sum(c => c.Length) / 2.0f, along, 1);
+    }
+
+    /// <summary>
+    /// The tabletop (P2) goes up a 15° ramp to a lip 3 m up, along a flat top for 16 m, and down a 10° ramp to the ground
+    /// again, in three tiles: the top is the highest road, flat from the lip on.
+    /// </summary>
+    [Fact]
+    public void TheTabletopHasALipAFlatTopAndAWayDown()
+    {
+        PlacedPiece table = Placed("tabletop", 10, 20);
+        Assert.Equal(3, table.Tiles.Count());
+        Assert.Equal(new WorldConnector(new Tile(10, 18), Compass.North, 0, ConnectorKind.Road), table.Out);
+        Assert.True(table.PathMisfitM() <= PieceDef.FitM);
+
+        IReadOnlyList<ICentreline> steps = table.Road().Pieces;
+        float start = table.Start.Position.Y;
+        Assert.Equal(3.0f, steps[2].FrameAt(steps[2].Length).Position.Y - start, 3);
+        Assert.Equal(3.0f, steps[3].FrameAt(steps[3].Length).Position.Y - start, 3);
+        Assert.Equal(16.0f, steps[3].Length, 3);
+        Assert.Equal(3.0f, Highest(table).Height, 3);
+    }
+
+    /// <summary>
+    /// Both are stunts: each has a speed hint, so the autodriver takes it at the hint down the middle, as the jumps,
+    /// rather than holding the car under its crest.
+    /// </summary>
+    [Theory]
+    [InlineData("hump")]
+    [InlineData("tabletop")]
+    public void TheHumpAndTheTabletopAreStunts(string piece)
+    {
+        PieceDef def = Catalogue.Value.Find($"base:{piece}")!;
+        Assert.True(TrackRacing.IsStunt(def));
+        Assert.Equal(2, def.SpeedKmh!.Length);
+    }
+
+    [Fact]
+    public void ASprintGoesOverAHumpAndATabletop()
+    {
+        var track = new Track
+        {
+            Id = "test:hump",
+            Name = "Hump and tabletop",
+            Pieces = [P("start", 10, 28), P("straight", 10, 27), P("hump", 10, 26), P("straight", 10, 24), P("tabletop", 10, 23), P("straight", 10, 20), P("finish", 10, 19)],
+        };
+        LaidTrack laid = track.Lay(Catalogue.Value);
+        Assert.Empty(laid.Problems);
+        Assert.Equal(7, laid.Route.Count);
+    }
+
+    /// <summary>The highest point of a piece's road, sampled every 10 cm: how far along its road, and how far above its way in.</summary>
+    private static (float Along, float Height) Highest(PlacedPiece piece)
+    {
+        float start = piece.Start.Position.Y;
+        (float Along, float Height) best = (0.0f, float.MinValue);
+        float before = 0.0f;
+        foreach (ICentreline c in piece.Road().Pieces)
+        {
+            for (float s = 0.0f; s <= c.Length; s += 0.1f)
+            {
+                float height = c.FrameAt(s).Position.Y - start;
+                if (height > best.Height + 1e-4f)
+                {
+                    best = (before + s, height);
+                }
+            }
+
+            before += c.Length;
+        }
+
+        return best;
+    }
+
     /// <summary>The editor lays onto a U-turn's end as onto any other: the road goes on south from beside where it came in.</summary>
     [Fact]
     public void TheEditorLaysOnFromAUTurn()

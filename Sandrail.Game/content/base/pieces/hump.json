@@ -1,0 +1,12 @@
+{
+  "id": "base:hump",
+  "name": "Hump",
+  "tiles": [[0, 0], [0, 1]],
+  "out": { "tile": [0, 1], "side": "front", "rise": 0 },
+  "path": [
+    { "pitch": { "angle": 11.536959, "radius": 50 } },
+    { "pitch": { "angle": -23.073918, "radius": 50 } },
+    { "pitch": { "angle": 11.536959, "radius": 50 } }
+  ],
+  "speedKmh": [75, 90]
+}

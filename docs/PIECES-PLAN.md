@@ -261,6 +261,22 @@ banks to count for more. Departures: **the showroom lays each slice's pieces aft
 added (`Showroom.Added`), so no station moves under `pieces2`; and **a block that finds no room facing north lies on
 its side**, facing east, since the grid is filling up. The palette lists the new pieces after the starter set.
 
+## P2: the hump and the tabletop
+
+**Built 2026-11-27**: two piece files, no Core code; 5 tests, worklog that date. **The hump** is two tiles, four
+50 m arcs up 2.02 m and down again, level at both ends (the table's "one or two tiles"): two because a one-tile hump
+on arcs that throw the car near 72 km/h stands only 0.6 m tall. **The tabletop** is three tiles: a 15° ramp to a lip 3
+m up (a 3 m arc, so it throws the car at any speed worth the name), a flat top 16 m long, a 10° ramp down and a
+run-out. Both are stunts with a hint, so the autodriver takes them down the middle at it. **Measured** by `pieces2`,
+held to the top (the crest, the lip) and coasted from there, hands off in the air: the hump keeps its wheels down at 67
+km/h and throws the car from about 72 (M2's figure); at 76-86 it lands at its foot, nose down 16-19°, and past that
+beyond the piece, upright at every speed to 133 (2 s and 52 m in the air). **Hint 75-90.** The tabletop lands on its
+top below about 70 km/h (nose down 10-13°, the short one's thump), on its down-ramp from 72 to about 80 (nose down
+15-18° on a 10° ramp), at its foot to 87 and on its run-out at 93, upright every time. **Hint 72-80.** The autodriver
+drives a sprint over both clean at 70, 80 and 90%. The tabletop is the first block in the showroom that lies on its
+side. Levers: the hump's height and its arcs (a nose-down landing comes from the crest's turn, v/R), the tabletop's lip
+angle, top and down-ramp.
+
 ## P1 onward: the shortlist, a slice each
 
 In the order decisions 2 and 3 give. Each slice: the piece files; Core support with tests where it needs

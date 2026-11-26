@@ -1,0 +1,17 @@
+{
+  "id": "base:tabletop",
+  "name": "Tabletop",
+  "tiles": [[0, 0], [0, 1], [0, 2]],
+  "out": { "tile": [0, 2], "side": "front", "rise": 0 },
+  "path": [
+    { "pitch": { "angle": 15, "radius": 20 } },
+    { "line": 8.5631 },
+    { "pitch": { "angle": -15, "radius": 3 } },
+    { "line": 16 },
+    { "pitch": { "angle": -10, "radius": 20 } },
+    { "line": 12.02699 },
+    { "pitch": { "angle": 10, "radius": 40 } },
+    { "line": 7.51267 }
+  ],
+  "speedKmh": [72, 80]
+}

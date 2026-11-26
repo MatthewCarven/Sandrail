@@ -344,8 +344,11 @@ were. **X3, his play on crossings, has begun**: he raced the crossover and kept 
 prime example of a short course with some feature to it"); a crossing of his own is still to come. **P1 is built**
 (2026-11-27): 70 m corners on 4 × 4, flat and banked, and a 20 m U-turn on 3 × 2, flat and banked, whose way out is
 on its back beside its way in; measured by `pieces2` (70 m holds 79 km/h, banked 99; the U-turn 50, banked 59: a
-bank eases in from flat, so it counts for less than its full angle says). Next: a hump and a tabletop, then dirt and
-sand straights and a 40° bank, then a climbing corner and a corkscrew. The generator stays version 1.
+bank eases in from flat, so it counts for less than its full angle says). **P2 is built** (2026-11-27): a hump, 2 m
+over two tiles, that throws the car from about 72 km/h and lands it nose first (hint 75-90), and a tabletop, a 15° ramp
+to a 3 m lip, a 16 m top and a 10° way down over three tiles, whose down-ramp catches the car from 72 to 80 km/h (its
+hint), short landing on the top and long on the flat; `pieces2` flies both (held to the top, coasted from there). Next:
+dirt and sand straights and a 40° bank, then a climbing corner and a corkscrew. The generator stays version 1.
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by
