@@ -29,11 +29,11 @@ public partial class Main
             Func<string>? toggle = Garage.IsStock(car.Path) ? null : () => SetCarInactive(car.Path, !car.Inactive);
             if (car.Spec is null)
             {
-                return new SeedMenu.CarRow($"{car.Name}{inactive}: can't be read ({car.Problem})", null, car.Inactive, toggle);
+                return new SeedMenu.CarRow(car.Name, $"{car.Name}{inactive}: can't be read ({car.Problem})", null, car.Inactive, toggle);
             }
 
             string label = $"{car.Name}   {car.Spec.Fingerprint()}{inactive}{(driving ? ", driving now" : string.Empty)}";
-            return new SeedMenu.CarRow(label, driving ? null : () => StartAgainWithCar(args, car.Path), car.Inactive, toggle);
+            return new SeedMenu.CarRow(car.Name, label, driving ? null : () => StartAgainWithCar(args, car.Path), car.Inactive, toggle);
         }).ToList();
 
     /// <summary>

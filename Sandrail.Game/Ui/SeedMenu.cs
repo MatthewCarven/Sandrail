@@ -68,11 +68,11 @@ public partial class SeedMenu : CanvasLayer
     public Func<IReadOnlyList<CarRow>>? Cars { get; init; }
 
     /// <summary>
-    /// A car in the Change car list: its label; what picking it does (null for the one being driven or one that can't be
-    /// read); whether it's set inactive; and what its lock guards, Set inactive or Set active, which does it and says how
-    /// it went (null for the stock car, which has no lock).
+    /// A car in the Change car list: its name, which keeps its row in place; its label; what picking it does (null for the
+    /// one being driven or one that can't be read); whether it's set inactive; and what its lock guards, Set inactive or
+    /// Set active, which does it and says how it went (null for the stock car, which has no lock).
     /// </summary>
-    public sealed record CarRow(string Label, Action? Pick, bool Inactive, Func<string>? Toggle);
+    public sealed record CarRow(string Name, string Label, Action? Pick, bool Inactive, Func<string>? Toggle);
 
     /// <summary>
     /// Random cars (2026-11-26, his ask): makes cars from seeds around the car being driven, into the garage, and says
@@ -136,6 +136,22 @@ public partial class SeedMenu : CanvasLayer
     private LockButton? _unlocked;
     private Button? _unlockedButton;
     private ulong _unlockedAtMs;
+
+    /// <summary>
+    /// The cars in the order Change car showed them when it was opened, by name: a Set inactive (or Set active) leaves
+    /// every row where it was, the car dimmed in its place, until the list is opened again (2026-11-27). Moved to the end,
+    /// the car's place was taken by the next one up, which a double click then picked and drove.
+    /// </summary>
+    private List<string> _carOrder = [];
+
+    /// <summary>
+    /// Until when the car list's rows don't pick a car: a moment after a Set inactive, so a double click's second click
+    /// lands on nothing, even on the same car's name, which widens into the place Set inactive leaves.
+    /// </summary>
+    private ulong _carsQuietUntilMs;
+
+    /// <summary>How long that is: longer than Windows' double-click time, 500 ms at most by default.</summary>
+    private const ulong CarsQuietMs = 600;
 
     private VBoxContainer? _randomForm;
     private Button _randomButton = null!;
@@ -668,11 +684,24 @@ public partial class SeedMenu : CanvasLayer
     /// <summary>
     /// The garage's list, read afresh: a row a car, and beside each of his a lock (2026-11-25). Opening the lock shows Set
     /// inactive (or Set active), which shuts again after five seconds; an inactive car is still driven when picked, but
-    /// Profile every car leaves it out.
+    /// Profile every car leaves it out. With <paramref name="inPlace"/> (after a Set inactive or Set active) the rows keep
+    /// the order the list was opened in, so nothing moves under the pointer; opened again, inactive cars go to the end.
     /// </summary>
-    private void ShowCars(string? said)
+    private void ShowCars(string? said, bool inPlace = false)
     {
         IReadOnlyList<CarRow> cars = Cars?.Invoke() ?? [];
+        if (inPlace)
+        {
+            // A car not in the list when it was opened (there's none today) goes after the rest, in the garage's order.
+            cars = [.. cars.Select((car, i) => (car, i))
+                .OrderBy(c => _carOrder.IndexOf(c.car.Name) is int at and >= 0 ? at : _carOrder.Count + c.i)
+                .Select(c => c.car)];
+        }
+        else
+        {
+            _carOrder = [.. cars.Select(c => c.Name)];
+        }
+
         var rows = new List<Control>();
         foreach (CarRow car in cars)
         {
@@ -681,7 +710,7 @@ public partial class SeedMenu : CanvasLayer
             // The name gives way when Set inactive shows, cut short with "...", so the row never widens: a wider row
             // widens the menu, which slid the lock across and put Set inactive under the pointer that had just
             // unlocked it, where a double click would press it (seen on the first try).
-            Button pick = RowButton(car.Label, car.Pick);
+            Button pick = RowButton(car.Label, car.Pick, () => Time.GetTicksMsec() < _carsQuietUntilMs);
             pick.ClipText = true;
             pick.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             pick.TooltipText = car.Label;
@@ -714,8 +743,9 @@ public partial class SeedMenu : CanvasLayer
                 guarded.Pressed += () =>
                 {
                     Relock();
+                    _carsQuietUntilMs = Time.GetTicksMsec() + CarsQuietMs;
                     string done = toggle();
-                    Callable.From(() => ShowCars(done)).CallDeferred();
+                    Callable.From(() => ShowCars(done, inPlace: true)).CallDeferred();
                 };
                 line.AddChild(guarded);
                 line.AddChild(padlock);
@@ -831,12 +861,15 @@ public partial class SeedMenu : CanvasLayer
         list.Visible = rows.Count > 0;
     }
 
-    /// <summary>A row of a list: picking it unpauses the game first, as Generate does, since the scene starts again; greyed out with nothing to do.</summary>
-    private Button RowButton(string label, Action? pick)
+    /// <summary>
+    /// A row of a list: picking it unpauses the game first, as Generate does, since the scene starts again; greyed out
+    /// with nothing to do; a click does nothing while <paramref name="quiet"/> says so, the game left paused.
+    /// </summary>
+    private Button RowButton(string label, Action? pick, Func<bool>? quiet = null)
     {
         Button row = Button(label, () =>
         {
-            if (pick is not null)
+            if (pick is not null && quiet?.Invoke() != true)
             {
                 GetTree().Paused = false;
                 pick();

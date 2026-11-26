@@ -2,6 +2,25 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-27 — A freeze setting cars inactive was the console; a double click no longer drives the next car
+
+His *"i managed to freeze it marking cars inactive"*, *"specifically random 0 so far"*. **It wasn't the garage's code.**
+The frozen game's main thread was in `WriteFile` to its console (the window `start.cmd` opens, a Windows Terminal tab),
+using no CPU, with nothing in the log: the console had stopped taking text, and a print blocks until it does. From the
+game's memory: in that one run he set 17 cars inactive in about 80 s (random-255738 to 255749, then random-0), each
+printing a line with two full paths, so the console's buffer filled, and random-0's line was the one that didn't fit.
+random-0's file had moved, as it should. **Not reproduced**: on a scratch copy of his garage, its output going to a file,
+20 cars set inactive in a row (one of them the car being driven) never froze. Why the tab stopped reading wasn't seen.
+**Worth knowing**: a game that freezes with no CPU and an empty log may be its console. Look at the `start.cmd` window
+before anything else.
+
+**Found on the way, and fixed at his *"Yes, fix it"***: a double click on Set inactive set the car inactive, moved it to
+the end of the list, and the second click landed on the next car, which had slid up under the pointer, and drove it.
+Now a Set inactive (or Set active) leaves every row where it was, the car dimmed in its place, until Change car is opened
+again, when inactive cars go to the end as before. For 0.6 s after it, longer than Windows' double-click time, a click on
+a car's name does nothing (the same car's name widens into the place Set inactive leaves). Checked on the scratch copy:
+a double click sets one car inactive and nothing else; a click a moment later drives it, from `tunes/inactive/`.
+
 ## 2026-11-27 — A hump and a tabletop (PIECES-PLAN, P2)
 
 His *"Yes, go on"*. Two piece files, no Core code:
