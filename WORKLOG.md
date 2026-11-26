@@ -2,6 +2,14 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-26 — His first play on crossings: the crossover stays
+
+He raced `base:crossover` himself and set the autodriver's profile going on it: *"I have the ai training on it now,
+and have raced it myself its great to showcase the feature like leave it in with the default tracks like its a prime
+example of a short course with some feature to it like :-D"*. It already ships in `content/base/tracks/`, beside the
+shakedown and `gen-5v1`, so nothing moves; it's now there at his word rather than only as the plan's proof. X3's
+other half, a track of his own that goes under itself, is still his to try.
+
 ## 2026-11-26 — Crossings: a road can go under another (PIECES-PLAN, X1 and X2)
 
 His ask was *"more track pieces"*. The plan (`docs/PIECES-PLAN.md`) leads with crossings, because of what he'd said

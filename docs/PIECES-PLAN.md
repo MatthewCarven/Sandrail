@@ -245,6 +245,10 @@ where the old slope does from 118.
 His: **can he build a track that goes under itself, and do the heights work out now?** Each verdict goes
 into the worklog verbatim. Crossings pass on his word.
 
+**Begun 2026-11-26** on the crossover, which he raced himself and set the profile on: *"its great to showcase the
+feature like leave it in with the default tracks like its a prime example of a short course with some feature to it"*.
+So `base:crossover` stays with the game's own tracks, as it shipped. Building one of his own is still to come.
+
 ## P1 onward: the shortlist, a slice each
 
 In the order decisions 2 and 3 give. Each slice: the piece files; Core support with tests where it needs
