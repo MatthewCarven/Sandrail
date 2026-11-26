@@ -53,6 +53,20 @@ public static class Showroom
         "base:slope-up", "base:start-finish", "base:start", "base:straight",
     ];
 
+    /// <summary>Where the crossing's block comes among <see cref="Added"/>.</summary>
+    private const string CrossingBlock = "(crossing)";
+
+    /// <summary>
+    /// The pieces added since the starter set, in the order they were added, the crossing among them, so each new slice's
+    /// stations come after the last one's and none moves: the <c>pieces2</c> oracle drives them. A piece not listed comes
+    /// after these, in the catalogue's order.
+    /// </summary>
+    public static readonly IReadOnlyList<string> Added =
+    [
+        "base:slope-down-steep", "base:slope-up-steep", CrossingBlock,
+        "base:corner-70", "base:corner-70-banked", "base:u-turn", "base:u-turn-banked",
+    ];
+
     public static ShowroomLayout Lay(PieceCatalogue catalogue)
     {
         PieceDef straight = catalogue.Find("base:straight")
@@ -69,9 +83,23 @@ public static class Showroom
         // starter set in bands, as it always was; anything since in the first free spot, a tile clear of the rest, so
         // the gaps the bands leave are filled before anything runs off the grid.
         var taken = new HashSet<Tile>();
+        List<Tile> TilesOf(IReadOnlyList<(string Name, string Hint, List<Placement> Group)> block) =>
+            block.SelectMany(b => b.Group).SelectMany(p => new PlacedPiece(catalogue.Find(p.Piece)!, p).Tiles).ToList();
+
         void Block(IReadOnlyList<(string Name, string Hint, List<Placement> Group)> block, bool starter)
         {
-            var tiles = block.SelectMany(b => b.Group).SelectMany(p => new PlacedPiece(catalogue.Find(p.Piece)!, p).Tiles).ToList();
+            // Facing north as laid; where that finds no room, on its side, facing east, which the space above a band
+            // left by its tallest group often has.
+            if (!starter && FreeSpot(TilesOf(block), taken) is null)
+            {
+                var turned = block.Select(b => (b.Name, b.Hint, b.Group.Select(QuarterTurned).ToList())).ToList();
+                if (FreeSpot(TilesOf(turned), taken) is not null)
+                {
+                    block = turned;
+                }
+            }
+
+            var tiles = TilesOf(block);
             int minColumn = tiles.Min(t => t.Column);
             int maxColumn = tiles.Max(t => t.Column);
             int minRow = tiles.Min(t => t.Row);
@@ -113,19 +141,28 @@ public static class Showroom
             }
         }
 
-        // A landing is shown after each launch ramp, across its gap, not on its own.
-        IEnumerable<PieceDef> shown = StarterSet.Select(catalogue.Find).OfType<PieceDef>()
-            .Concat(catalogue.All.Where(p => !StarterSet.Contains(p.Id)))
-            .Where(p => p.In != ConnectorKind.Landing);
-        foreach (PieceDef piece in shown)
+        // The starter set, then what's been added in the order it was, then anything else; a landing is shown after
+        // each launch ramp, across its gap, not on its own.
+        IEnumerable<string> order = StarterSet.Concat(Added).Concat(catalogue.All.Select(p => p.Id).Where(id => !StarterSet.Contains(id) && !Added.Contains(id)));
+        foreach (string id in order)
         {
+            if (id == CrossingBlock)
+            {
+                if (Crossing(catalogue) is var (under, over))
+                {
+                    Block([(CrossingUnder, "under the deck, as fast as you like", under), (CrossingOver, "up two levels, over, and down", over)], false);
+                }
+
+                continue;
+            }
+
+            if (catalogue.Find(id) is not PieceDef piece || piece.In == ConnectorKind.Landing)
+            {
+                continue;
+            }
+
             string hint = piece.SpeedKmh is float[] speed ? $"take it at {speed[0]:F0}-{speed[1]:F0} km/h" : "drive it as it comes";
             Block([(piece.Name, hint, Group(piece, straight, catalogue))], StarterSet.Contains(piece.Id));
-        }
-
-        if (Crossing(catalogue) is var (under, over))
-        {
-            Block([(CrossingUnder, "under the deck, as fast as you like", under), (CrossingOver, "up two levels, over, and down", over)], false);
         }
 
         // Where one road runs over another, it goes up on pillars, as on a track.
@@ -155,6 +192,10 @@ public static class Showroom
         var legs = all.Where(p => p.Pillars).SelectMany(p => Stacking.Legs(p, all)).ToList();
         return new ShowroomLayout(all, stations, swapped) { Legs = legs };
     }
+
+    /// <summary>A placement turned a quarter clockwise about the grid's corner, as a whole group turns: north becomes east.</summary>
+    private static Placement QuarterTurned(Placement p) =>
+        p with { At = new Tile(-p.At.Row, p.At.Column), Rotation = (p.Rotation + 1) % 4 };
 
     /// <summary>
     /// The first shift, scanning from the grid's south-west corner row by row, that puts a block's tiles on the grid,

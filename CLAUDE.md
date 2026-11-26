@@ -216,7 +216,9 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   `PieceDef` (a piece as data: tiles, way in, way out, road steps; refused if its road misses its way
   out by a millimetre), `Placement` and `PlacedPiece` (turned and mirrored onto the grid),
   `PieceCatalogue` (one piece a file from `content/base/pieces/`), the `Showroom` (the starter set where it always
-  was, pieces added since in the first free spot, then the crossing), `Stacking` (crossings, PIECES-PLAN: when two
+  was, then the pieces added since in the order they were added, `Showroom.Added`, the crossing among them, each in
+  the first free spot and on its side if it must be: add a new piece's ID to the end of `Added` and to the editor's
+  `PaletteOrder`, or `pieces2`'s stations move), `Stacking` (crossings, PIECES-PLAN: when two
   pieces may share a tile, one 4 m clear over the other, measured on the road; the legs under a deck, left out over a
   road below; `Lay` puts a piece with road under it on pillars, `PlacedPiece.Pillars`, never kept in the file), and `Track` (the
   track file, from `content/base/tracks/`: load, save, `Lay` against the catalogue for its problems and
@@ -338,8 +340,12 @@ nothing new in the file; the editor places, erases and test-drives by level and 
 short; **steep slopes** (two levels over three tiles, a crossing in seven tiles); the showroom's crossing stations;
 `base:crossover`, a figure-of-eight circuit of 963 m a lap under and over itself (the stock car 2:04.59 at 80%,
 clean); the `pieces2` oracle. Every track's fingerprint, his saved ones included, and every other oracle are as they
-were. **X3, his play on crossings, is next**; then the rest he picked: 70 m corners and a U-turn, a hump and a
-tabletop, dirt and sand straights and a 40° bank, then a climbing corner and a corkscrew. The generator stays version 1.
+were. **X3, his play on crossings, has begun**: he raced the crossover and kept it with the game's own tracks ("a
+prime example of a short course with some feature to it"); a crossing of his own is still to come. **P1 is built**
+(2026-11-27): 70 m corners on 4 × 4, flat and banked, and a 20 m U-turn on 3 × 2, flat and banked, whose way out is
+on its back beside its way in; measured by `pieces2` (70 m holds 79 km/h, banked 99; the U-turn 50, banked 59: a
+bank eases in from flat, so it counts for less than its full angle says). Next: a hump and a tabletop, then dirt and
+sand straights and a 40° bank, then a climbing corner and a corkscrew. The generator stays version 1.
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by

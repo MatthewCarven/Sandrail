@@ -1,0 +1,7 @@
+{
+  "id": "base:u-turn",
+  "name": "U-turn, 20 m",
+  "tiles": [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]],
+  "out": { "tile": [2, 0], "side": "back" },
+  "path": [{ "turn": { "angle": 180, "radius": 20 } }]
+}

@@ -42,8 +42,8 @@ public partial class Oracle
 
     public static bool NeedsShowroom(string kind) => kind is Pieces or Pieces2;
 
-    /// <summary>A loop, a jump or a slope as M2b drove them; or the crossing driven under its deck.</summary>
-    private enum TrialKind { Loop, Jump, Slope, Under }
+    /// <summary>A loop, a jump or a slope as M2b drove them; the crossing driven under its deck; or a corner held at a speed.</summary>
+    private enum TrialKind { Loop, Jump, Slope, Under, Corner }
 
     /// <summary>A piece at a speed; or with <paramref name="Station"/>, a station's whole road, as for the crossing.</summary>
     private sealed record PieceTrial(string Piece, float Kmh, TrialKind Kind, string? Station = null);
@@ -66,6 +66,25 @@ public partial class Oracle
         new("base:straight", 160.0f, TrialKind.Under, Sandrail.Core.Tracks.Showroom.CrossingUnder),
         new("base:straight", 80.0f, TrialKind.Slope, Sandrail.Core.Tracks.Showroom.CrossingOver),
         new("base:straight", 120.0f, TrialKind.Slope, Sandrail.Core.Tracks.Showroom.CrossingOver),
+
+        // P1: each corner held at rising speeds, steered down its middle, to find where it stops holding. A bank eases in
+        // from flat at each end, so a banked corner's limit is nearer its flat twin's than its full bank suggests.
+        new("base:corner-70", 70.0f, TrialKind.Corner),
+        new("base:corner-70", 80.0f, TrialKind.Corner),
+        new("base:corner-70", 90.0f, TrialKind.Corner),
+        new("base:corner-70-banked", 80.0f, TrialKind.Corner),
+        new("base:corner-70-banked", 90.0f, TrialKind.Corner),
+        new("base:corner-70-banked", 100.0f, TrialKind.Corner),
+        new("base:corner-70-banked", 110.0f, TrialKind.Corner),
+        new("base:u-turn", 40.0f, TrialKind.Corner),
+        new("base:u-turn", 45.0f, TrialKind.Corner),
+        new("base:u-turn", 50.0f, TrialKind.Corner),
+        new("base:u-turn", 55.0f, TrialKind.Corner),
+        new("base:u-turn-banked", 45.0f, TrialKind.Corner),
+        new("base:u-turn-banked", 50.0f, TrialKind.Corner),
+        new("base:u-turn-banked", 55.0f, TrialKind.Corner),
+        new("base:u-turn-banked", 60.0f, TrialKind.Corner),
+        new("base:u-turn-banked", 65.0f, TrialKind.Corner),
     ];
 
     private static readonly PieceTrial[] Trials =
@@ -153,6 +172,9 @@ public partial class Oracle
                 break;
             case TrialKind.Under:
                 RunUnderTrial(trial, steer, along);
+                break;
+            case TrialKind.Corner:
+                RunCornerTrial(trial, steer, along);
                 break;
         }
 
@@ -256,6 +278,38 @@ public partial class Oracle
             float air = _trialAirTicks / (float)GameClock.TicksPerSecond;
             string name = trial.Piece == "base:slope-up" && trial.Station is null ? "slope" : TrialName(trial);
             _trialFigures.Add($"{name} at {_trialInSpeed * 3.6f:F0} km/h: {(air > 0.0f ? $"{air:F2} s in the air" : "wheels down")}");
+        }
+    }
+
+    /// <summary>
+    /// A corner held at a speed (PIECES-PLAN, P1), steered down its middle: whether the car kept its wheels on the road,
+    /// by the profile meter's rule (its middle no further out than the road leaves its tyres, and half a metre), and the
+    /// widest it ran.
+    /// </summary>
+    private void RunCornerTrial(PieceTrial trial, float steer, float along)
+    {
+        Car.Driver = Hold(trial.Kmh / 3.6f) with { Steer = steer };
+        if (along >= _trialMainStart && along <= _trialMainEnd)
+        {
+            if (_trialInAt is null)
+            {
+                _trialInAt = Time;
+                _trialInSpeed = Car.LinearVelocity.Length();
+                _trialSlowestTop = 0.0f;
+            }
+
+            _trialSlowestTop = MathF.Max(_trialSlowestTop, MathF.Abs(_trialLine!.LateralOffset(Math.Max(_trialHint, 0), Car.GlobalPosition.ToCore())));
+        }
+
+        // Off the road ends the trial there and then: a car that's lost the corner only wanders.
+        float leaves = (_trialPiece!.Def.WidthM / 2.0f) - 0.15f - ((Car.Spec.TrackM / 2.0f) + 0.15f) + 0.5f;
+        if (_trialInAt is not null && _trialSlowestTop > leaves)
+        {
+            _trialFigures.Add($"{TrialName(trial)} at {_trialInSpeed * 3.6f:F0} km/h: OFF THE ROAD, {along - _trialMainStart:F0} m into it");
+        }
+        else if (_trialInAt is not null && along > _trialMainEnd + 20.0f)
+        {
+            _trialFigures.Add($"{TrialName(trial)} at {_trialInSpeed * 3.6f:F0} km/h: held it, at most {_trialSlowestTop:F1} m off its middle");
         }
     }
 
@@ -389,6 +443,10 @@ public partial class Oracle
         "base:launch-long" => "long jump",
         "base:slope-up-steep" => "steep slope up",
         "base:slope-down-steep" => "steep slope down",
+        "base:corner-70" => "70 m corner",
+        "base:corner-70-banked" => "banked 70 m corner",
+        "base:u-turn" => "U-turn",
+        "base:u-turn-banked" => "banked U-turn",
         _ => trial.Piece,
     };
 }

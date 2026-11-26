@@ -44,6 +44,9 @@ public partial class EditorView : Node3D
         "base:slope-up", "base:slope-down", "base:s-bend", "base:chicane",
         "base:launch-short", "base:launch-long", "base:landing", "base:loop",
         "base:start", "base:checkpoint", "base:finish", "base:start-finish",
+
+        // Added since (PIECES-PLAN), after the starter set so its keys stay where they were.
+        "base:slope-up-steep", "base:slope-down-steep", "base:corner-70", "base:corner-70-banked", "base:u-turn", "base:u-turn-banked",
     ];
 
     private static readonly Regex PieceIndex = new(@"pieces\[(\d+)\]", RegexOptions.Compiled);

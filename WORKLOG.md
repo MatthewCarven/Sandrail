@@ -2,6 +2,45 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-27 — 70 m corners and a U-turn (PIECES-PLAN, P1)
+
+His *"Yes, start them"* for the cheap pieces, in the plan's order. Four piece files, no Core code:
+- **`base:corner-70`** and **`base:corner-70-banked`**: 90° on 4 × 4 tiles, radius 70 (M2's 20n − 10), the bank 20° as
+  the other banked corners have it. A fast sweeper, which the set hadn't got.
+- **`base:u-turn`** and **`base:u-turn-banked`**: 180° on 3 × 2 tiles, radius 20, its way out on its back, two tiles
+  to the right of its way in (the left, mirrored). The road comes back beside the road that led in, 40 m between their
+  middles. No piece had a way out on its back before. `Lay`, the editor's next and the racing line all took it as it
+  is.
+
+**Measured** (`pieces2`, each corner held at a speed, steered down its middle, stepping up until the car leaves the
+road; the stock car):
+
+| Corner | Holds at | Leaves the road at | The plan's starting number |
+|---|---|---|---|
+| 70 m | 79 km/h, 1.1 m off its middle | 89 | 99 |
+| 70 m banked | 99, 1.5 m | 108 | 148 |
+| U-turn | 50, 0.9 m | 55 | 53 |
+| U-turn banked | 59, 1.4 m | 64 | 79 |
+
+**The banked numbers were wrong in the plan.** A bank eases in from flat over the first half of the corner and out
+over the second (M2's ease, 0.5), so at its entry a banked corner grips little better than its flat twin. The full
+bank's speed is only true at its middle. It's the same for the starter set's banked corners. The ease is the lever
+if he wants banks to count for more. The flat 70 m corner comes in under its arithmetic too: holding 89 km/h takes
+throttle, and throttle takes rear grip. The autodriver plans every corner from its curvature and its bank point by point,
+so it takes all four as it takes any corner.
+
+**The showroom** has them at stations 21-24, after the crossing, so stations 1-20 stay where they were. Each slice's pieces
+now come after the last slice's, in the order they were added (`Showroom.Added`). Before, they came in their files'
+order, and `corner-70` would have pushed the steep slopes and the crossing along. The grid is filling up: a test's
+extra 8-tile slope found nowhere left to stand facing north. So **a new block that won't fit facing north lies on its
+side, facing east**, in the gap above a band. Every block so far fits facing north, so none moved. The palette lists the
+new pieces after the starter set, the steep slopes first.
+
+**Checks**: 385 tests (6 for these: the 70 m corner's footprint, way out and radius; the U-turn's way out beside its way
+in, both hands; a sprint through each U-turn; the editor laying on from a U-turn's end). `pieces2`'s first ten figures,
+for the steep slopes and the crossing, as before. The other seventeen oracles byte for byte, and every track's
+fingerprint (his saved ones from a scratch copy) as before. The headless check, and screenshots of the new stations.
+
 ## 2026-11-26 — His first play on crossings: the crossover stays
 
 He raced `base:crossover` himself and set the autodriver's profile going on it: *"I have the ai training on it now,

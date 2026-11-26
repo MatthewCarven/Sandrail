@@ -249,6 +249,18 @@ into the worklog verbatim. Crossings pass on his word.
 feature like leave it in with the default tracks like its a prime example of a short course with some feature to it"*.
 So `base:crossover` stays with the game's own tracks, as it shipped. Building one of his own is still to come.
 
+## P1: 70 m corners and the U-turn
+
+**Built 2026-11-27**: four piece files, no Core code; 6 tests, worklog that date. **Measured, against the table's
+starting numbers**: `pieces2` holds each at a speed, steered down its middle, and steps up until the car leaves the
+road. The 70 m corner holds at 79 km/h and not at 89; banked, at 99 and not at 108. The U-turn holds at 50 and not at
+55; banked, at 59 and not at 64. **The banked figures are far under the table's 148 and 79**: a bank eases in from
+flat over half the corner and out over the other half (M2's ease, 0.5), so at its entry a banked corner grips no
+better than its flat twin, and the full bank's figure is true only at its middle. The ease is the lever if he wants
+banks to count for more. Departures: **the showroom lays each slice's pieces after the last's**, in the order they were
+added (`Showroom.Added`), so no station moves under `pieces2`; and **a block that finds no room facing north lies on
+its side**, facing east, since the grid is filling up. The palette lists the new pieces after the starter set.
+
 ## P1 onward: the shortlist, a slice each
 
 In the order decisions 2 and 3 give. Each slice: the piece files; Core support with tests where it needs
