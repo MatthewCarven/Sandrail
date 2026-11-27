@@ -98,11 +98,14 @@ ghosts and sheets are orphaned (PIECES-PLAN, "Pinned").
 Headless check, which catches scene and script errors (`--quit-after` counts **frames**):
 
 ```bash
-Godot_v4.7.1-stable_mono_win64/Godot_v4.7.1-stable_mono_win64_console.exe --path Sandrail.Game --headless --quit-after 240
+Godot_v4.7.1-stable_mono_win64/Godot_v4.7.1-stable_mono_win64_console.exe --log-file "$TEMP/sandrail-check.log" --path Sandrail.Game --headless --quit-after 240
 ```
 
 The pass prints `Core linked: Hash64.Mix(0) = 0xE220A8397B1DCDAF`. After a fresh clone, import once
-first: the same command with `--import` in place of `--quit-after 240`.
+first: the same command with `--import` in place of `--quit-after 240`. **Every launch for a check passes `--log-file`**
+to somewhere else: Godot keeps only the last five logs in `%APPDATA%\Godot\app_userdata\Sandrail\logs\` and every
+launch pushes the oldest out, so checks run without it lose his (two on 2026-11-27; the oracles, eighteen launches, used
+to replace all five, and `tools/oracles.ps1` now writes its log to the temp folder).
 
 **The oracles** drive the car headless and print one line each, ending with the spec's fingerprint
 (M1-PLAN, M1a). Run them after any change to the car, and quote them in the worklog:
@@ -169,7 +172,7 @@ from one track to the next, over the flag, until the game is closed),
 `--ghost=you|auto|none|<car>` (whose ghost shows on a track, M4c; since P4 a car profiled on the track, by its name or
 fingerprint, `--ghost=stock`; G changes it in the game) and
 `--ghosts=<folder>` (where ghosts and bests are kept, `user://ghosts` unless told: **point checks at a
-scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--tunes=<folder>` (the garage's cars, `user://tunes` unless told: **a scratch copy for checks** too; the Esc menu's Change car picks one, and the lock beside a car there unlocks Set inactive, which moves its file into `inactive/` inside the folder, still listed and drivable but left out of Profile every car; F2's Save as a new car adds one, and Save on the stock car asks for a name, since the game never writes it), `--profile=this|all` with `--track=` or `--seed=` (P3: the autodriver sweeps the car, or every car in the garage, from 50% aggression by 5% until a run isn't clean, writes a row a run and quits; in play the Esc menu's Profile button opens Profile this car and Profile every car, which do the same, Esc stops it), `--profile=everywhere`, needing neither (every car on every track: Profile every car on each of Load a track's tracks in turn, the unfinished ones left out and a fingerprint profiled once; Profile every car on every track, the third under the Esc menu's Profile, does the same in play and comes back to the track and car it began on, Esc stops it) and `--profiles=<folder>` (where the sheets go, `user://profiles` unless told: **a scratch folder for checks**, since every finished run of his writes a row there too), `--replay=you|auto|<car>` (a profiled car's best by name or fingerprint, P4) with `--replay-at=<seconds>` and
+scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--tunes=<folder>` (the garage's cars, `user://tunes` unless told: **a scratch copy for checks** too; the Esc menu's Change car picks one, and the lock beside a car there unlocks Set inactive, which moves its file into `inactive/` inside the folder, still listed and drivable but left out of Profile every car; F2's Save as a new car adds one, and Save on the stock car asks for a name, since the game never writes it), `--profile=this|all` with `--track=` or `--seed=` (P3: the autodriver sweeps the car, or every car in the garage, from 50% aggression by 5% until a run isn't clean, writes a row a run and quits; in play the Esc menu's Profile button opens Profile this car and Profile every car, which do the same, Esc stops it), `--profile=everywhere`, needing neither (every car on every track: Profile every car on each of Load a track's tracks in turn, the unfinished ones left out and a fingerprint profiled once; Profile every car on every track, the third under the Esc menu's Profile, does the same in play and comes back to the track and car it began on, Esc stops it), `--profile=unprofiled`, needing neither too (Profile unprofiled cars, the fourth under Profile: the same chain driving only the cars a track's sheets haven't a whole sweep of, a stopped sweep carried on from the caution after its last clean run, so a run that died is picked up where it left off) and `--profiles=<folder>` (where the sheets go, `user://profiles` unless told: **a scratch folder for checks**, since every finished run of his writes a row there too), `--replay=you|auto|<car>` (a profiled car's best by name or fingerprint, P4) with `--replay-at=<seconds>` and
 `--replay-camera=trackside|chase|free` (a saved best's replay from the start, M4d, for a look or a
 screenshot; in the game Enter watches the last run and the Esc menu offers the bests),
 `--time=<scale>` (how fast time goes, `0.25` for a quarter speed; in the game `,` and `.`, or the D-pad's left and
@@ -234,7 +237,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   car profile's (PROFILE-PLAN, P1): `RunMeter` (a run tick by tick: time and slowest speed on each route piece, lap
   by lap, top speed, off road, slides, spins past 30°, respawns; clean or not) and `CarSheet` (a run as a CSV row
   under a header from the track's route, the track's name in every row since 2026-11-25, one file per track, every
-  car's numbers in `cars.csv`).
+  car's numbers in `cars.csv`), and `ProfileProgress` (2026-11-27: `ProfileSweep`, the sweep's cautions and when it ends,
+  and what a track's sheets say each car's sweep has come to, for Profile unprofiled cars).
 - `Sandrail.Core.Tests/` — xunit.
 - `Sandrail.Bench/` — headless measurements, one arm per flag.
 - `Sandrail.Game/` — the Godot project. `project.godot` sets Jolt, 120 physics ticks a second and
@@ -248,7 +252,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   meter), the `Garage` (the stock car, `user://tunes/` and the inactive cars in `tunes/inactive/`; `Main.Garage.cs` is the Esc menu's Change car and Random cars, which notes how each random car was made in `tunes/random-cars.csv`) and the
   replay's `FreeCamera`; `Main.Profile.cs` is the profiler (sweeps through the race's own code, rows to the sheet,
   rows held while a spreadsheet has it open), and `Main.ProfileEverywhere.cs` chains it over every track (Profile every
-  car on every track); `Main.Ghosts.cs` loads and saves each
+  car on every track, and Profile unprofiled cars), and `Main.ProfileWatch.cs` watches every load a profile makes (a
+  minute to get its first run going, tried twice, then skipped); `Main.Ghosts.cs` loads and saves each
   track's bests as ghosts, and since P4 each profiled car's best clean run (`profile-<car fingerprint>.ghost`, G steps
   through them), and `Main.Replay.cs` plays a run back (trackside, chase or free cameras);
   `Editor/` the `EditorView` (M5: camera, cursor, track laid onto the road's end, the palette, the mouse, problems; `Main.Editor.cs` opens it); `Ui/` the `Hud`, `TelemetryOverlay`, `TuningPanel`, the Esc menu (`SeedMenu`) and its drawn padlock (`LockButton`); `World/` builds the test ground's meshes and
@@ -331,6 +336,15 @@ on it), the wing redrawn with the spread as its chance, into the garage as `rand
 and groups make the same car (`RandomCars` in Core, `Hash64` only), and `tunes/random-cars.csv` notes what made each.
 Change car lists them and Profile every car drives them, with no button of their own (his pick). Five at 25% around the
 stock car on the shakedown: two clean to 80% (one 56.84 against the stock car's 56.73), three not clean at 50%.
+**A watch on every load, and Profile unprofiled cars** (2026-11-27, his asks, with about 110 active cars making a run of
+every track last all day): his 7.7-hour run died out of memory on track 8, but the machine's, not the game's (Windows
+named a virtual machine at 4.3 GB and the game at a steady 1.36 GB; measured, the game doesn't grow), and each track's
+line in the log now says the game's memory and what the machine has to spare. Every load a profile makes (the next car,
+the next track) has a minute to get its first run going, is tried twice, then skipped, said in the log and on the board,
+and the profile carries on; a track or car the game refuses is skipped at once instead of quitting the game. **Profile
+unprofiled cars**, fourth under Profile, `--profile=unprofiled`, drives only what each track's sheets haven't got, a
+stopped sweep carried on from the caution after its last clean run (his pick). Jolt's "exceeded the maximum number of
+jobs" warning is Godot's own, once a launch, and changes no row.
 **P5, his play with the profile, is next**, then his tuning.
 **More pieces** (2026-11-26, his ask, `docs/PIECES-PLAN.md`, its five decisions his): **crossings first**, since he
 "can never get the heights to work out correctly like i want to go under sometimes", which was never heights: a tile

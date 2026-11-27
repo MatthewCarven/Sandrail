@@ -24,10 +24,14 @@ Set-Location (Split-Path $PSScriptRoot -Parent)
 dotnet build Sandrail.Game --nologo -v q
 if ($LASTEXITCODE -ne 0) { throw "Build failed - not running stale code." }
 
+# The oracles' log goes in the temp folder, not the game's user://logs, where Godot keeps only the last five and
+# eighteen oracles would push out every one of Matthew's (2026-11-27).
+$log = Join-Path ([System.IO.Path]::GetTempPath()) "sandrail-oracles.log"
+
 foreach ($oracle in $Oracles) {
     $flags = @("--oracle=$oracle")
     if ($specPath) { $flags += "--spec=$specPath" }
-    $output = & $Godot --path Sandrail.Game --headless --fixed-fps 120 -- @flags 2>&1
+    $output = & $Godot --log-file $log --path Sandrail.Game --headless --fixed-fps 120 -- @flags 2>&1
     $line = $output | Where-Object { "$_" -match "^oracle " }
     if ($line) { $line } else { "oracle ${oracle}: NO RESULT"; $output | Select-Object -Last 15 }
 }

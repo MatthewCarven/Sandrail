@@ -2,6 +2,91 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-27 — Every track: why the long run died, a watch on every load, and Profile unprofiled cars
+
+His three asks about Profile every car on every track, now that his garage holds about 110 active cars and a full run
+takes all day: what Jolt's warning is, a check that each track really started so a run doesn't die between tracks, and
+his idea of a **Profile unprofiled cars** button, *"instead?"*. Asked, he picked both, the button fourth under Profile,
+and a stopped sweep carried on rather than started again.
+
+**Why his 7.7-hour run died: out of memory, the machine's rather than the game's.** The run (in the window) was on track
+8 of 43, Seed 987758, 464 minutes in, after 5,280 runs and 884 changes of car, when a car's load couldn't get the memory
+for the ground's mesh (`Out of memory`, `Parameter "mem" is null`, in `TerrainView.Build`), and the game went down.
+**Windows had logged low memory four times that afternoon** (System log, Resource-Exhaustion-Detector, 3:28 to 3:46 pm),
+each time naming the three biggest users: `vmmem` (a virtual machine) at 4.3 GB, `vmmemWSL` at 1.4 GB, and the game at
+**1.36 GB**, the same in all four, a window's ordinary size. At 6:29 that morning `csharpsynthrack.exe` had 8.6 GB. The
+run's pace held at ×14.4 to ×15.5 track after track, which it wouldn't have done if it were paging. **Measured, the game
+doesn't grow**: 60 reloads of a generated track headless stay at 200-215 MB, 40 in the window at 1.1-1.2 GB; 8 cars
+profiled on one track (47 runs, 9 loads) stay at 270-450 MB headless and 1.13-1.27 GB in the window, the swing being
+.NET's own heap, which tidies up when it likes. The one thing that does creep is Windows handles, about 65 a load (1,200
+to 1,600 over six loads in the window), which over 884 loads is some 57,000: not memory to speak of, and not chased.
+**So**: a long run wants the machine's memory free of other big things, and each track's line in the log now says how
+much the game has and how much the machine has to spare, `the game 1.3 GB, the machine 9.4 GB to spare`, so a run that
+dies says which it was.
+
+**Jolt's warning is Godot's own, and changes nothing.** *"Jolt Physics job system exceeded the maximum number of jobs.
+This should not happen. Please report this."* Godot 4.7.1's Jolt shares 2,048 job slots between every physics world, and
+a slot comes back only once one of Godot's worker threads has run its job. A profile steps physics back to back (×16, up
+to 64 ticks a frame), and when the worker threads are held up (a machine short of memory, or busy) the slots run out; Jolt
+then waits a tenth of a millisecond at a time until they come back, and runs the job. It says so once a launch
+(`WARN_PRINT_ONCE`), which is why each of his three logs with it has it once: at the first profile run in two, 35 minutes
+in in the third. None of my four test runs (about 130 runs at ×16, headless and in the window) printed it. **Not the fresh
+world each load gets** (2026-11-25): a world with no bodies makes no jobs, and the reload tests left nothing behind. Rows
+are the same with it or without, since a job that waits still runs. Nothing to fix on our side short of slowing the
+profile down.
+
+**The console?** (2026-11-27's freeze was a print that never returned.) Of his logs that survive, the one real failure is
+the out of memory above; the others end mid-run because the game was stopped. One shows **two games writing one log**:
+he started the game again while a profile ran, and the new one copied `godot.log` aside and emptied it under the old one,
+whose next lines landed after a gap of zeros. Worth knowing when a log looks garbled.
+
+**What's built**:
+- **A watch on every load a profile makes** (`Main.ProfileWatch.cs`): the next car, or the next track. A load has a
+  minute of real time to get its first run going (a track with its ground and 220 ghosts is up in two or three seconds).
+  If it hasn't, it's tried once more; if that fails too it's skipped, said in the log and on the board (the banner counts
+  what wouldn't start, the end lists it), and the profile carries on with the next car or the next track. The watch is a
+  timer of the scene tree's, which outlives the scenes, so it works whatever state the stuck scene is in.
+- **A track or car the game refuses is skipped at once**: a refusal used to quit the game, and the whole run with it (a
+  track file moved, a car deleted, mid-run). Trying it again would refuse it again.
+- **Profile unprofiled cars**, fourth under Profile, and `--profile=unprofiled`: the same chain over every track, but on
+  each track only the cars its sheets haven't a whole sweep of. A sweep is whole when a run wasn't clean, or one was
+  clean at 100%; one stopped partway goes on from the caution after its last clean run (his pick: no rows twice); a car
+  never driven there starts at 50%. Every sheet of the track is read, by its fingerprint, whatever name the track had (the
+  `(2)` files a header change started, and the `(written while open)` ones). Only the autodriver's rows count, from any
+  version of the game. A track with nothing left costs its load; the end says how many had every car already.
+- **Core**: `ProfileSweep` (50% to 100% by 5%, and when a sweep ends) and `ProfileProgress` (what the sheets say),
+  6 tests, one pinning that a caution read back from a sheet's `0.65` goes on to the very float a sweep that never
+  stopped drives next, since the autodriver plans with it.
+
+**Checked on scratch folders** (the stock car and two of his random cars, the game's three tracks, headless):
+- **A run killed and picked up comes out the same as one that never stopped.** Every car on every track straight
+  through: 66 runs in 6 min 15 s. The same killed at 150 s (20 runs, partway through random-105681's sweep on the
+  Crossover), then Profile unprofiled cars: it passed over the two cars whose sweeps there had ended, carried
+  random-105681 on from 55%, and did the other 46 runs. All three sheets and `cars.csv` the same, row for row, the time
+  each was written aside.
+- **Profile unprofiled cars with nothing left** passes over all three tracks in a second: 0 runs, *3 tracks had every
+  car profiled already*.
+- **A car whose file went missing mid-profile** (moved away 6 s in): refused, skipped, and the profile ended as it
+  should, *1 car wouldn't start, skipped: random-105681*. Before, the game quit there.
+- **The watch**, with a hook (not committed) breaking one car's loads and the Shakedown's, and the minute cut to 5 s: each
+  broken car load was tried twice and skipped on both tracks, the next track came up each time, and the Shakedown was
+  tried twice and skipped: *2 tracks profiled, 29 runs; 1 skipped: Shakedown (wouldn't start); 2 cars wouldn't start:
+  random-105681 on Crossover, random-105681 on Seed 5*.
+- **Jolt's warning showed once**, with two test games at ×16 on the machine together, and the stock car still came out
+  56.73 at 80% on the Shakedown, its figure since 2026-11-23.
+- The menu's Profile list in the default window has the fourth row; the note under it was cut so the list still fits
+  with a scroll.
+- 396 tests (6 new), the headless check. The car's physics isn't touched; all eighteen oracles were run to check the
+  script, the track oracle reading `FINISHED in 56.76 | splits 21.54, 40.64` as before, and his logs folder untouched
+  after their eighteen launches.
+
+**His logs.** Godot keeps only the last five in `user://logs`, and every launch pushes the oldest out. My first two test
+launches did that before I saw it: `godot2026-11-27T05.31.59.log` (seven lines of start-up) and `06.28.55.log` (his
+11-car run to track 9, read before it went: the warning 35 minutes in, nothing else wrong) are gone. **The oracles,
+eighteen launches, replaced all five every time a session ran them.** `tools/oracles.ps1` now writes its log to the temp
+folder, and CLAUDE.md says every check passes `--log-file`. Raising Godot's limit (`debug/file_logging/max_log_files`)
+is his call.
+
 ## 2026-11-27 — A freeze setting cars inactive was the console; a double click no longer drives the next car
 
 His *"i managed to freeze it marking cars inactive"*, *"specifically random 0 so far"*. **It wasn't the garage's code.**

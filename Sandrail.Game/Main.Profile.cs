@@ -37,16 +37,18 @@ namespace Sandrail.Game;
 /// </remarks>
 public partial class Main
 {
-    private const float ProfileFirst = 0.50f;
-    private const float ProfileLast = 1.00f;
-    private const float ProfileStep = 0.05f;
     private const double ProfileScale = GameClock.Fastest;
     private const float ProfileStuckSeconds = 8.0f;
     private const double ProfileTimeLimitS = 600.0;
 
-    // The profile across scene restarts: the cars still to do, where the rows go, what's waiting to be written.
+    // The profile across scene restarts: the cars still to do and the caution each goes on from, where the rows go,
+    // what's waiting to be written, the track's flags (for a car the watch moves on to), and the cars that wouldn't start.
     private static bool _profileActive;
-    private static readonly Queue<string> ProfileCars = new();
+    private static readonly Queue<(string Path, float From)> ProfileCars = new();
+    private static float _profileFrom = ProfileSweep.First;
+    private static string[] _profileTrackArgs = [];
+    private static string _profileTrackName = string.Empty;
+    private static readonly List<string> ProfileCarsSkipped = new();
     private static int _profileCarsTotal;
     private static int _profileCarNumber;
     private static int _profileRows;
@@ -123,18 +125,19 @@ public partial class Main
         if (!_profileFlagUsed && Flag(args, "--profile=") is string which)
         {
             _profileFlagUsed = true;
-            if (which is not ("this" or "all" or "everywhere"))
+            if (which is not ("this" or "all" or "everywhere" or "unprofiled"))
             {
-                Refuse($"--profile={which}: it's this (the car driven), all (every car in the garage) or everywhere (every car on every track).");
+                Refuse($"--profile={which}: it's this (the car driven), all (every car in the garage), everywhere (every car on every track) "
+                    + "or unprofiled (every car on every track that its sheet hasn't a whole sweep of).");
                 return;
             }
 
             _profileFromFlag = true;
             Callable.From(() =>
             {
-                if (which == "everywhere")
+                if (which is "everywhere" or "unprofiled")
                 {
-                    StartProfileEverywhere();
+                    StartProfileEverywhere(which == "unprofiled");
                 }
                 else
                 {
@@ -147,29 +150,55 @@ public partial class Main
     /// <summary>The Esc menu's Profile this car and Profile every car.</summary>
     private void StartProfile(bool every)
     {
-        if (_track is null || _race is null || _testDriveFrom is not null || _car is null || _tuning is null || _hud is null)
+        if (!CanProfile())
         {
-            _hud?.Flash("A profile needs a track raced from its start gate.", 4.0);
             return;
         }
 
-        ProfileCars.Clear();
-        string driving = _tuning.SpecPath;
         // Every car is every active one: a car set inactive in Change car is left out (2026-11-25).
-        foreach (string car in every ? Garage.All().Where(c => c.Spec is not null && !c.Inactive).Select(c => c.Path) : [driving])
+        List<(string, float)> cars = every
+            ? ActiveCars().Select(c => (c.Path, ProfileSweep.First)).ToList()
+            : [(_tuning!.SpecPath, ProfileSweep.First)];
+        BeginProfile(cars, every ? $"every car ({cars.Count})" : Garage.NameOf(_tuning!.SpecPath));
+    }
+
+    /// <summary>Whether this scene can be profiled on: a track raced from its start gate, with a car; said if not.</summary>
+    private bool CanProfile()
+    {
+        if (_track is null || _race is null || _testDriveFrom is not null || _car is null || _tuning is null || _hud is null)
+        {
+            _hud?.Flash("A profile needs a track raced from its start gate.", 4.0);
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>The garage's active cars, the stock car first: what Profile every car drives.</summary>
+    private static IEnumerable<Garage.Car> ActiveCars() => Garage.All().Where(c => c.Spec is not null && !c.Inactive);
+
+    /// <summary>A profile of these cars on this track, each from its own caution: the first car's sweep, here or after a change of car.</summary>
+    private void BeginProfile(IReadOnlyList<(string Path, float From)> cars, string which)
+    {
+        ProfileCars.Clear();
+        foreach ((string, float) car in cars)
         {
             ProfileCars.Enqueue(car);
         }
 
+        string driving = _tuning!.SpecPath;
         _profileCarsTotal = ProfileCars.Count;
         _profileCarNumber = 0;
         _profileRows = 0;
         ProfileGhostsKept.Clear();
+        ProfileCarsSkipped.Clear();
         _profileReturnCar = driving;
+        _profileTrackArgs = _args;
+        _profileTrackName = _everywhereTrack?.Short ?? _track!.Track.Name;
         _profileOldCaution = _caution;
         _profileActive = true;
-        GD.Print($"Profiling {(every ? $"every car ({_profileCarsTotal})" : Garage.NameOf(driving))} on {_track.Track.Id} ({_trackPrint}), "
-            + $"cautions {ProfileFirst * 100.0f:F0}% to {ProfileLast * 100.0f:F0}%, into {_profilesFolder}");
+        GD.Print($"Profiling {which} on {_track!.Track.Id} ({_trackPrint}), "
+            + $"cautions {ProfileSweep.First * 100.0f:F0}% to {ProfileSweep.Last * 100.0f:F0}%, into {_profilesFolder}");
         ProfileNextCar();
     }
 
@@ -182,15 +211,24 @@ public partial class Main
             return;
         }
 
-        string next = ProfileCars.Dequeue();
+        (string next, float from) = ProfileCars.Dequeue();
         _profileCarNumber++;
+        _profileFrom = from;
         if (next == _tuning!.SpecPath)
         {
             BeginSweep();
             return;
         }
 
-        StartAgainWithCar(_args, next);
+        ProfileLoadCar(next);
+    }
+
+    /// <summary>The profile's track again with this car, watched (<see cref="ChainReload"/>): what a change of car is in a profile.</summary>
+    private static void ProfileLoadCar(string path)
+    {
+        NextArgs = TrackArgsWith(path);
+        GD.Print($"Starting again with {Garage.NameOf(path)}: {string.Join(' ', NextArgs)}");
+        ChainReload(Garage.NameOf(path));
     }
 
     /// <summary>This scene's car, at rising cautions from the first.</summary>
@@ -203,7 +241,7 @@ public partial class Main
 
         _sweeping = true;
         _autodriver = null;
-        _profileCaution = ProfileFirst;
+        _profileCaution = _profileFrom;
         GameClock.SetScale(ProfileScale);
         if (_tuning.Visible)
         {
@@ -229,6 +267,8 @@ public partial class Main
     /// </summary>
     private void BeginProfileRun()
     {
+        // The load this scene came from got going: the watch on it stands down.
+        LoadGoing();
         _caution = _profileCaution;
         RestartRun();
         _routeLine = _track!.RouteLine(_car!.Spec);
@@ -243,7 +283,7 @@ public partial class Main
         _hud!.Banner = _everywhereActive
             ? $"PROFILING   {EverywhereBanner()}   Esc stops\ncar {_profileCarNumber} of {_profileCarsTotal}: {name} at {_caution * 100.0f:F0}%"
             : $"PROFILING   {name}{(_profileCarsTotal > 1 ? $", car {_profileCarNumber} of {_profileCarsTotal}" : string.Empty)}"
-                + $"   aggression {_caution * 100.0f:F0}%   Esc stops";
+                + $"   aggression {_caution * 100.0f:F0}%{(ProfileCarsSkipped.Count > 0 ? $"   {ProfileCarsSkipped.Count} wouldn't start" : string.Empty)}   Esc stops";
     }
 
     /// <summary>Once a tick while sweeping, after the race has seen it: the run's end, if it's come.</summary>
@@ -314,9 +354,9 @@ public partial class Main
         string? kept = KeepProfileGhost(run.Clean);
         _hud?.Flash(kept is null ? said : $"{said}: {kept}", 3.0);
 
-        if (run.Clean && _profileCaution < ProfileLast - 0.001f)
+        if (!ProfileSweep.EndsAfter(_profileCaution, run.Clean))
         {
-            _profileCaution = MathF.Round((_profileCaution + ProfileStep) / ProfileStep) * ProfileStep;
+            _profileCaution = ProfileSweep.Next(_profileCaution);
             BeginProfileRun();
             return;
         }
@@ -338,24 +378,17 @@ public partial class Main
     /// <summary>The profile over: time back to its own speed, the car the profile began with back, and where the rows went.</summary>
     private void EndProfile(string how)
     {
-        _profileActive = false;
         _sweeping = false;
         _profileRunPending = false;
         _autodriver = null;
         _caution = _profileOldCaution;
-        GameClock.SetScale(1.0);
         if (_hud is not null)
         {
             _hud.Banner = null;
         }
 
         FlushPendingRows();
-        int ghosts = ProfileGhostsKept.Count;
-        string said = $"Profile {how}: {_profileRows} run{(_profileRows == 1 ? string.Empty : "s")} written"
-            + (_sheetLastFile is string file ? $" to {file}" : string.Empty)
-            + (PendingRows.Count > 0 ? $"; {PendingRows.Count} waiting for the sheet to be closed" : string.Empty)
-            + (ghosts > 0 ? $"; a new best ghost for {ghosts} car{(ghosts == 1 ? string.Empty : "s")}, G to race it" : string.Empty) + ".";
-        GD.Print(said);
+        string said = ProfileOver(how);
 
         // Every car on every track: the next track, or, stopped, back to where that began.
         if (_everywhereActive)
@@ -381,6 +414,60 @@ public partial class Main
 
         _hud?.Flash(said, 8.0);
     }
+
+    /// <summary>
+    /// The profile's end when its last car wouldn't start, so there's no scene of it to end in (the watch,
+    /// <see cref="ChainGiveUp"/>): the same end as <see cref="EndProfile"/>, from what outlives the scenes.
+    /// </summary>
+    private static void EndProfileUnseen(string how)
+    {
+        FlushPendingRowsQuietly();
+        string said = ProfileOver(how);
+        if (_everywhereActive)
+        {
+            EverywhereTrackEnded(how);
+            return;
+        }
+
+        if (_profileFromFlag)
+        {
+            HoldPendingRows();
+            Tree.Quit();
+            return;
+        }
+
+        // Back on the track with the car it began with, as the end of a profile always leaves it.
+        _profileSaidAfter = said;
+        NextArgs = TrackArgsWith(_profileReturnCar ?? Garage.StockPath);
+        GD.Print($"Profile: back to {Garage.NameOf(_profileReturnCar ?? Garage.StockPath)}: {string.Join(' ', NextArgs)}");
+        Tree.ReloadCurrentScene();
+    }
+
+    /// <summary>Every end of a profile: time back at its own speed, and what it came to, in words, in the log.</summary>
+    private static string ProfileOver(string how)
+    {
+        _profileActive = false;
+        GameClock.SetScale(1.0);
+        int ghosts = ProfileGhostsKept.Count;
+        int skipped = ProfileCarsSkipped.Count;
+        string said = $"Profile {how}: {_profileRows} run{(_profileRows == 1 ? string.Empty : "s")} written"
+            + (_sheetLastFile is string file ? $" to {file}" : string.Empty)
+            + (PendingRows.Count > 0 ? $"; {PendingRows.Count} waiting for the sheet to be closed" : string.Empty)
+            + (ghosts > 0 ? $"; a new best ghost for {ghosts} car{(ghosts == 1 ? string.Empty : "s")}, G to race it" : string.Empty)
+            + (skipped > 0 ? $"; {skipped} car{(skipped == 1 ? string.Empty : "s")} wouldn't start, skipped: {string.Join(", ", ProfileCarsSkipped)}" : string.Empty)
+            + ".";
+        GD.Print(said);
+        return said;
+    }
+
+    /// <summary>The profile's track's flags with this car: how a change of car in a profile starts the scene again.</summary>
+    private static string[] TrackArgsWith(string car) =>
+        _profileTrackArgs.Where(a => !a.StartsWith("--spec=", StringComparison.Ordinal) && a != "--autodrive")
+            .Concat(Garage.IsStock(car) ? [] : [$"--spec={car}"])
+            .ToArray();
+
+    /// <summary>The scene tree, from code that outlives the scene it was called from.</summary>
+    private static SceneTree Tree => (SceneTree)Engine.GetMainLoop();
 
     /// <summary>A run as a row in the track's sheet, and its car in <c>cars.csv</c>; held if the file can't be written.</summary>
     private void WriteSheetRow(string driver, float? caution, RunSummary run)
@@ -468,6 +555,7 @@ public partial class Main
                 CarSheet.AddCar(folder, carName, car);
                 _sheetLastFile = CarSheet.Append(folder, file, header, row);
                 PendingRows.RemoveAt(0);
+                _profileRows++;
             }
             catch (IOException)
             {

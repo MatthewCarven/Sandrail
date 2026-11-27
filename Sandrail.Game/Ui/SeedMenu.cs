@@ -105,7 +105,7 @@ public partial class SeedMenu : CanvasLayer
 
     /// <summary>
     /// The profile (P3): the car being driven, swept over this track; null where there's no race to profile on. This and
-    /// the two below are rows under one Profile button, which shows when any of them is there.
+    /// the three below are rows under one Profile button, which shows when any of them is there.
     /// </summary>
     public Action? Profile { get; init; }
 
@@ -114,6 +114,12 @@ public partial class SeedMenu : CanvasLayer
 
     /// <summary>Profile every car on every track there is to load, then back here (2026-11-25); null leaves its row out.</summary>
     public Action? ProfileEverywhere { get; init; }
+
+    /// <summary>
+    /// Profile unprofiled cars (2026-11-27, his idea): every track, only the cars its sheet hasn't a whole sweep of, so a
+    /// stopped run carries on where it left off; null leaves its row out.
+    /// </summary>
+    public Action? ProfileUnprofiled { get; init; }
 
     /// <summary>Opens the folder the profile sheets are in; says which.</summary>
     public Func<string>? OpenProfiles { get; init; }
@@ -299,7 +305,7 @@ public partial class SeedMenu : CanvasLayer
 
         // The profiles (P3, and every track since 2026-11-25) under one Profile button, which opens them as a list the way
         // Change car opens the garage (his word: "Yes, nest them"). Picking one closes the menu and the autodriver drives
-        // the sweep; Esc stops it. On the test ground only every car on every track is there, since it has no race.
+        // the sweep; Esc stops it. On the test ground only the two on every track are there, since it has no race.
         var actions = new List<(string Label, Action Start, string Says)>();
         if (Profile is Action profile)
         {
@@ -314,6 +320,11 @@ public partial class SeedMenu : CanvasLayer
         if (ProfileEverywhere is Action everywhere)
         {
             actions.Add(("Profile every car on every track", everywhere, "every track: each of Load a track's in turn, then back here"));
+        }
+
+        if (ProfileUnprofiled is Action unprofiled)
+        {
+            actions.Add(("Profile unprofiled cars", unprofiled, "unprofiled: what the sheets haven't got, a stopped sweep carried on"));
         }
 
         if (actions.Count > 0)

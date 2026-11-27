@@ -584,7 +584,8 @@ public partial class Main : Node3D
                 RandomAround = RandomAroundWords,
                 Profile = _race is not null && _testDriveFrom is null ? () => StartProfile(false) : null,
                 ProfileAll = _race is not null && _testDriveFrom is null ? () => StartProfile(true) : null,
-                ProfileEverywhere = _testDriveFrom is null ? StartProfileEverywhere : null,
+                ProfileEverywhere = _testDriveFrom is null ? () => StartProfileEverywhere(false) : null,
+                ProfileUnprofiled = _testDriveFrom is null ? () => StartProfileEverywhere(true) : null,
                 OpenProfiles = OpenProfilesFolder,
                 Quitting = HoldPendingRows,
                 NewTrack = () => StartAgainOn(args, "--edit=new"),
@@ -1383,6 +1384,14 @@ public partial class Main : Node3D
     private void Refuse(string message)
     {
         GD.PrintErr(message);
+
+        // A load of a profile's own (the next car, the next track): skipped, and the profile carries on (2026-11-27).
+        if (ChainTakesRefusal)
+        {
+            Callable.From(() => ChainRefused(message)).CallDeferred();
+            return;
+        }
+
         GetTree().Quit(1);
     }
 
