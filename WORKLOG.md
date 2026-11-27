@@ -84,8 +84,9 @@ whose next lines landed after a gap of zeros. Worth knowing when a log looks gar
 launches did that before I saw it: `godot2026-11-27T05.31.59.log` (seven lines of start-up) and `06.28.55.log` (his
 11-car run to track 9, read before it went: the warning 35 minutes in, nothing else wrong) are gone. **The oracles,
 eighteen launches, replaced all five every time a session ran them.** `tools/oracles.ps1` now writes its log to the temp
-folder, and CLAUDE.md says every check passes `--log-file`. Raising Godot's limit (`debug/file_logging/max_log_files`)
-is his call.
+folder, and CLAUDE.md says every check passes `--log-file` (which turns Godot's rotation off for that log). **At his
+*"Yes, raise it"*, the game keeps twenty** (`debug/file_logging/max_log_files=20` in `project.godot`; Godot reads 20),
+so a run that died is still there after a day of launching the game again.
 
 ## 2026-11-27 — A freeze setting cars inactive was the console; a double click no longer drives the next car
 

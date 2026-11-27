@@ -103,7 +103,7 @@ Godot_v4.7.1-stable_mono_win64/Godot_v4.7.1-stable_mono_win64_console.exe --log-
 
 The pass prints `Core linked: Hash64.Mix(0) = 0xE220A8397B1DCDAF`. After a fresh clone, import once
 first: the same command with `--import` in place of `--quit-after 240`. **Every launch for a check passes `--log-file`**
-to somewhere else: Godot keeps only the last five logs in `%APPDATA%\Godot\app_userdata\Sandrail\logs\` and every
+to somewhere else: Godot keeps only the last twenty logs (five until 2026-11-27) in `%APPDATA%\Godot\app_userdata\Sandrail\logs\` and every
 launch pushes the oldest out, so checks run without it lose his (two on 2026-11-27; the oracles, eighteen launches, used
 to replace all five, and `tools/oracles.ps1` now writes its log to the temp folder).
 

@@ -14,6 +14,10 @@ config/name="Sandrail"
 run/main_scene="res://Main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
+[debug]
+
+file_logging/max_log_files=20
+
 [dotnet]
 
 project/assembly_name="Sandrail.Game"
