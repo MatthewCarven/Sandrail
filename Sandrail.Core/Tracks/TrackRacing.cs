@@ -135,8 +135,11 @@ public static class TrackRacing
         // A dirt or sand piece lends its surface's share of the grip, for its corners and the braking over it (P3).
         float Grip(int sample) => (Surfaces.Find(PieceOf(sample).Def.Surface) ?? Surfaces.Road).Grip;
 
+        // A corner that climbs reads its bank from its roll, since its up tips back with the climb too.
+        bool Climbs(int sample) => road[centre.PieceAt(sample)] is ClimbingCentreline;
+
         RacingLine line = minimumCurvature ? centre.MinimumCurvature(Room) : centre;
-        return line.WithStunts(Hint, sample => road[centre.PieceAt(sample)] is LoopCentreline, Cap, Grip);
+        return line.WithStunts(Hint, sample => road[centre.PieceAt(sample)] is LoopCentreline, Cap, Grip, Climbs);
     }
 
     /// <summary>Whether a piece is a stunt: one with a speed hint, a landing, a lip, or a loop.</summary>

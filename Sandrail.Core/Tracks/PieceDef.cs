@@ -92,6 +92,13 @@ public sealed record TurnStep
     /// arc would, and whose bank ignores <see cref="Ease"/>. Null, so left out of the fingerprint, for an arc.
     /// </summary>
     public float? Transition { get; init; }
+
+    /// <summary>
+    /// Metres the corner climbs as it turns (PIECES-PLAN, the climbing corner), negative to come down: eased over the whole
+    /// turn by smoothstep, so it starts and ends level, the turn itself unchanged beneath it
+    /// (<see cref="ClimbingCentreline"/>). Null, so left out of the fingerprint, for a level corner.
+    /// </summary>
+    public float? Rise { get; init; }
 }
 
 /// <summary>
@@ -382,6 +389,11 @@ public sealed record PieceDef
             if (turn.Transition is float transition && !(transition > 0.0f && transition <= 0.5f && MathF.Abs(turn.Angle) <= 180.0f))
             {
                 problems.Add($"{at}.turn.transition is {transition}, and must be above 0 and at most 0.5, on a turn of at most 180°");
+            }
+
+            if (turn.Rise is float rise && !(rise != 0.0f && MathF.Abs(rise) <= 20.0f && MathF.Abs(turn.Angle) <= 360.0f))
+            {
+                problems.Add($"{at}.turn.rise is {rise}, and must be from -20 to 20 metres and not 0");
             }
         }
 

@@ -139,6 +139,29 @@ public partial class Oracle
         new("base:corner-50-steep", 140.0f, TrialKind.Corner),
         new("base:corner-50-steep", 150.0f, TrialKind.Corner),
         new("base:corner-50-steep", 160.0f, TrialKind.Corner),
+
+        // The climbing and descending corners, beside the level 30 m and 50 m corners of the starter set.
+        new("base:corner-30", 55.0f, TrialKind.Corner),
+        new("base:corner-30", 60.0f, TrialKind.Corner),
+        new("base:corner-30", 65.0f, TrialKind.Corner),
+        new("base:corner-30-up", 55.0f, TrialKind.Corner),
+        new("base:corner-30-up", 60.0f, TrialKind.Corner),
+        new("base:corner-30-up", 65.0f, TrialKind.Corner),
+        new("base:corner-30-down", 55.0f, TrialKind.Corner),
+        new("base:corner-30-down", 60.0f, TrialKind.Corner),
+        new("base:corner-30-down", 65.0f, TrialKind.Corner),
+        new("base:corner-50", 65.0f, TrialKind.Corner),
+        new("base:corner-50", 70.0f, TrialKind.Corner),
+        new("base:corner-50", 75.0f, TrialKind.Corner),
+        new("base:corner-50", 80.0f, TrialKind.Corner),
+        new("base:corner-50-up", 65.0f, TrialKind.Corner),
+        new("base:corner-50-up", 70.0f, TrialKind.Corner),
+        new("base:corner-50-up", 75.0f, TrialKind.Corner),
+        new("base:corner-50-up", 80.0f, TrialKind.Corner),
+        new("base:corner-50-down", 65.0f, TrialKind.Corner),
+        new("base:corner-50-down", 70.0f, TrialKind.Corner),
+        new("base:corner-50-down", 75.0f, TrialKind.Corner),
+        new("base:corner-50-down", 80.0f, TrialKind.Corner),
     ];
 
     private static readonly PieceTrial[] Trials =
@@ -631,6 +654,12 @@ public partial class Oracle
         "base:corner-30-banked" => "banked 30 m corner",
         "base:corner-50-banked" => "banked 50 m corner",
         "base:corner-50-steep" => "40° banked 50 m corner",
+        "base:corner-30" => "30 m corner",
+        "base:corner-30-up" => "30 m climbing corner",
+        "base:corner-30-down" => "30 m descending corner",
+        "base:corner-50" => "50 m corner",
+        "base:corner-50-up" => "50 m corner up two levels",
+        "base:corner-50-down" => "50 m corner down two levels",
         _ => trial.Piece,
     };
 }

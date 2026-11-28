@@ -307,6 +307,56 @@ public sealed class TransitionTurnCentreline : ICentreline
 }
 
 /// <summary>
+/// A level turn that climbs as it goes (PIECES-PLAN, the climbing corner): the turn's own frames lifted by a height that
+/// eases from nothing to <c>rise</c> by smoothstep over its whole length, and pitched to match, so it leaves and meets
+/// level road and its frames face the way the road climbs (the slab, the racing line and the crest cap read that).
+/// </summary>
+/// <remarks>
+/// Steepest halfway, at 1.5 × rise / length: a 30 m corner climbing a level (2.5 m) is at 8% there, 4.6°, gentler than
+/// the slope's 7.2°. Its ends bend at 6 × rise / length², a crest of about 150 m at the top of that one, which throws the
+/// car only far above what the corner can be taken at. The distance along it is the turn's own, measured on the level:
+/// the climb makes the road under 1% longer than that.
+/// </remarks>
+public sealed class ClimbingCentreline : ICentreline
+{
+    private readonly ICentreline _level;
+    private readonly Vector3 _up;
+    private readonly float _rise;
+
+    /// <param name="level">The turn on the level, from <paramref name="start"/>.</param>
+    /// <param name="start">Where the turn begins, whose up the road climbs along.</param>
+    /// <param name="riseM">How far it climbs, metres; negative to come down.</param>
+    public ClimbingCentreline(ICentreline level, Frame start, float riseM)
+    {
+        _level = level;
+        _up = start.Up;
+        _rise = riseM;
+        Length = level.Length;
+        float steepest = MathF.Atan(1.5f * MathF.Abs(riseM) / MathF.Max(Length, 1e-3f)) * (180.0f / MathF.PI);
+        TurnDeg = level.TurnDeg + (2.0f * steepest);
+    }
+
+    public float Length { get; }
+
+    /// <summary>The turn's, and the climb's pitching up and back, for the sweep.</summary>
+    public float TurnDeg { get; }
+
+    public Frame FrameAt(float distance)
+    {
+        float d = Math.Clamp(distance, 0.0f, Length);
+        Frame level = _level.FrameAt(d);
+        float u = Length > 0.0f ? d / Length : 0.0f;
+        float height = _rise * u * u * (3.0f - (2.0f * u));
+        float slope = Length > 0.0f ? _rise * 6.0f * u * (1.0f - u) / Length : 0.0f;
+
+        // Pitched about the level right, nose up for a climb: the turn's forward and its banked up together.
+        Vector3 axis = Vector3.Normalize(Vector3.Cross(level.Forward, _up));
+        var pitch = Quaternion.CreateFromAxisAngle(axis, MathF.Atan(slope));
+        return Frame.Of(level.Position + (_up * height), Vector3.Transform(level.Forward, pitch), Vector3.Transform(level.Up, pitch));
+    }
+}
+
+/// <summary>
 /// A loop: tall rather than round, and offset sideways so its exit runs beside its entry.
 /// </summary>
 /// <remarks>

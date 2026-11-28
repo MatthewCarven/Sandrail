@@ -125,6 +125,17 @@ public sealed class PlacedPiece(PieceDef def, Placement placement)
             {
                 chain.Pitch(pitch.Angle, pitch.Radius);
             }
+            else if (step.Turn is { Rise: float rise } climbing)
+            {
+                float pivot = climbing.Bank > 0.0f ? Def.WidthM / 2.0f : 0.0f;
+                float angle = sign * climbing.Angle;
+                chain.AddFrom(start => new ClimbingCentreline(
+                    climbing.Transition is float t
+                        ? new TransitionTurnCentreline(start, angle, climbing.Radius, t, climbing.Bank, pivot)
+                        : new TurnCentreline(start, angle, climbing.Radius, climbing.Bank, pivot, climbing.Ease),
+                    start,
+                    rise));
+            }
             else if (step.Turn is { Transition: float transition } eased)
             {
                 chain.TransitionTurn(sign * eased.Angle, eased.Radius, transition, eased.Bank, eased.Bank > 0.0f ? Def.WidthM / 2.0f : 0.0f);

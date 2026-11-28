@@ -2,6 +2,53 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-29 — The climbing corner (PIECES-PLAN, P4)
+
+His *"Yes, go on"* after the steep bank. The plan's climbing corner: *"a 90° corner that climbs a level as it
+turns ... so crossings fit in less room"*.
+
+**A turn step's `rise`**, in metres, negative to come down, null on every existing piece, so no fingerprint moves.
+`ClimbingCentreline` wraps any level turn (an arc or a gradual one): its frames are lifted by a height eased by
+smoothstep over the whole length and pitched about their level right to match. So the slab, the racing line and the
+crest cap all see the climb. From above it's the level corner exactly (a test samples it every twentieth of its length to
+a millimetre). It starts and ends level, steepest halfway at 1.5 × rise / length, and its ends bend at 6 × rise /
+length². Distance along it is the turn's own, on the level; the climb adds under 1%.
+
+**Four pieces**, each mirrored for a left-hander:
+
+| Piece | Climbs | Steepest | Holds (`pieces2`, down the middle) | Its level twin |
+|---|---|---|---|---|
+| `corner-30-up` | one level over the 30 m corner | 4.6° (8%) | 64 km/h, 4.1 m off its middle | 59, off at 64 |
+| `corner-30-down` | down one level | 4.6° | 59, 3.6 m off; off at 64 | |
+| `corner-50-up` | **two levels** over the 50 m corner | 5.5° (9.6%) | 79, 1.9 m off | 74, off at 79 |
+| `corner-50-down` | down two levels | 5.5° | 74, 3.7 m off; off at 79 | |
+
+The slope's steepest is 7.2°. A climb holds a touch more than the level and a descent a touch less, as you'd expect.
+**Two levels in the 50 m corner is a crossing's whole height in one corner**: a test track climbs it, goes round two level
+corners and crosses back over the road it came up, on pillars.
+
+**The autodriver's plan read the climb as bank.** `RacingLine` reads a sample's bank as its up from vertical. That's
+right on every banked turn and wrong on a climbing one, whose up tips back with the climb: 5.5° of climb read as 5.5°
+of bank, the corner planned about 5% fast. On a sprint of the same corners, the half that climbs onto a road two levels
+up was clean to 80% and tipped over at 90%, where all on the level it was clean to 90%. **On a climbing corner the bank
+is now read from the road's roll**, how far its right tips (`WithStunts`' `bankFromRoll`, set by `TrackRacing` for
+samples on a `ClimbingCentreline`). Everywhere else it's read from the up as it always was, so every other plan is the
+same to the bit. Afterwards, the half is clean to 90%, as on the level. **The full sprint** (up two levels in the 50 m
+corner, back over its own road, down the 50 m descent, up and down the 30 m pair) is clean at 70 and 80% (33.90,
+32.56 s). At 90% it slides 0.48 s off the raised road between back-to-back corners and falls: two levels up, leaving the
+road is a fall, not a moment off it. The crossover is clean to 80% too.
+
+**The showroom** has them at stations 30-33. The 30 m pair found room on the grid, on their sides, the climb where the
+old steep corner stood. The 50 m pair went past the east edge, beside the steep corner.
+
+**Checks**: 418 tests. Six are new:
+- each climbing corner is its level twin from above, a level or two up or down, steepest halfway;
+- a road climbs in a corner and crosses over itself;
+- the plan reads no bank on a climbing corner.
+
+The headless check is clean. The other seventeen oracles are identical, and `pieces2`'s earlier trials are unchanged.
+Every fingerprint (the game's tracks and his 42) matches main's. 1000 seeds are identical apart from their timings.
+
 ## 2026-11-29 — The steep bank, reshaped: gradual ends on 3 × 3 (PIECES-PLAN, P3)
 
 He asked what to do about the 40° corner holding no more than the 20° one: *"make them longer?"* Longer alone wasn't

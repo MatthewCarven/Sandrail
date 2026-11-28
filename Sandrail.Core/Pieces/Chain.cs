@@ -30,6 +30,9 @@ public sealed class Chain(Frame start)
     public Chain TransitionTurn(float angleDeg, float radius, float transition, float bankDeg = 0.0f, float bankPivotM = 0.0f) =>
         Add(new TransitionTurnCentreline(Settle(End), angleDeg, radius, transition, bankDeg, bankPivotM));
 
+    /// <summary>A centreline made from where the last one ends, squared up first as a bend's start is.</summary>
+    public Chain AddFrom(Func<Frame, ICentreline> make) => Add(make(Settle(End)));
+
     public Chain Add(ICentreline piece)
     {
         _pieces.Add(piece);

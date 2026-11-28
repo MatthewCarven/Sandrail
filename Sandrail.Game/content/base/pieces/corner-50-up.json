@@ -1,0 +1,7 @@
+{
+  "id": "base:corner-50-up",
+  "name": "Climbing corner, 50 m, two levels",
+  "tiles": [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [0, 2], [1, 2], [2, 2]],
+  "out": { "tile": [2, 2], "side": "right", "rise": 2 },
+  "path": [{ "turn": { "angle": 90, "radius": 50, "rise": 5 } }]
+}

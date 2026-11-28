@@ -227,7 +227,7 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   `Cars/` holds `CarSpec`, `Surfaces`, the `Wings` (parts, by ID) and `WheelModel`, the car's laws as
   plain functions, and `RandomCars` (2026-11-26: a car from a seed through `Hash64`, around another car, each number
   in the ticked groups within a spread of its own, on its slider's steps, `Tunable.OnStep`). `Pieces/` is
-  the road: `Frame`, the centrelines (line, pitch, banked turn, a turn with gradual ends, loop), `Chain`, `Profile`, the `Sweep`
+  the road: `Frame`, the centrelines (line, pitch, banked turn, a turn with gradual ends, a turn that climbs, loop), `Chain`, `Profile`, the `Sweep`
   mesher and the `TestGroundLayout`. `Driving/` is the autodriver: `RacingLine` (samples, curvature,
   bank, each sample's surface grip, speed plan, and `MinimumCurvature`, the racing line inside the wheels' room) and `Autodriver`
   (a front-axle Stanley tracker with yaw damping and slip guards); `LapTimer`, which times laps
@@ -401,8 +401,12 @@ nothing at both ends of a turn at full curvature end to end), then, at his word,
 from straight to a 27 m middle and back, the bank leading it as the root of the curve's share), which holds 127 km/h
 against the same tiles' 20° corner's 89. It has a hint, 105-120 km/h, because the plan can't see the springs and
 the lock that hold it, and the autodriver is clean on it at 70 to 100%. The showroom was full: a block with no room
-goes past the grid's east edge, the plain drawn on to meet it. Next: a climbing corner and a corkscrew. The generator
-stays version 1.
+goes past the grid's east edge, the plain drawn on to meet it. **P4, the climbing corner, is built** (2026-11-29): a
+turn step's `rise` (`ClimbingCentreline`, the level turn lifted by smoothstep and pitched to match); a 30 m corner up or
+down a level and a 50 m corner up or down two levels, a crossing's height in one corner, holding what their level twins
+do; the autodriver's plan reads a climbing corner's bank from its roll, since its up tips back with the climb
+(`bankFromRoll`; everywhere else as before, to the bit), and a sprint that climbs, crosses over itself and comes down is
+clean at 70 and 80%. Next: the corkscrew. The generator stays version 1.
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by

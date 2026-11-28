@@ -311,6 +311,24 @@ showroom was full**: no way round found it room, mirrored or not. So a block wit
 edge, and the showroom draws the plain on to meet it; stations 1-28 haven't moved. Levers: the transition, the bank's
 lead (the root), the hint.
 
+## P4: the climbing corner
+
+**Built 2026-11-29**, his *"Yes, go on"*: four piece files and Core code; 6 tests, worklog that date. **A turn step's
+`rise`** (metres, null for a level corner, so absent from every existing fingerprint) lifts the turn by a height eased by
+smoothstep over its whole length, and pitches its frames to match (`ClimbingCentreline`, around any level turn, a gradual
+one included). From above it is the level corner, on the same tiles, leaving by the same side, a level or two up or down.
+**The pieces**: `corner-30-up` and `corner-30-down`, a level over the 30 m corner, steepest 4.6° (the slope's 7.2°), and
+`corner-50-up` and `corner-50-down`, **two levels over the 50 m corner, a crossing's whole height in one corner**,
+steepest 5.5°. Each mirrors for a left-hander. **Measured**: they hold what their level twins do, a climb a touch more
+and a descent a touch less (30 m: level 59 km/h, up 64, down 59; 50 m: level 74, up two 79, down two 74). **The plan read a
+climb as bank**: it read the bank as the road's up from vertical, which a climb tips back, so it took 5.5° of climb for
+5.5° of bank and planned 5% fast. On a climbing corner it reads the road's roll instead (`bankFromRoll`); everywhere else
+it reads the bank as before, to the last bit. A sprint that climbs two levels in the 50 m corner, crosses back over its
+own road, comes down the 50 m descent and through the 30 m pair is clean at 70 and 80%. At 90% it slides off the raised
+road between back-to-back corners and falls, where the same corners on the level were clean: two levels up, leaving
+the road isn't a moment off it but a fall, as on the crossover, which is clean to 80%. Levers: the rise's ease
+(smoothstep's ends bend at 6 × rise / length²), more levels or a banked climbing corner.
+
 ## P1 onward: the shortlist, a slice each
 
 In the order decisions 2 and 3 give. Each slice: the piece files; Core support with tests where it needs

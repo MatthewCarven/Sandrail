@@ -302,6 +302,98 @@ public class MorePiecesTests
         Assert.Equal(6, laid.Route.Count);
     }
 
+    /// <summary>
+    /// A climbing or descending corner is its level corner's turn, seen from above, on the same tiles and leaving by the
+    /// same side, a level or two up or down: level at both ends, steepest halfway, at 1.5 × rise / length.
+    /// </summary>
+    [Theory]
+    [InlineData("corner-30-up", "corner-30", 1)]
+    [InlineData("corner-30-down", "corner-30", -1)]
+    [InlineData("corner-50-up", "corner-50", 2)]
+    [InlineData("corner-50-down", "corner-50", -2)]
+    public void AClimbingCornerIsItsLevelCornerALevelUpOrDown(string piece, string level, int levels)
+    {
+        int at = levels < 0 ? 2 : 0;
+        PlacedPiece climbing = new(Catalogue.Value.Find($"base:{piece}")!, new Placement($"base:{piece}", new Tile(10, 20), at, (int)Compass.North, false));
+        PlacedPiece flat = new(Catalogue.Value.Find($"base:{level}")!, new Placement($"base:{level}", new Tile(10, 20), at, (int)Compass.North, false));
+        Assert.Equal(flat.Tiles, climbing.Tiles);
+        Assert.Equal(flat.Out with { Level = flat.Out.Level + levels }, climbing.Out);
+        Assert.True(climbing.PathMisfitM() <= PieceDef.FitM);
+
+        var road = Assert.IsType<ClimbingCentreline>(Assert.Single(climbing.Road().Pieces));
+        ICentreline under = Assert.Single(flat.Road().Pieces);
+        float rise = levels * TrackGrid.LevelM;
+        for (int k = 0; k <= 20; k++)
+        {
+            float d = road.Length * k / 20.0f;
+            System.Numerics.Vector3 a = road.FrameAt(d).Position;
+            System.Numerics.Vector3 b = under.FrameAt(d).Position;
+            Assert.True(MathF.Abs(a.X - b.X) < 1e-3f && MathF.Abs(a.Z - b.Z) < 1e-3f, $"off the level corner's line at {d:F1} m");
+        }
+
+        Assert.Equal(rise, road.FrameAt(road.Length).Position.Y - road.FrameAt(0.0f).Position.Y, 3);
+        Assert.Equal(0.0f, road.FrameAt(0.0f).Forward.Y, 4);
+        Assert.Equal(0.0f, road.FrameAt(road.Length).Forward.Y, 4);
+        float steepest = MathF.Atan(1.5f * rise / road.Length);
+        Assert.Equal(MathF.Sin(steepest), road.FrameAt(road.Length / 2.0f).Forward.Y, 4);
+        Assert.Equal(MathF.Cos(steepest), road.FrameAt(road.Length / 2.0f).Up.Y, 4);
+    }
+
+    /// <summary>
+    /// The autodriver's plan reads a climbing corner's bank from its roll: its up tips back with the climb, 4.6° on the 30
+    /// m climb, and read from that the plan took it for a bank and planned the corner too fast; there's no bank, and the
+    /// plan says so.
+    /// </summary>
+    [Fact]
+    public void TheAutodriverReadsNoBankOnAClimbingCorner()
+    {
+        TrackPiece Up(string piece, int column, int row) => new() { Piece = $"base:{piece}", At = [column, row], Facing = Compass.East, Level = 1 };
+        var track = new Track
+        {
+            Id = "test:climb",
+            Name = "Climb",
+            Pieces = [P("start", 10, 23), P("straight", 10, 22), P("straight", 10, 21), P("corner-30-up", 10, 20), Up("straight", 12, 19), Up("finish", 13, 19)],
+        };
+        LaidTrack laid = track.Lay(Catalogue.Value);
+        Assert.Empty(laid.Problems);
+
+        CarSpec spec = CarSpec.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "content", "base", "cars", "buggy.json")));
+        RacingLine line = laid.CentreLine(spec);
+        float tilt = laid.Route[3].Road().Pieces.Max(c => Enumerable.Range(0, 50).Max(k => BankDeg(c.FrameAt(c.Length * k / 49.0f))));
+        Assert.Equal(MathF.Atan(1.5f * TrackGrid.LevelM / laid.Route[3].Road().Pieces[0].Length) * (180.0f / MathF.PI), tilt, 1);
+        Assert.All(Enumerable.Range(0, line.Count), i => Assert.True(line.BankDegAt(i) < 0.05f, $"{line.BankDegAt(i):F2}° of bank at {line.DistanceAt(i):F0} m"));
+    }
+
+    /// <summary>
+    /// What the climbing corner is for: a road crossing over itself with the climb done in a corner. Up two levels in the
+    /// 50 m corner, round two level corners and back west over the road it came up, which runs beneath on the level, the
+    /// crossing straight going up on pillars.
+    /// </summary>
+    [Fact]
+    public void ARoadClimbsInACornerAndCrossesOverItself()
+    {
+        TrackPiece Up(string piece, int column, int row, Compass facing) =>
+            new() { Piece = $"base:{piece}", At = [column, row], Facing = facing, Level = 2 };
+        var track = new Track
+        {
+            Id = "test:climb-and-cross",
+            Name = "Climb and cross",
+            Pieces =
+            [
+                P("start", 10, 28), P("straight", 10, 27), P("straight", 10, 26), P("straight", 10, 25), P("straight", 10, 24),
+                P("straight", 10, 23), P("straight", 10, 22), P("corner-50-up", 10, 21),
+                Up("corner-30", 13, 19, Compass.East), Up("straight", 14, 21, Compass.South), Up("straight", 14, 22, Compass.South),
+                Up("corner-30", 14, 23, Compass.South), Up("straight", 12, 24, Compass.West), Up("straight", 11, 24, Compass.West),
+                Up("straight", 10, 24, Compass.West), Up("straight", 9, 24, Compass.West), Up("finish", 8, 24, Compass.West),
+            ],
+        };
+        LaidTrack laid = track.Lay(Catalogue.Value);
+        Assert.Empty(laid.Problems);
+        Assert.Equal(track.Pieces.Length, laid.Route.Count);
+        PlacedPiece deck = Assert.Single(laid.Route, p => p.Tiles.Contains(new Tile(10, 24)) && p.Placement.Level == 2);
+        Assert.True(deck.Pillars);
+    }
+
     /// <summary>The highest point of a piece's road, sampled every 10 cm: how far along its road, and how far above its way in.</summary>
     private static (float Along, float Height) Highest(PlacedPiece piece)
     {

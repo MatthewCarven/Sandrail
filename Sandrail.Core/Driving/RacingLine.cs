@@ -37,15 +37,16 @@ public sealed class RacingLine
     private readonly bool[] _straight;
     private readonly float[] _cap;
     private readonly float[] _grip;
+    private readonly bool[] _rollBank;
 
     /// <summary>The road's centreline as a line.</summary>
     /// <param name="closed">A lap: the last sample runs on into the first.</param>
     public RacingLine(IReadOnlyList<ICentreline> pieces, bool closed, float stepM = 1.0f)
-        : this(Sample(pieces, closed, stepM), closed, new float[SampleCount(pieces, closed, stepM)], null, null, null, null)
+        : this(Sample(pieces, closed, stepM), closed, new float[SampleCount(pieces, closed, stepM)], null, null, null, null, null)
     {
     }
 
-    private RacingLine((Vector3[] Position, Vector3[] Forward, Vector3[] Up, Vector3[] Right, int[] Piece) s, bool closed, float[] offset, float[]? hint, bool[]? straight, float[]? cap, float[]? grip)
+    private RacingLine((Vector3[] Position, Vector3[] Forward, Vector3[] Up, Vector3[] Right, int[] Piece) s, bool closed, float[] offset, float[]? hint, bool[]? straight, float[]? cap, float[]? grip, bool[]? rollBank)
     {
         _position = s.Position;
         _forward = s.Forward;
@@ -58,6 +59,7 @@ public sealed class RacingLine
         _straight = straight ?? new bool[_position.Length];
         _cap = cap ?? Enumerable.Repeat(float.PositiveInfinity, _position.Length).ToArray();
         _grip = grip ?? Enumerable.Repeat(1.0f, _position.Length).ToArray();
+        _rollBank = rollBank ?? new bool[_position.Length];
 
         _distance = new float[Count];
         for (int i = 1; i < Count; i++)
@@ -93,7 +95,9 @@ public sealed class RacingLine
             float span = Span(before, after);
             float turn = Wrap(Heading(_forward[after]) - Heading(_forward[before]));
             _curvature[i] = span > 0.0f ? turn / span : 0.0f;
-            _bankDeg[i] = MathF.Acos(Math.Clamp(_up[i].Y, -1.0f, 1.0f)) * (180.0f / MathF.PI);
+            _bankDeg[i] = _rollBank[i]
+                ? MathF.Asin(Math.Clamp(MathF.Abs(_right[i].Y), 0.0f, 1.0f)) * (180.0f / MathF.PI)
+                : MathF.Acos(Math.Clamp(_up[i].Y, -1.0f, 1.0f)) * (180.0f / MathF.PI);
         }
     }
 
@@ -130,17 +134,23 @@ public sealed class RacingLine
     /// <summary>
     /// The same line, with the stunts on it marked: where a speed hint holds, m/s (NaN for none), where the
     /// wheels are held straight, and where the speed is capped below what the bend allows (a crest, m/s;
-    /// infinity for none); and the share of the car's grip the road lends at each sample (its surface's, 1
-    /// for road; all 1 when not given).
+    /// infinity for none); the share of the car's grip the road lends at each sample (its surface's, 1
+    /// for road; all 1 when not given); and where the bank is read from the road's roll rather than its tilt.
     /// </summary>
-    public RacingLine WithStunts(Func<int, float> hintMps, Func<int, bool> straight, Func<int, float>? capMps = null, Func<int, float>? gripShare = null) => new(
+    /// <param name="bankFromRoll">
+    /// Where the road climbs as it turns (the climbing corner): there its up tips back with the climb as well as over
+    /// with any bank, and reading the bank from it took a 5.5° climb for 5.5° of bank, planning the corner 5% too fast. Its
+    /// right tips with the bank alone. Everywhere else the bank is read from the up as it always was, to the last bit.
+    /// </param>
+    public RacingLine WithStunts(Func<int, float> hintMps, Func<int, bool> straight, Func<int, float>? capMps = null, Func<int, float>? gripShare = null, Func<int, bool>? bankFromRoll = null) => new(
         ((Vector3[])_position.Clone(), (Vector3[])_forward.Clone(), (Vector3[])_up.Clone(), (Vector3[])_right.Clone(), (int[])_piece.Clone()),
         Closed,
         (float[])_offset.Clone(),
         Enumerable.Range(0, Count).Select(hintMps).ToArray(),
         Enumerable.Range(0, Count).Select(straight).ToArray(),
         capMps is null ? null : Enumerable.Range(0, Count).Select(capMps).ToArray(),
-        gripShare is null ? null : Enumerable.Range(0, Count).Select(gripShare).ToArray());
+        gripShare is null ? null : Enumerable.Range(0, Count).Select(gripShare).ToArray(),
+        bankFromRoll is null ? null : Enumerable.Range(0, Count).Select(bankFromRoll).ToArray());
 
     /// <summary>The most the speed plan allows here whatever the bend, m/s: a crest's, or infinity.</summary>
     public float CapAt(int i) => _cap[i];
@@ -251,7 +261,7 @@ public sealed class RacingLine
         }
 
         return new RacingLine((at, forward, (Vector3[])_up.Clone(), (Vector3[])_right.Clone(), (int[])_piece.Clone()), Closed, offset,
-            (float[])_hint.Clone(), (bool[])_straight.Clone(), (float[])_cap.Clone(), (float[])_grip.Clone());
+            (float[])_hint.Clone(), (bool[])_straight.Clone(), (float[])_cap.Clone(), (float[])_grip.Clone(), (bool[])_rollBank.Clone());
     }
 
     /// <summary>
