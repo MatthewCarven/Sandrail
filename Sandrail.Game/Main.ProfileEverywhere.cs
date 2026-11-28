@@ -69,6 +69,15 @@ public partial class Main
     private static readonly System.Diagnostics.Stopwatch EverywhereClock = new();
 
     /// <summary>
+    /// Profile unprofiled cars counting only the rows written since then (<c>--since=</c>): how Profile every car on every
+    /// track carries on in a fresh game (2026-11-28), so a car profiled on an earlier day is still driven again.
+    /// </summary>
+    private static DateTime? _everywhereSince;
+
+    /// <summary>The runs that froze the game twice, as track and car fingerprints: left out (<see cref="FrozeTwice"/>).</summary>
+    private static HashSet<string> _everywhereFrozeTwice = [];
+
+    /// <summary>
     /// Flags the tracks are started without, beside the place flags: a run recorded from the start, a ghost chosen by a
     /// car's name (refused on a track where it hasn't been profiled), the autodriver handed the car. The way back puts
     /// them back.
@@ -76,7 +85,9 @@ public partial class Main
     private static readonly string[] EverywhereDropped = ["--record", "--autodrive", "--ghost=", "--spec="];
 
     /// <summary>The chain's name, on the board and in the log.</summary>
-    private static string EverywhereName => _everywhereUnprofiled ? "Unprofiled cars on every track" : "Every car on every track";
+    private static string EverywhereName => !_everywhereUnprofiled ? "Every car on every track"
+        : _everywhereSince is DateTime since ? $"Every car on every track since {since.ToString(CarSheet.WhenFormat, System.Globalization.CultureInfo.InvariantCulture)}"
+        : "Unprofiled cars on every track";
 
     /// <summary>
     /// The Esc menu's Profile every car on every track and Profile unprofiled cars, and <c>--profile=everywhere</c> and
@@ -89,6 +100,19 @@ public partial class Main
         {
             _hud?.Flash($"{what} starts from a drive, not a test drive.", 4.0);
             return;
+        }
+
+        DateTime? since = null;
+        if (unprofiled && Flag(_args, "--since=") is string sinceFlag)
+        {
+            if (!DateTime.TryParseExact(sinceFlag.Replace(' ', 'T'), SinceFormat, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out DateTime parsed))
+            {
+                Refuse($"--since={sinceFlag}: it's a time as the sheets write it, with a T for the space: 2026-11-27T22:43:41.");
+                return;
+            }
+
+            since = parsed;
         }
 
         PieceCatalogue catalogue = _menuCatalogue ??= TrackView.LoadCatalogue();
@@ -121,6 +145,8 @@ public partial class Main
         }
 
         _everywhereUnprofiled = unprofiled;
+        _everywhereSince = since;
+        _everywhereFrozeTwice = FrozeTwice(_args);
         _everywhereTotal = EverywhereTracks.Count;
         _everywhereNumber = 0;
         _everywhereTrack = null;
@@ -134,13 +160,20 @@ public partial class Main
         _everywhereActive = true;
         EverywhereClock.Restart();
         int cars = ActiveCars().Count();
-        GD.Print($"Profiling {(unprofiled ? $"the cars not yet profiled, of {cars}," : $"every car ({cars})")} on every track ({_everywhereTotal}"
+        string notYet = since is DateTime s
+            ? $"the cars not profiled since {s.ToString(CarSheet.WhenFormat, System.Globalization.CultureInfo.InvariantCulture)}, of {cars},"
+            : $"the cars not yet profiled, of {cars},";
+        GD.Print($"Profiling {(unprofiled ? notYet : $"every car ({cars})")} on every track ({_everywhereTotal}"
             + $"{(EverywhereSkipped.Count > 0 ? $", {EverywhereSkipped.Count} unfinished left out" : string.Empty)}), into {_profilesFolder}");
         foreach (SkippedTrack skipped in EverywhereSkipped)
         {
             GD.Print($"  Left out: {skipped.Track.Label}, {skipped.Long}");
         }
 
+        // A fresh game carries on before Jolt stops, or after a freeze, driving what this run hasn't: the rows since it
+        // began (every car), or since the time this one was given (2026-11-28).
+        DateTime began = DateTime.Now;
+        ArmRestart(_args, unprofiled ? since : new DateTime(began.Year, began.Month, began.Day, began.Hour, began.Minute, began.Second));
         EverywhereNextTrack();
     }
 
@@ -273,10 +306,19 @@ public partial class Main
         IEnumerable<(string, string)> waiting = PendingRows
             .Where(r => r.Folder == _profilesFolder && r.File.Contains($" {_trackPrint}", StringComparison.Ordinal))
             .Select(r => (r.Header, r.Row));
-        IReadOnlyDictionary<string, SweepState> states = ProfileProgress.Of(_profilesFolder, _trackPrint!, waiting);
+        IReadOnlyDictionary<string, SweepState> states = ProfileProgress.Of(_profilesFolder, _trackPrint!, waiting, _everywhereSince);
         var cars = new List<(string Path, float From)>();
         foreach (Garage.Car car in ActiveCars())
         {
+            if (_everywhereFrozeTwice.Contains($"{_trackPrint}:{car.Spec!.Fingerprint()}"))
+            {
+                // Twice the game froze on this car here, and was started again: a third try would freeze it again.
+                string name = Garage.NameOf(car.Path);
+                GD.PrintErr($"Every track: {name} froze the game twice on {_everywhereTrack?.Label}: left out here.");
+                EverywhereCarsSkipped.Add($"{name} on {_everywhereTrack?.Short ?? "a track"} (froze twice)");
+                continue;
+            }
+
             float? from = states.TryGetValue(car.Spec!.Fingerprint(), out SweepState? state) ? state.From : ProfileSweep.First;
             if (from is float f)
             {
@@ -306,6 +348,7 @@ public partial class Main
     private static void EndEverywhere(string how)
     {
         _everywhereActive = false;
+        DisarmRestart();
         EverywhereTracks.Clear();
         EverywhereClock.Stop();
         string time = Took(EverywhereClock.Elapsed);

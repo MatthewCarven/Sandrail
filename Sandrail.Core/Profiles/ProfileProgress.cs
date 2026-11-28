@@ -50,24 +50,30 @@ public sealed record SweepState(bool Ended, float? LastClean)
 /// <b>Only the autodriver's rows count</b>, from any version of the game: his own runs are no sweep. A run that wasn't
 /// clean always ended its sweep, since Esc stops a profile without writing the run it was on.
 /// </para>
+/// <para>
+/// <b>Rows since a time</b> (2026-11-28): Profile every car on every track carried on in a fresh game (the game restarts
+/// itself before Godot 4.7.1's Jolt stops, and after a freeze) counts only the rows written since it began, so a car
+/// profiled on an earlier day is driven again, as the run that began meant it to be.
+/// </para>
 /// </remarks>
 public static class ProfileProgress
 {
     /// <summary>
     /// Each car's sweep, by fingerprint, from every sheet in <paramref name="folder"/> for the track with this
-    /// fingerprint, and from rows not yet written (a header and a row each, held while the sheet was open).
+    /// fingerprint, and from rows not yet written (a header and a row each, held while the sheet was open); with
+    /// <paramref name="since"/>, only rows written then or later.
     /// </summary>
-    public static IReadOnlyDictionary<string, SweepState> Of(string folder, string trackPrint, IEnumerable<(string Header, string Row)>? waiting = null)
+    public static IReadOnlyDictionary<string, SweepState> Of(string folder, string trackPrint, IEnumerable<(string Header, string Row)>? waiting = null, DateTime? since = null)
     {
         var states = new Dictionary<string, SweepState>(StringComparer.Ordinal);
         foreach (string path in SheetsFor(folder, trackPrint))
         {
-            Read(File.ReadLines(path), states);
+            Read(File.ReadLines(path), states, since);
         }
 
         foreach ((string header, string row) in waiting ?? [])
         {
-            Read([header, row], states);
+            Read([header, row], states, since);
         }
 
         return states;
@@ -88,10 +94,13 @@ public static class ProfileProgress
             .ToArray();
     }
 
-    /// <summary>A sheet's lines, its header first, folded into the cars' sweeps; a file without the columns it needs is passed over.</summary>
-    public static void Read(IEnumerable<string> lines, Dictionary<string, SweepState> into)
+    /// <summary>
+    /// A sheet's lines, its header first, folded into the cars' sweeps; a file without the columns it needs is passed
+    /// over. With <paramref name="since"/>, a row counts only if its <c>when</c> is then or later.
+    /// </summary>
+    public static void Read(IEnumerable<string> lines, Dictionary<string, SweepState> into, DateTime? since = null)
     {
-        int driver = -1, car = -1, caution = -1, clean = -1;
+        int driver = -1, car = -1, caution = -1, clean = -1, when = -1;
         bool first = true;
         foreach (string line in lines)
         {
@@ -103,7 +112,8 @@ public static class ProfileProgress
                 car = IndexOf(cells, "car fingerprint");
                 caution = IndexOf(cells, "caution");
                 clean = IndexOf(cells, "clean");
-                if (driver < 0 || car < 0 || caution < 0 || clean < 0)
+                when = IndexOf(cells, "when");
+                if (driver < 0 || car < 0 || caution < 0 || clean < 0 || (since is not null && when < 0))
                 {
                     return;
                 }
@@ -111,9 +121,15 @@ public static class ProfileProgress
                 continue;
             }
 
-            int needed = Math.Max(Math.Max(driver, car), Math.Max(caution, clean));
+            int needed = Math.Max(Math.Max(Math.Max(driver, car), Math.Max(caution, clean)), when);
             if (cells.Count <= needed || cells[driver] != "auto"
                 || !float.TryParse(cells[caution], NumberStyles.Float, CultureInfo.InvariantCulture, out float at))
+            {
+                continue;
+            }
+
+            if (since is DateTime from && (!DateTime.TryParseExact(cells[when], CarSheet.WhenFormat, CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out DateTime written) || written < from))
             {
                 continue;
             }

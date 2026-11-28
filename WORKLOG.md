@@ -2,6 +2,37 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-28 — Why the overnight profile froze, and a fresh game before it can again
+
+His `--profile=unprofiled` run froze after 13.6 hours (started 22:43, stopped about 12:22), the process alive and asleep.
+**The cause is Jolt's, in Godot 4.7.1**, read from a full dump of the frozen game:
+- The main thread waits in `JoltJobSystem::CreateJob` ("exceeded the maximum number of jobs", 100 µs at a time, forever),
+  called from Jolt's `PhysicsSystem::Update`; all 16 worker threads idle.
+- All 2,048 job slots hold jobs already done, each with one reference left: the barrier's. Barrier 0's read count is
+  0xFFFFFFE5 and its write count 0x7C9. The counts are 32 bits and `Wait` lets jobs go only while read < write, so once
+  2^32 jobs have passed through, the write count wraps, no job is let go again, the slots fill, and the step waits.
+- Fixed in Jolt on 2026-11-06 (jrouwe/JoltPhysics#2206, "!= instead of <"); not yet in Godot.
+- A tick of one car makes 2 jobs a worker thread and 17 more (49 with 16 threads), so it comes after about 88 million
+  ticks **of one process**: about 13.6 hours at ×16, headless or in a window. Play at ×1 would take 200 hours.
+- Not the eight check launches at 11:07-11:11 (the more-pieces session's checks and screenshots, without `--log-file`):
+  they emptied `godot.log` under the running game (12.3 MB of zeros, then its later lines), which ran on 70 minutes.
+
+**Built** (`Main.ProfileRestart.cs`, `profile.cmd`):
+- **A fresh game before the wrap**: at a load the every-track chain makes, past 2^31 / (2 threads + 24) ticks (38.3
+  million here, five or six hours at ×16), the rest goes to a new process.
+- **A watchdog thread**: 180 s with no tick of a run and no load, and it ends the game and starts the next from outside
+  the main thread. A run that froze the game twice (`--froze=track:car`, carried in the flags) is left out.
+- **The next game** is `--profile=unprofiled`, with `--since=` the time Profile every car on every track began, so only
+  that run's rows count (Core: `ProfileProgress` reads `when`; a test). A note in the profiles folder says why.
+- **`profile.cmd`** (or `profile.cmd everywhere`) passes `--restart-file=`: the game leaves the next game's flags there
+  and ends with 75, and the launcher starts it in the same window. Without it the game starts the next one itself (a
+  console of its own headless, the game's window otherwise). `--restart-after=` and `--stall-after=` are for checks.
+
+**Checked** (scratch folders, three cars, the game's three tracks): restarted three times through the launcher with
+his rows from earlier in the folder, the 67 rows are those of a straight run cell for cell (all but `when`), ghosts'
+snapshots byte for byte; the main thread suspended three times: ended after 20 s each, carried on, the car frozen twice
+left out, every row written matching; the game starting its own next game, headless and in a window, the same. 403 tests.
+Still to do: the oracles against main's tip (rows unchanged suggests they are), and CLAUDE.md.
 ## 2026-11-28 — Dirt and sand straights, and a 40° bank (PIECES-PLAN, P3)
 
 His *"Please continue Claude"* after P2. Three piece files:

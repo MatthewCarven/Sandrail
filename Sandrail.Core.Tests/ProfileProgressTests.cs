@@ -11,7 +11,7 @@ public class ProfileProgressTests
     private static readonly string Header = CarSheet.Line(CarSheet.Header(Shape));
 
     /// <summary>A sheet row as the game writes it: a car, the driver, the caution, and a run clean or not.</summary>
-    private static string Row(string car, float? caution, bool clean, string driver = "auto")
+    private static string Row(string car, float? caution, bool clean, string driver = "auto", DateTime? when = null)
     {
         var meter = new RunMeter(2, 120);
         for (int i = 0; i < 240; i++)
@@ -21,7 +21,7 @@ public class ProfileProgressTests
 
         RunSummary run = meter.Summary(clean, clean ? [2.0] : []);
         Assert.Equal(clean, run.Clean);
-        var row = new SheetRow(new DateTime(2026, 11, 27, 9, 0, 0), "Track", "0.0.1+abcdef0", driver, car, car, caution, "the stock car", run);
+        var row = new SheetRow(when ?? new DateTime(2026, 11, 27, 9, 0, 0), "Track", "0.0.1+abcdef0", driver, car, car, caution, "the stock car", run);
         return CarSheet.Line(CarSheet.Cells(Shape, row));
     }
 
@@ -112,6 +112,37 @@ public class ProfileProgressTests
         {
             Directory.Delete(folder, recursive: true);
         }
+    }
+
+    [Fact]
+    public void SinceATimeOnlyTheRowsWrittenThenOrLaterCount()
+    {
+        // Every car on every track carried on in a fresh game (2026-11-28) counts only its own rows: a car profiled the
+        // day before is driven again.
+        var began = new DateTime(2026, 11, 27, 22, 43, 41);
+        string[] lines =
+        [
+            Header,
+            Row("aaaa0001", 0.50f, false, when: began.AddDays(-1)),
+            Row("bbbb0002", 0.50f, true, when: began.AddDays(-1)), Row("bbbb0002", 0.55f, true, when: began),
+            Row("cccc0003", 0.50f, true, when: began.AddSeconds(-1)), Row("cccc0003", 0.55f, false, when: began.AddHours(3)),
+        ];
+
+        var all = new Dictionary<string, SweepState>();
+        ProfileProgress.Read(lines, all);
+        Assert.Null(all["aaaa0001"].From);
+
+        var since = new Dictionary<string, SweepState>();
+        ProfileProgress.Read(lines, since, began);
+        Assert.False(since.ContainsKey("aaaa0001"));
+        Assert.Equal(ProfileSweep.Next(0.55f), since["bbbb0002"].From);
+        Assert.True(since["cccc0003"].Ended);
+        Assert.Null(since["cccc0003"].LastClean);
+
+        // A sheet without a when can't say which of its rows are recent, so with a time it counts for nothing.
+        var undated = new Dictionary<string, SweepState>();
+        ProfileProgress.Read(["driver,car fingerprint,caution,clean", "auto,aaaa0001,0.50,no"], undated, began);
+        Assert.Empty(undated);
     }
 
     [Fact]

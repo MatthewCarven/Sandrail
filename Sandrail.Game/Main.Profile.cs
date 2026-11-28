@@ -278,6 +278,8 @@ public partial class Main
         _profileFurthest = 0.0f;
         _profileFurthestTick = _ticks;
         string name = Garage.NameOf(_tuning!.SpecPath);
+        WatchRun($"{_trackPrint}:{CarPrint}", $"{name} at {_caution * 100.0f:F0}% on {_profileTrackName}"
+            + (_everywhereActive ? $", track {_everywhereNumber} of {_everywhereTotal}" : string.Empty));
         // Every car on every track says which track and how far through on a line of its own, and the car under it,
         // each short enough for the default window beside his longest car names.
         _hud!.Banner = _everywhereActive
@@ -289,6 +291,7 @@ public partial class Main
     /// <summary>Once a tick while sweeping, after the race has seen it: the run's end, if it's come.</summary>
     private void ProfileTick()
     {
+        Alive();
         if (_profileRunPending)
         {
             _profileRunPending = false;

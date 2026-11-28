@@ -19,8 +19,9 @@ namespace Sandrail.Game;
 /// again: before, a refusal quit the game, and the whole run with it.
 /// </para>
 /// <para>
-/// <b>It can't save a game that has stopped altogether</b>: one that's crashed, or whose console has stopped taking text,
-/// so that a print never returns (the freeze of 2026-11-27). Profile unprofiled cars picks those up.
+/// <b>It can't save a game that has stopped altogether</b>, since it runs on the main thread: one whose console has stopped
+/// taking text, so that a print never returns (the freeze of 2026-11-27), or whose physics waits forever (Jolt's, on
+/// 2026-11-28). The watchdog does that, on a thread of its own, for every track (<c>Main.ProfileRestart.cs</c>).
 /// </para>
 /// </remarks>
 public partial class Main
@@ -46,6 +47,15 @@ public partial class Main
 
     private static void ChainReload(string what, bool again)
     {
+        // A chain over every track that has run long enough carries on in a fresh game instead (2026-11-28).
+        if (RestartDue)
+        {
+            RestartFresh();
+            return;
+        }
+
+        Alive();
+        WatchRun(string.Empty, $"loading {what}");
         _loadSerial++;
         _loadTry = again ? _loadTry + 1 : 1;
         _loadWhat = what;

@@ -59,6 +59,9 @@ public static class CarSheet
     /// <summary>The file every profiled car's numbers go in.</summary>
     public const string CarsFile = "cars.csv";
 
+    /// <summary>A row's <c>when</c>, local time to the second: <c>2026-11-28 12:18:36</c>.</summary>
+    public const string WhenFormat = "yyyy-MM-dd HH:mm:ss";
+
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
     /// <summary>A track's file: its name and fingerprint, <c>Shakedown 8a6323aa.csv</c>, with nothing a file name can't hold.</summary>
@@ -101,7 +104,7 @@ public static class CarSheet
 
         var cells = new List<string>
         {
-            row.When.ToString("yyyy-MM-dd HH:mm:ss", Inv),
+            row.When.ToString(WhenFormat, Inv),
             row.Track,
             row.Version,
             row.Driver,
