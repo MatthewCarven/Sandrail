@@ -104,6 +104,25 @@ public partial class SeedMenu : CanvasLayer
     private const float WindowMargin = 16.0f;
 
     /// <summary>
+    /// How the menu's scrolls take their scrollbar: its room kept beside the rows whether it shows or not (2026-11-29). With
+    /// Godot's automatic one, the menu was 8 px wider while it scrolled, which put the note under it on fewer lines, which
+    /// left the rows room enough not to scroll, which took the 8 px away and put the note back on more lines: in a band of
+    /// window heights as tall as a line of the note, the layout went back and forth inside one frame, each time laying out
+    /// every car in Change car again, until Godot's queue of deferred calls was full and the menu (or the game) died.
+    /// </summary>
+    private const ScrollContainer.ScrollMode ReserveScrollbar = ScrollContainer.ScrollMode.Reserve;
+
+    /// <summary>The frame <see cref="FitToWindow"/> last ran in, and how many times it ran in it.</summary>
+    private ulong _fitFrame = ulong.MaxValue;
+    private int _fitsThisFrame;
+
+    /// <summary>
+    /// The most fits a frame before the menu is left as it is: three at most were seen in a frame (a list opening changes
+    /// the note and the rows at once); the loop of 2026-11-29 made hundreds.
+    /// </summary>
+    private const int MostFitsAFrame = 50;
+
+    /// <summary>
     /// The profile (P3): the car being driven, swept over this track; null where there's no race to profile on. This and
     /// the three below are rows under one Profile button, which shows when any of them is there.
     /// </summary>
@@ -213,6 +232,7 @@ public partial class SeedMenu : CanvasLayer
         _scroll = new ScrollContainer
         {
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ReserveScrollbar,
             FollowFocus = true,
         };
         outer.AddChild(_scroll);
@@ -298,6 +318,7 @@ public partial class SeedMenu : CanvasLayer
                 Visible = false,
                 CustomMinimumSize = new Vector2(0.0f, 220.0f),
                 HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+                VerticalScrollMode = ReserveScrollbar,
             };
             _trackList.AddChild(_trackRows);
             rows.AddChild(_trackList);
@@ -405,7 +426,12 @@ public partial class SeedMenu : CanvasLayer
         _profileRows = new VBoxContainer();
         _profileRows.AddThemeConstantOverride("separation", 6);
         _profileRows.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        _profileList = new ScrollContainer { Visible = false, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        _profileList = new ScrollContainer
+        {
+            Visible = false,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ReserveScrollbar,
+        };
         _profileList.AddChild(_profileRows);
         rows.AddChild(_profileList);
 
@@ -437,6 +463,25 @@ public partial class SeedMenu : CanvasLayer
     /// </summary>
     private void FitToWindow()
     {
+        // A backstop: a fit that sets off another fit without end fills Godot's queue of deferred calls inside one frame
+        // and kills the menu, or the game, so past a frame's worth the menu is left as it is, and the log says so.
+        ulong frame = Engine.GetProcessFrames();
+        if (frame != _fitFrame)
+        {
+            _fitFrame = frame;
+            _fitsThisFrame = 0;
+        }
+
+        if (++_fitsThisFrame > MostFitsAFrame)
+        {
+            if (_fitsThisFrame == MostFitsAFrame + 1)
+            {
+                GD.PushWarning($"The Esc menu fitted itself to the window {MostFitsAFrame} times in one frame, so it's left as it is: a layout loop (WORKLOG, 2026-11-29).");
+            }
+
+            return;
+        }
+
         float panel = _panel.GetThemeStylebox("panel").GetMinimumSize().Y;
         float room = GetViewport().GetVisibleRect().Size.Y - (2.0f * WindowMargin) - panel
             - _note.GetCombinedMinimumSize().Y - 10.0f;

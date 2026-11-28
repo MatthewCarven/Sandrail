@@ -2,6 +2,64 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-29 — The Esc menu's dead padlocks and freeze: a layout loop, now gone
+
+Twice in Change car on the test ground (2026-11-28 and 29) the menu died on him: first the padlocks stopped answering,
+the hover highlight stuck on one; then, right after Set inactive on random-9, the game stopped answering and the console
+filled with *"Object was deleted while awaiting a callback."* **The loop was ours, and Godot made it fatal.** It's
+reproduced, explained and fixed.
+
+**The loop.** The menu's rows scroll, and `FitToWindow` sets how tall the scroll is: the window, less the note under it.
+- Godot's automatic scrollbar makes the scroll 8 px wider while it shows. The note fills the menu's width, so 8 px
+  wider can put it on a line fewer. Set inactive's note ends with the inactive folder's path, which wraps anywhere: for
+  random-9 it took 4 lines at 420 px and 3 at 428.
+- The rows were 828 px tall. With the note on 4 lines there wasn't room for 828 px, so the rows scrolled. Then the
+  scrollbar showed, the menu widened, and the note went to 3 lines. That made room, so the scroll grew to 828 and the
+  scrollbar went away. The menu narrowed, the note went back to 4 lines, and round again.
+- All of it runs in Godot's deferred calls, and a deferred call made while they're being run runs in the same frame, so
+  the frame never ended. A probe caught it flipping every pass: *note w 420 h 97 lines 4 ... room 803 ... vbar False*,
+  then *note w 428 h 72 lines 3 ... room 828 ... vbar True*.
+
+**Why it killed the game** (Godot 4.7.1's `core/object/message_queue.cpp`, read):
+- Each pass also laid out all 249 cars in Change car again and redrew them: about 9,000 deferred calls a pass. So after
+  about 150 passes, within that one frame, the queue's 32 MB (8,192 pages) was full.
+- At a full queue, Godot prints the whole queue, one line a call. The 1.39 million calls already run print as *"Object
+  was deleted while awaiting a callback."* It does that again for every call made after, so in a console, minutes of
+  printing: the freeze.
+- The dump also destroys the calls still waiting, but the controls that asked for them still think a sort, a redraw or
+  a size update is on its way. They never sort or redraw again: the dead padlocks and the stuck highlight.
+- Unguarded in a scratch copy, with the output in a file, it dumped twice and the game crashed (signal 11).
+
+**Where it happens**: in a band of window heights one line of the note tall (25 px), and only for a note whose wrapping
+changes with 8 px. With random-9's note on the test ground the band is 986–1010 px of viewport height with Change car
+or Load a track open, 754–778 with Profile open, and 676–700 with no list open. The window's width doesn't matter. If
+his window's 1024 px includes the title bar, the viewport inside is about 990, in the band. Of the eleven notes swept,
+only random-9's looped. The six-digit names wrap differently, which is why earlier tries never caught it: they need
+the band and a note like that at once.
+
+**The fix** (`Ui/SeedMenu.cs`):
+- **The menu's three scrolls reserve their scrollbar** (`ScrollMode.Reserve`): its 8 px stay beside the rows whether
+  it shows or not. The menu's width no longer depends on whether it scrolls, so the note's height no longer depends on
+  the scroll's, and `FitToWindow` can't feed back into itself. The menu is 8 px wider than before when it doesn't
+  scroll (484 px against 476: an empty strip right of the rows). It no longer changes width when it starts or stops
+  scrolling, either.
+- **A backstop**: `FitToWindow` called more than 50 times in one frame leaves the menu as it is and warns in the log
+  (*"The Esc menu fitted itself to the window 50 times in one frame..."*). The fixed menu fits at most three times a
+  frame. If a later change makes another loop through it, the menu stops for that frame and the log says so, instead
+  of the game dying.
+
+**Checked** (a temporary probe in the menu, since removed; a scratch copy of his 250 cars, scratch ghosts, tracks and
+profiles; headless, resizing the viewport a pixel at a time from 560 to 1100 px):
+- **Before**, the old scrollbars put back by the probe: random-9's note looped at every height in its band, in every
+  state with a list or none (25 heights each); with the Random cars form open (a 430 px menu) no note looped.
+- **After**, 11 notes × 541 heights × five states (Change car, Load a track, Random cars, Profile, nothing open): no
+  loop, at most two fits in a frame.
+- **The backstop**, with the old scrollbars: it caught each of the 25 loops, warned, and the queue never filled.
+- **In a window at 1510 × 1024 and at 1152 × 648**, old and new photographed side by side: menu, Change car, a lock
+  opened, Set inactive, Random cars, Load a track, Profile. They're the same but for the 8 px. Set inactive moved the
+  car, and a second click on its name straight after did nothing (the double-click guard), the game still paused.
+- Tests (403) pass; the headless check is clean. No oracle builds the menu.
+
 ## 2026-11-28 — Why the overnight profile froze, and a fresh game before it can again
 
 His `--profile=unprofiled` run froze after 13.6 hours (started 22:43, stopped about 12:22), the process alive and asleep.
