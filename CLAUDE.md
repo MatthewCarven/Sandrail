@@ -212,7 +212,7 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   in the ticked groups within a spread of its own, on its slider's steps, `Tunable.OnStep`). `Pieces/` is
   the road: `Frame`, the centrelines (line, pitch, banked turn, loop), `Chain`, `Profile`, the `Sweep`
   mesher and the `TestGroundLayout`. `Driving/` is the autodriver: `RacingLine` (samples, curvature,
-  bank, speed plan, and `MinimumCurvature`, the racing line inside the wheels' room) and `Autodriver`
+  bank, each sample's surface grip, speed plan, and `MinimumCurvature`, the racing line inside the wheels' room) and `Autodriver`
   (a front-axle Stanley tracker with yaw damping and slip guards); `LapTimer`, which times laps
   line to line for the game and the lap oracle alike; and `StuckWatch`, the auto-respawn's rule.
   `Tracks/` is M2's grid: `TrackGrid` (32 × 32 tiles of 20 m, levels of 2.5 m, on the plain),
@@ -361,8 +361,13 @@ on its back beside its way in; measured by `pieces2` (70 m holds 79 km/h, banked
 bank eases in from flat, so it counts for less than its full angle says). **P2 is built** (2026-11-27): a hump, 2 m
 over two tiles, that throws the car from about 72 km/h and lands it nose first (hint 75-90), and a tabletop, a 15° ramp
 to a 3 m lip, a 16 m top and a 10° way down over three tiles, whose down-ramp catches the car from 72 to 80 km/h (its
-hint), short landing on the top and long on the flat; `pieces2` flies both (held to the top, coasted from there). Next:
-dirt and sand straights and a 40° bank, then a climbing corner and a corkscrew. The generator stays version 1.
+hint), short landing on the top and long on the flat; `pieces2` flies both (held to the top, coasted from there).
+**P3 is built** (2026-11-28): dirt and sand straights, drawn in their own colour (the road's shader reads a piece's
+surface now; road looks as it did), braked from 80 km/h to 47 and 54 over a tile where road takes it to 33; **the
+autodriver's plan reads each piece's surface** (`RacingLine.GripAt`, exactly 1 on road, so every plan on road is the
+same to the bit); and a 30 m corner banked 40°, which holds 69 km/h like the 20° one, not flat out: a bank fades to
+nothing at both ends of a turn that's at full curvature end to end, and a shorter ease launches the car. The lever is a
+transition curve (Core code). Next: a climbing corner and a corkscrew. The generator stays version 1.
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by

@@ -1,0 +1,8 @@
+{
+  "id": "base:straight-sand",
+  "name": "Sand straight",
+  "tiles": [[0, 0]],
+  "out": { "tile": [0, 0], "side": "front", "rise": 0 },
+  "path": [{ "line": 20 }],
+  "surface": "base:sand"
+}

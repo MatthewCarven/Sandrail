@@ -277,6 +277,26 @@ drives a sprint over both clean at 70, 80 and 90%. The tabletop is the first blo
 side. Levers: the hump's height and its arcs (a nose-down landing comes from the crest's turn, v/R), the tabletop's lip
 angle, top and down-ramp.
 
+## P3: dirt and sand straights, and the steep bank
+
+**Built 2026-11-28**: three piece files, a little game code and a little Core code; 5 tests, worklog that date.
+**The dirt and sand straights** are the straight in another surface (`surface` was in every piece file from M2 on, and
+in the fingerprint, so no track moves). **The road's look didn't read the surface** (the table's "to check"), so the
+road's shader now does: a dirt or sand piece is its ground's colour a shade darker, unmarked, grainy, with two ruts;
+road is drawn as it was. **Measured** by `pieces2`, braked from 80 km/h for one tile: 33 km/h after it on road, 47 on
+dirt, 54 on sand; full throttle from 40: 66 on road, 60 on dirt, 55 on sand. **The autodriver's plan now reads the
+surface** (`RacingLine.GripAt`): before, it braked on sand as on road, and left the road at 80% on a sprint with a sand
+run into a corner and failed to finish at 90%. Now it's clean at 70, 80 and 90%. Road lends exactly 1, so every plan
+on road is the same to the bit (the `lap` and `track` oracles unchanged). **The steep-banked corner** is the 30 m
+corner at 40°, its outer edge 6.4 m up, and it **is not the flat-out corner the table said**: it holds 69 km/h and
+leaves the road at 74, the same as the 20° corner. It loses the road where the bank fades on the way out (46 m into its
+47 m): a bank that eases in from flat at both ends leaves both ends a flat corner at full curvature. A shorter ease
+is worse (0.15 leaves the road 8 m in, at every speed tried): rising 6.4 m at the outer edge over a few metres
+launches the car. **The lever is a transition**: a turn whose curve tightens as its bank rises, so the ends are
+nearly straight where they're nearly flat. That's Core code (a turn step with eased curvature, its middle radius solved
+so it still meets its way out); it would serve the climbing corner too. The 20° corners would keep their shape,
+since changing them would move every fingerprint.
+
 ## P1 onward: the shortlist, a slice each
 
 In the order decisions 2 and 3 give. Each slice: the piece files; Core support with tests where it needs

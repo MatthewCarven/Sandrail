@@ -36,15 +36,16 @@ public sealed class RacingLine
     private readonly float[] _hint;
     private readonly bool[] _straight;
     private readonly float[] _cap;
+    private readonly float[] _grip;
 
     /// <summary>The road's centreline as a line.</summary>
     /// <param name="closed">A lap: the last sample runs on into the first.</param>
     public RacingLine(IReadOnlyList<ICentreline> pieces, bool closed, float stepM = 1.0f)
-        : this(Sample(pieces, closed, stepM), closed, new float[SampleCount(pieces, closed, stepM)], null, null, null)
+        : this(Sample(pieces, closed, stepM), closed, new float[SampleCount(pieces, closed, stepM)], null, null, null, null)
     {
     }
 
-    private RacingLine((Vector3[] Position, Vector3[] Forward, Vector3[] Up, Vector3[] Right, int[] Piece) s, bool closed, float[] offset, float[]? hint, bool[]? straight, float[]? cap)
+    private RacingLine((Vector3[] Position, Vector3[] Forward, Vector3[] Up, Vector3[] Right, int[] Piece) s, bool closed, float[] offset, float[]? hint, bool[]? straight, float[]? cap, float[]? grip)
     {
         _position = s.Position;
         _forward = s.Forward;
@@ -56,6 +57,7 @@ public sealed class RacingLine
         _hint = hint ?? Enumerable.Repeat(float.NaN, _position.Length).ToArray();
         _straight = straight ?? new bool[_position.Length];
         _cap = cap ?? Enumerable.Repeat(float.PositiveInfinity, _position.Length).ToArray();
+        _grip = grip ?? Enumerable.Repeat(1.0f, _position.Length).ToArray();
 
         _distance = new float[Count];
         for (int i = 1; i < Count; i++)
@@ -128,18 +130,23 @@ public sealed class RacingLine
     /// <summary>
     /// The same line, with the stunts on it marked: where a speed hint holds, m/s (NaN for none), where the
     /// wheels are held straight, and where the speed is capped below what the bend allows (a crest, m/s;
-    /// infinity for none).
+    /// infinity for none); and the share of the car's grip the road lends at each sample (its surface's, 1
+    /// for road; all 1 when not given).
     /// </summary>
-    public RacingLine WithStunts(Func<int, float> hintMps, Func<int, bool> straight, Func<int, float>? capMps = null) => new(
+    public RacingLine WithStunts(Func<int, float> hintMps, Func<int, bool> straight, Func<int, float>? capMps = null, Func<int, float>? gripShare = null) => new(
         ((Vector3[])_position.Clone(), (Vector3[])_forward.Clone(), (Vector3[])_up.Clone(), (Vector3[])_right.Clone(), (int[])_piece.Clone()),
         Closed,
         (float[])_offset.Clone(),
         Enumerable.Range(0, Count).Select(hintMps).ToArray(),
         Enumerable.Range(0, Count).Select(straight).ToArray(),
-        capMps is null ? null : Enumerable.Range(0, Count).Select(capMps).ToArray());
+        capMps is null ? null : Enumerable.Range(0, Count).Select(capMps).ToArray(),
+        gripShare is null ? null : Enumerable.Range(0, Count).Select(gripShare).ToArray());
 
     /// <summary>The most the speed plan allows here whatever the bend, m/s: a crest's, or infinity.</summary>
     public float CapAt(int i) => _cap[i];
+
+    /// <summary>The share of the car's grip the road lends here: its surface's (PIECES-PLAN, P3), 1 on road.</summary>
+    public float GripAt(int i) => _grip[i];
 
     /// <summary>
     /// The line that turns least, inside the room the road leaves once the car's wheels are kept on it.
@@ -244,7 +251,7 @@ public sealed class RacingLine
         }
 
         return new RacingLine((at, forward, (Vector3[])_up.Clone(), (Vector3[])_right.Clone(), (int[])_piece.Clone()), Closed, offset,
-            (float[])_hint.Clone(), (bool[])_straight.Clone(), (float[])_cap.Clone());
+            (float[])_hint.Clone(), (bool[])_straight.Clone(), (float[])_cap.Clone(), (float[])_grip.Clone());
     }
 
     /// <summary>
@@ -258,6 +265,9 @@ public sealed class RacingLine
     /// downforce outgrows the corner's need, the bottom goes to zero and the corner is flat out. It's
     /// counted as if shared by all four tyres; a rear wing loads the rear ones, which the caution covers.
     /// Braking likewise gains the downforce at the speed being braked to, the cautious end.
+    /// <b>A surface lends its share of the grip</b> (PIECES-PLAN, P3): a dirt or sand piece's corners and the braking
+    /// over it are planned from the car's grip times the surface's. Road's share is exactly 1, so on road it's the
+    /// plan it was to the last bit.
     /// </remarks>
     public float[] SpeedProfile(CarSpec spec, float caution)
     {
@@ -280,8 +290,9 @@ public sealed class RacingLine
             // figures for a wingless car don't move.
             float bank = _bankDeg[i] * (MathF.PI / 180.0f);
             float tan = MathF.Tan(bank);
-            float below = MathF.Max(1.0f - (mu * tan), 0.05f) - (mu * pressPerMass / (MathF.Cos(bank) * bend));
-            speeds[i] = below > 0.0f ? MathF.Min(MathF.Sqrt(G / bend * (tan + mu) / below), top) : top;
+            float m = mu * _grip[i];
+            float below = MathF.Max(1.0f - (m * tan), 0.05f) - (m * pressPerMass / (MathF.Cos(bank) * bend));
+            speeds[i] = below > 0.0f ? MathF.Min(MathF.Sqrt(G / bend * (tan + m) / below), top) : top;
         }
 
         // A stunt's speed is its hint, not what its shape says: a loop's heading turns over at the top,
@@ -314,7 +325,7 @@ public sealed class RacingLine
 
                 float ds = Span(i, next);
                 float after = speeds[next] * speeds[next];
-                float braking = (G + (pressPerMass * after)) * mu * 0.9f;
+                float braking = (G + (pressPerMass * after)) * (mu * _grip[i]) * 0.9f;
                 speeds[i] = MathF.Min(speeds[i], MathF.Sqrt(after + (2.0f * braking * ds)));
             }
         }

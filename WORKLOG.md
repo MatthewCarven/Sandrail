@@ -2,6 +2,70 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-28 — Dirt and sand straights, and a 40° bank (PIECES-PLAN, P3)
+
+His *"Please continue Claude"* after P2. Three piece files:
+- **`base:straight-dirt`** and **`base:straight-sand`**: the straight in another surface. Every piece file has carried
+  `surface` since M2, the car read it from each piece's body, and the fingerprint serialises it, so nothing new went
+  into the file or moved any track. Dirt lends the car 0.75 of its grip, sand 0.6, with more rolling drag.
+- **`base:corner-30-steep`**: the 30 m corner banked 40° rather than 20°, its outer edge 6.4 m up (the bank pivots on
+  its inner edge).
+
+**The road's look didn't read the surface** (the plan's "to check"): every piece was drawn as tarmac. The road shader
+has two uniforms now, the surface's colour and whether it's marked. A dirt or sand piece is its ground's colour a shade
+darker (sand on the sand plain was invisible at the ground's own colour), with no lines, a grain and two ruts down its
+middle. Road sets neither, so it draws exactly as it did.
+
+**Measured** (`pieces2`, the stock car; each surface straight held to its way in, then one tile flat out on one pedal,
+against the road tile before it):
+
+| From | Road | Dirt | Sand |
+|---|---|---|---|
+| Braked from 80 km/h, after 20 m | 33 km/h | 47 | 54 |
+| Full throttle from 40 km/h, after 20 m | 66 km/h | 60 | 55 |
+
+**The autodriver braked on sand as on road.** Its speed plan used the car's grip alone. On a scratch sprint (120 m of
+road, 60 m of sand into the 30 m corner, 60 m of dirt into the steep bank), it was clean at 70%, left the road for 23 s at
+80% (late into the corner, then sliding on the dirt) and didn't finish at 90%. **Now the plan reads the surface**:
+`RacingLine` carries each sample's share of the grip (`GripAt`; `TrackRacing` sets it from each piece's surface), and the
+corner formula and the braking pass both use the car's grip times it. Afterwards: clean at 70, 80 and 90% (20.68, 19.95,
+19.37 s, no time off the road). Road's share is exactly 1, and a float times 1 is itself, so every plan on road is the
+same to the bit: `lap`, `track`, `bank` and the rest unchanged.
+
+**The steep bank is not the flat-out corner the plan said.** The plan worked it out from the full bank: 40° with
+road grip holds the car past 300 km/h. The trials:
+
+| Speed | 20° (`corner-30-banked`) | 40° (`corner-30-steep`) |
+|---|---|---|
+| 64 km/h | held, 1.1 m off its middle | held, 1.7 m |
+| 69 | held, 3.1 m | held, 2.5 m |
+| 74 | off the road 38 m in | off the road 46 m in |
+| 79 | off 33 m in | off 39 m in |
+
+Both hold 69 and leave at 74. The 40° one leaves later in the corner (46 m into its 47), where the bank is fading.
+P1 found the cause: **a bank eases in from flat over the first half of a corner and out over the second, while the turn
+is at full curvature from end to end**. So both ends are a flat 30 m corner, whatever the bank is in the middle.
+**A shorter ease is worse**: at 0.25 the car left the road 22-24 m in, and at 0.15 it left 8 m in at every speed
+from 79 to 118. With the pivot on the inner edge, the outer edge climbing 6.4 m in seven metres is a ramp, and it
+launches the car. The 40° corner stays at the usual ease (0.5): it looks the part and drives like the 20° one. **The
+lever is a transition curve**: a turn whose curvature eases in with its bank, so the corner is nearly straight wherever
+it's nearly flat, with its middle radius solved so it still meets its way out. That's Core code, akin to the climbing
+corner. Applying it to the existing banked corners would move every fingerprint, so they'd keep their shape.
+
+**The showroom** has them at stations 27-29 (dirt north of the U-turn, sand on its side, the corner near the crossing),
+after the hump and the tabletop. Stations 1-26 haven't moved. The palette lists them last.
+
+**Checks**: 402 tests. Five are new:
+- the surface straights are the straight in another surface;
+- a dirt straight is another track to a ghost;
+- the steep bank's 40° and its 6.4 m edge;
+- the autodriver brakes sooner on sand, its corner speed unchanged;
+- a sprint laid over all three.
+
+The headless check is clean. Seventeen oracles are identical byte for byte, and `pieces2`'s earlier trials are
+unchanged. The fingerprints of the game's tracks and his saved ones (a scratch copy) match line for line. `--generate`
+over 1000 seeds is identical apart from its timings. The generator stays version 1.
+
 ## 2026-11-27 — Every track: why the long run died, a watch on every load, and Profile unprofiled cars
 
 His three asks about Profile every car on every track, now that his garage holds about 110 active cars and a full run

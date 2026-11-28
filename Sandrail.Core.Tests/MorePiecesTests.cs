@@ -1,3 +1,5 @@
+using Sandrail.Core.Cars;
+using Sandrail.Core.Driving;
 using Sandrail.Core.Pieces;
 using Sandrail.Core.Tracks;
 
@@ -126,6 +128,118 @@ public class MorePiecesTests
         LaidTrack laid = track.Lay(Catalogue.Value);
         Assert.Empty(laid.Problems);
         Assert.Equal(7, laid.Route.Count);
+    }
+
+    /// <summary>
+    /// The dirt and sand straights (P3) are the straight's road in another surface, which lends the car less grip: the
+    /// same tile, the same way out, the same 20 m line.
+    /// </summary>
+    [Theory]
+    [InlineData("straight-dirt", "base:dirt")]
+    [InlineData("straight-sand", "base:sand")]
+    public void TheSurfaceStraightsAreTheStraightInAnotherSurface(string piece, string surface)
+    {
+        PlacedPiece straight = Placed(piece, 10, 20);
+        Assert.Equal(Placed("straight", 10, 20).Out, straight.Out);
+        Assert.Equal(20.0f, Assert.Single(straight.Road().Pieces).Length, 3);
+        Assert.Equal(surface, straight.Def.Surface);
+        Assert.True(Surfaces.Find(surface)!.Grip < Surfaces.Road.Grip);
+        Assert.False(TrackRacing.IsStunt(straight.Def));
+    }
+
+    /// <summary>
+    /// A track's fingerprint reads each piece's surface, so a road straight swapped for a dirt one is another track to a
+    /// ghost, as it drives differently; the road straights in every track already made keep theirs.
+    /// </summary>
+    [Fact]
+    public void ADirtStraightIsAnotherTrackToAGhost()
+    {
+        Track Sprint(string middle) => new()
+        {
+            Id = "test:surface",
+            Name = "Surface",
+            Pieces = [P("start", 10, 22), P(middle, 10, 21), P("finish", 10, 20)],
+        };
+
+        string road = TrackFingerprint.Of(Sprint("straight"), Catalogue.Value);
+        Assert.NotEqual(road, TrackFingerprint.Of(Sprint("straight-dirt"), Catalogue.Value));
+        Assert.NotEqual(road, TrackFingerprint.Of(Sprint("straight-sand"), Catalogue.Value));
+    }
+
+    /// <summary>
+    /// The steep-banked corner (P3) is the 30 m corner's turn banked 40° rather than 20°: the bank pivots on its inner
+    /// edge, so through its middle the outer edge stands its width times sin 40°, 6.4 m, over the way in.
+    /// </summary>
+    [Fact]
+    public void TheSteepBankStandsItsOuterEdgeSixMetresUp()
+    {
+        PlacedPiece steep = Placed("corner-30-steep", 10, 20);
+        PlacedPiece gentle = Placed("corner-30-banked", 10, 20);
+        Assert.Equal(gentle.Out, steep.Out);
+        Assert.Equal(gentle.Tiles, steep.Tiles);
+
+        TurnCentreline turn = Assert.IsType<TurnCentreline>(Assert.Single(steep.Road().Pieces));
+        Frame middle = turn.FrameAt(turn.Length / 2.0f);
+        float bankDeg = MathF.Acos(Math.Clamp(middle.Up.Y, -1.0f, 1.0f)) * (180.0f / MathF.PI);
+        Assert.Equal(40.0f, bankDeg, 1);
+
+        // Its middle rises half the outer edge's height, the inner edge staying where it was.
+        float halfSin = (steep.Def.WidthM / 2.0f) * MathF.Sin(40.0f * MathF.PI / 180.0f);
+        Assert.Equal(halfSin, middle.Position.Y - steep.Start.Position.Y, 2);
+        Assert.Equal(6.43f, 2.0f * halfSin, 2);
+    }
+
+    /// <summary>
+    /// The autodriver's plan reads each piece's surface (P3): with the straights before a corner made sand, it brakes for
+    /// the corner sooner and from no faster, and the corner itself, road, is planned as it was. On a track of road the
+    /// line lends the car all its grip everywhere, which keeps every plan before P3 to the last bit.
+    /// </summary>
+    [Fact]
+    public void TheAutodriverBrakesSoonerOnSand()
+    {
+        Track Sprint(string run) => new()
+        {
+            Id = "test:sand",
+            Name = "Sand",
+            Pieces =
+            [
+                P("start", 10, 28), P("straight", 10, 27), P("straight", 10, 26), P("straight", 10, 25), P("straight", 10, 24),
+                P(run, 10, 23), P(run, 10, 22), P(run, 10, 21), P("corner-30", 10, 20), P("straight", 12, 19, Compass.East), P("finish", 13, 19, Compass.East),
+            ],
+        };
+
+        CarSpec spec = CarSpec.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "content", "base", "cars", "buggy.json")));
+        RacingLine road = Sprint("straight").Lay(Catalogue.Value).CentreLine(spec);
+        RacingLine sand = Sprint("straight-sand").Lay(Catalogue.Value).CentreLine(spec);
+        Assert.Equal(road.Count, sand.Count);
+        Assert.All(Enumerable.Range(0, road.Count), i => Assert.Equal(1.0f, road.GripAt(i)));
+        Assert.Contains(Enumerable.Range(0, sand.Count), i => sand.GripAt(i) == Surfaces.Sand.Grip);
+
+        float[] onRoad = road.SpeedProfile(spec, 0.8f);
+        float[] onSand = sand.SpeedProfile(spec, 0.8f);
+        Assert.All(Enumerable.Range(0, road.Count), i => Assert.True(onSand[i] <= onRoad[i] + 1e-4f));
+
+        // Where the road plan is still flat out, the sand plan is already braking.
+        int braking = Enumerable.Range(0, road.Count).First(i => onRoad[i] < onRoad.Max() - 0.01f);
+        Assert.True(onSand[braking - 10] < onRoad[braking - 10] - 0.5f);
+
+        // The corner's own speed doesn't change: it's road.
+        int apex = Enumerable.Range(0, road.Count).MinBy(i => onRoad[i]);
+        Assert.Equal(onRoad[apex], onSand[apex], 3);
+    }
+
+    [Fact]
+    public void ASprintRunsOverDirtAndSandAndRoundTheSteepBank()
+    {
+        var track = new Track
+        {
+            Id = "test:surfaces",
+            Name = "Dirt, sand and a steep bank",
+            Pieces = [P("start", 10, 26), P("straight-dirt", 10, 25), P("straight-sand", 10, 24), P("corner-30-steep", 10, 23), P("straight", 12, 22, Compass.East), P("finish", 13, 22, Compass.East)],
+        };
+        LaidTrack laid = track.Lay(Catalogue.Value);
+        Assert.Empty(laid.Problems);
+        Assert.Equal(6, laid.Route.Count);
     }
 
     /// <summary>The highest point of a piece's road, sampled every 10 cm: how far along its road, and how far above its way in.</summary>

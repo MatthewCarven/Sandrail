@@ -30,18 +30,30 @@ public static class TestGround
 
         uniform float road_width = 9.7;
 
+        // Tarmac unless told: a dirt or sand piece is its own colour, unmarked, grainy, with two ruts worn down its middle.
+        uniform vec3 surface_colour = vec3(0.2, 0.2, 0.22);
+        uniform bool marked = true;
+
         void fragment() {
             float u = UV.x;
             float v = UV.y;
             vec3 colour = vec3(0.56, 0.54, 0.5);
             if (u <= road_width + 0.001) {
-                colour = vec3(0.2, 0.2, 0.22);
-                float edge = min(u, road_width - u);
-                if (edge > 0.12 && edge < 0.3) {
-                    colour = vec3(0.92);
-                }
-                if (abs(u - road_width * 0.5) < 0.09 && fract(v / 6.0) < 0.5) {
-                    colour = vec3(0.95, 0.8, 0.2);
+                colour = surface_colour;
+                if (marked) {
+                    float edge = min(u, road_width - u);
+                    if (edge > 0.12 && edge < 0.3) {
+                        colour = vec3(0.92);
+                    }
+                    if (abs(u - road_width * 0.5) < 0.09 && fract(v / 6.0) < 0.5) {
+                        colour = vec3(0.95, 0.8, 0.2);
+                    }
+                } else {
+                    float grain = fract(sin(dot(floor(vec2(u, v) * 5.0), vec2(12.9898, 78.233))) * 43758.5453);
+                    colour *= 0.9 + (0.2 * grain);
+                    if (abs(abs(u - road_width * 0.5) - 0.8) < 0.22) {
+                        colour *= 0.8;
+                    }
                 }
                 // A faint band every 10 m, so speed reads on the road as it does on the plain.
                 if (fract(v / 10.0) < 0.04) {
@@ -77,6 +89,14 @@ public static class TestGround
         MeshData mesh = Sweep.Build(pieces, profile);
         var material = new ShaderMaterial { Shader = _roadShader };
         material.SetShaderParameter("road_width", profile.SurfaceWidth);
+        if (surface != Surfaces.Road)
+        {
+            // A shade darker than the ground of the same name, so a sand straight shows on sand.
+            Color colour = TerrainView.Colour(surface).Darkened(0.18f).SrgbToLinear();
+            material.SetShaderParameter("surface_colour", new Vector3(colour.R, colour.G, colour.B));
+            material.SetShaderParameter("marked", false);
+        }
+
         return Body(name, ToMesh(mesh), Collider(mesh), material, surface);
     }
 

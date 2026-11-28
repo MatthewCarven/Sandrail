@@ -44,12 +44,17 @@ public partial class Oracle
 
     /// <summary>
     /// A loop, a jump or a slope as M2b drove them; the crossing driven under its deck; a corner held at a speed; or a
-    /// piece that throws the car off its own road (the hump, the tabletop), held to its top and coasted from there.
+    /// piece that throws the car off its own road (the hump, the tabletop), held to its top and coasted from there; or a
+    /// surface straight braked, or pulled down at full throttle, from a speed.
     /// </summary>
-    private enum TrialKind { Loop, Jump, Slope, Under, Corner, Fly }
+    private enum TrialKind { Loop, Jump, Slope, Under, Corner, Fly, Brake, Pull }
 
-    /// <summary>A piece at a speed; or with <paramref name="Station"/>, a station's whole road, as for the crossing.</summary>
-    private sealed record PieceTrial(string Piece, float Kmh, TrialKind Kind, string? Station = null);
+    /// <summary>
+    /// A piece at a speed; or with <paramref name="Station"/>, a station's whole road, as for the crossing; with
+    /// <paramref name="Shift"/>, a braking or pulling trial measured that many metres from the piece's way in (−20: the
+    /// road tile before it).
+    /// </summary>
+    private sealed record PieceTrial(string Piece, float Kmh, TrialKind Kind, string? Station = null, float Shift = 0.0f);
 
     private PieceTrial[] ActiveTrials => Kind == Pieces2 ? Trials2 : Trials;
 
@@ -106,6 +111,26 @@ public partial class Oracle
         new("base:tabletop", 85.0f, TrialKind.Fly),
         new("base:tabletop", 90.0f, TrialKind.Fly),
         new("base:tabletop", 100.0f, TrialKind.Fly),
+
+        // P3: each surface straight braked from 80 km/h and pulled from 40 down its one tile, against the road tile before
+        // the dirt one; and the 40° corner held at speeds, beside the 20° 30 m corner of the starter set.
+        new("base:straight-dirt", 80.0f, TrialKind.Brake, Shift: -TrackGrid.TileM),
+        new("base:straight-dirt", 80.0f, TrialKind.Brake),
+        new("base:straight-sand", 80.0f, TrialKind.Brake),
+        new("base:straight-dirt", 40.0f, TrialKind.Pull, Shift: -TrackGrid.TileM),
+        new("base:straight-dirt", 40.0f, TrialKind.Pull),
+        new("base:straight-sand", 40.0f, TrialKind.Pull),
+        new("base:corner-30-banked", 60.0f, TrialKind.Corner),
+        new("base:corner-30-banked", 65.0f, TrialKind.Corner),
+        new("base:corner-30-banked", 70.0f, TrialKind.Corner),
+        new("base:corner-30-banked", 75.0f, TrialKind.Corner),
+        new("base:corner-30-banked", 80.0f, TrialKind.Corner),
+        new("base:corner-30-steep", 65.0f, TrialKind.Corner),
+        new("base:corner-30-steep", 70.0f, TrialKind.Corner),
+        new("base:corner-30-steep", 75.0f, TrialKind.Corner),
+        new("base:corner-30-steep", 80.0f, TrialKind.Corner),
+        new("base:corner-30-steep", 90.0f, TrialKind.Corner),
+        new("base:corner-30-steep", 100.0f, TrialKind.Corner),
     ];
 
     private static readonly PieceTrial[] Trials =
@@ -204,6 +229,10 @@ public partial class Oracle
                 break;
             case TrialKind.Fly:
                 RunFlyTrial(trial, steer, along);
+                break;
+            case TrialKind.Brake:
+            case TrialKind.Pull:
+                RunPedalTrial(trial, steer, along);
                 break;
         }
 
@@ -440,6 +469,37 @@ public partial class Oracle
         }
     }
 
+    /// <summary>
+    /// A surface straight braked or pulled at a speed (PIECES-PLAN, P3): the speed held to its way in (shifted, to the
+    /// road tile before it), then full brake or full throttle down the middle for one tile, and the speed it leaves at.
+    /// </summary>
+    private void RunPedalTrial(PieceTrial trial, float steer, float along)
+    {
+        float from = _trialMainStart + trial.Shift;
+        if (_trialInAt is null)
+        {
+            Car.Driver = Hold(trial.Kmh / 3.6f) with { Steer = steer };
+            if (along >= from)
+            {
+                _trialInAt = Time;
+                _trialInSpeed = Car.LinearVelocity.Length();
+            }
+
+            return;
+        }
+
+        bool brake = trial.Kind == TrialKind.Brake;
+        Car.Driver = new DriverInput { Throttle = brake ? 0.0f : 1.0f, Brake = brake ? 1.0f : 0.0f, Steer = steer };
+        float speed = ForwardSpeed;
+        bool stopped = brake && speed < 0.5f;
+        if (along >= from + TrackGrid.TileM || stopped)
+        {
+            string surface = trial.Shift < 0.0f ? "road" : trial.Piece == "base:straight-sand" ? "sand" : "dirt";
+            string after = stopped ? $"stops {along - from:F1} m in" : $"{speed * 3.6f:F1} km/h after {TrackGrid.TileM:F0} m";
+            _trialFigures.Add($"{surface} at {_trialInSpeed * 3.6f:F0} km/h, {(brake ? "braked" : "full throttle")}: {after}");
+        }
+    }
+
     private void StartTrial(ShowroomLayout room, int index)
     {
         _trial = index;
@@ -560,6 +620,8 @@ public partial class Oracle
         "base:u-turn-banked" => "banked U-turn",
         "base:hump" => "hump",
         "base:tabletop" => "tabletop",
+        "base:corner-30-banked" => "banked 30 m corner",
+        "base:corner-30-steep" => "40° banked 30 m corner",
         _ => trial.Piece,
     };
 }

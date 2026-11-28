@@ -132,8 +132,11 @@ public static class TrackRacing
             return CrestShare * MathF.Sqrt(9.81f * MathF.Cos(pitch) / over);
         }
 
+        // A dirt or sand piece lends its surface's share of the grip, for its corners and the braking over it (P3).
+        float Grip(int sample) => (Surfaces.Find(PieceOf(sample).Def.Surface) ?? Surfaces.Road).Grip;
+
         RacingLine line = minimumCurvature ? centre.MinimumCurvature(Room) : centre;
-        return line.WithStunts(Hint, sample => road[centre.PieceAt(sample)] is LoopCentreline, Cap);
+        return line.WithStunts(Hint, sample => road[centre.PieceAt(sample)] is LoopCentreline, Cap, Grip);
     }
 
     /// <summary>Whether a piece is a stunt: one with a speed hint, a landing, a lip, or a loop.</summary>

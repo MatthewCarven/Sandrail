@@ -66,6 +66,7 @@ public static class Showroom
         "base:slope-down-steep", "base:slope-up-steep", CrossingBlock,
         "base:corner-70", "base:corner-70-banked", "base:u-turn", "base:u-turn-banked",
         "base:hump", "base:tabletop",
+        "base:straight-dirt", "base:straight-sand", "base:corner-30-steep",
     ];
 
     public static ShowroomLayout Lay(PieceCatalogue catalogue)
