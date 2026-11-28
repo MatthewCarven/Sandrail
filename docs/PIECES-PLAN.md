@@ -297,6 +297,20 @@ nearly straight where they're nearly flat. That's Core code (a turn step with ea
 so it still meets its way out); it would serve the climbing corner too. The 20° corners would keep their shape,
 since changing them would move every fingerprint.
 
+**Reshaped 2026-11-29, at his word** ("Yes, on 3 × 3", to "make them longer"): `base:corner-50-steep` replaces
+`base:corner-30-steep`, which none of his 42 tracks used. It's on the 50 m corner's 3 × 3 tiles, **a turn with gradual
+ends** (`transition` on a turn step, `TransitionTurnCentreline`): its curve tightens from straight to a 27 m middle over
+its first half and loosens over its second, ending where the 50 m arc ends. **The bank leads the curve**, rising as the
+root of the curve's share. In step with it, halfway in is a 53 m arc on a 20° bank, slower than the middle; leading, it's
+on 28°. Measured, the same tiles' 20° corner holds 89 km/h; gradual ends over a quarter each held 89 too, over half 99,
+and with the bank leading **127, leaving the road at 137**. The speed plan can't see what holds it there: the springs,
+pressed past their travel at 3.7 g, and under 8° of steering lock. It planned 150-170 km/h at 90% and the autodriver flew
+off at every caution. So it has **a hint, 105-120 km/h**, as the loop and jumps do, and the autodriver takes it down the
+middle, clean at 70 to 100%. **Transitions are held to 180°**: past that, gentle ends point the chord backwards. **The
+showroom was full**: no way round found it room, mirrored or not. So a block with no room on the grid goes past its east
+edge, and the showroom draws the plain on to meet it; stations 1-28 haven't moved. Levers: the transition, the bank's
+lead (the root), the hint.
+
 ## P1 onward: the shortlist, a slice each
 
 In the order decisions 2 and 3 give. Each slice: the piece files; Core support with tests where it needs

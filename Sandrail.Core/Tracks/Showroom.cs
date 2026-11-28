@@ -53,6 +53,12 @@ public static class Showroom
         "base:slope-up", "base:start-finish", "base:start", "base:straight",
     ];
 
+    /// <summary>
+    /// How many columns past the grid's east edge a block may go when the grid has no room for it any way round (P3): 16
+    /// tiles, 320 m, well inside the plain's 1000 m.
+    /// </summary>
+    public const int Overflow = 16;
+
     /// <summary>Where the crossing's block comes among <see cref="Added"/>.</summary>
     private const string CrossingBlock = "(crossing)";
 
@@ -66,7 +72,7 @@ public static class Showroom
         "base:slope-down-steep", "base:slope-up-steep", CrossingBlock,
         "base:corner-70", "base:corner-70-banked", "base:u-turn", "base:u-turn-banked",
         "base:hump", "base:tabletop",
-        "base:straight-dirt", "base:straight-sand", "base:corner-30-steep",
+        "base:straight-dirt", "base:straight-sand", "base:corner-50-steep",
     ];
 
     public static ShowroomLayout Lay(PieceCatalogue catalogue)
@@ -91,15 +97,21 @@ public static class Showroom
         void Block(IReadOnlyList<(string Name, string Hint, List<Placement> Group)> block, bool starter)
         {
             // Facing north as laid; where that finds no room, on its side, facing east, which the space above a band
-            // left by its tallest group often has.
+            // left by its tallest group often has; then facing south and west, and then mirrored, a left-hand corner for a
+            // right-hand one, each way round (P3: the grid is nearly full, and the 3 × 3 steep corner's block fitted no way
+            // round as laid).
             if (!starter && FreeSpot(TilesOf(block), taken) is null)
             {
-                var turned = block.Select(b => (b.Name, b.Hint, b.Group.Select(QuarterTurned).ToList())).ToList();
-                if (FreeSpot(TilesOf(turned), taken) is not null)
-                {
-                    block = turned;
-                }
+                var mirrored = block.Select(b => (b.Name, b.Hint, b.Group.Select(Mirrored).ToList())).ToList();
+                var tries = new[] { block, mirrored }.SelectMany(laid => Enumerable.Range(1, 3).Aggregate(
+                    new List<List<(string Name, string Hint, List<Placement> Group)>> { laid.ToList() },
+                    (turns, _) => [.. turns, turns[^1].Select(b => (b.Name, b.Hint, b.Group.Select(QuarterTurned).ToList())).ToList()]));
+                block = tries.Skip(1).FirstOrDefault(t => FreeSpot(TilesOf(t), taken) is not null) ?? block;
             }
+
+            // And where the grid has no room any way round, past its east edge, as laid, on the plain the game widens to
+            // meet it (P3: a showroom isn't a track, and its tiles needn't be the grid's).
+            (int, int)? beyond = !starter && FreeSpot(TilesOf(block), taken) is null ? FreeSpot(TilesOf(block), taken, TrackGrid.Size + Overflow) : null;
 
             var tiles = TilesOf(block);
             int minColumn = tiles.Min(t => t.Column);
@@ -111,7 +123,11 @@ public static class Showroom
 
             int dc;
             int dr;
-            if (starter || FreeSpot(tiles, taken) is not (int, int) spot)
+            if (beyond is (int, int) past)
+            {
+                (dc, dr) = past;
+            }
+            else if (starter || FreeSpot(tiles, taken) is not (int, int) spot)
             {
                 if (cursor + width > TrackGrid.Size - 1)
                 {
@@ -199,11 +215,15 @@ public static class Showroom
     private static Placement QuarterTurned(Placement p) =>
         p with { At = new Tile(-p.At.Row, p.At.Column), Rotation = (p.Rotation + 1) % 4 };
 
+    /// <summary>A placement mirrored east to west about the grid's first column, as a whole group mirrors: a right-hand corner becomes a left.</summary>
+    private static Placement Mirrored(Placement p) =>
+        p with { At = new Tile(-p.At.Column, p.At.Row), Rotation = (4 - p.Rotation) % 4, Mirrored = !p.Mirrored };
+
     /// <summary>
     /// The first shift, scanning from the grid's south-west corner row by row, that puts a block's tiles on the grid,
     /// inside its edge, with a tile clear of everything taken; null if there's none.
     /// </summary>
-    private static (int Dc, int Dr)? FreeSpot(List<Tile> tiles, HashSet<Tile> taken)
+    private static (int Dc, int Dr)? FreeSpot(List<Tile> tiles, HashSet<Tile> taken, int columns = TrackGrid.Size)
     {
         int minColumn = tiles.Min(t => t.Column);
         int maxColumn = tiles.Max(t => t.Column);
@@ -211,7 +231,7 @@ public static class Showroom
         int maxRow = tiles.Max(t => t.Row);
         for (int bottom = TrackGrid.Size - 2; bottom - (maxRow - minRow) >= 1; bottom--)
         {
-            for (int left = 1; left + (maxColumn - minColumn) <= TrackGrid.Size - 2; left++)
+            for (int left = 1; left + (maxColumn - minColumn) <= columns - 2; left++)
             {
                 int dc = left - minColumn;
                 int dr = bottom - maxRow;

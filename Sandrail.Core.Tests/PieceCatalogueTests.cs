@@ -164,7 +164,8 @@ public class PieceCatalogueTests
         Assert.True(Stacking.Of(there[0], there[1], crossing).Clear);
         Assert.Single(there, p => p.Pillars);
         Assert.NotEmpty(layout.Legs);
-        Assert.All(tiles, t => Assert.True(TrackGrid.Contains(t), $"{t} is off the grid"));
+        // On the grid, but where it had no room any way round: then past its east edge, by no more than the overflow (P3).
+        Assert.All(tiles, t => Assert.True(t.Row >= 0 && t.Row < TrackGrid.Size && t.Column >= 0 && t.Column < TrackGrid.Size + Showroom.Overflow, $"{t} is off the showroom"));
 
         // Each run-up meets its piece, and each piece its run-out.
         for (int i = 1; i < pieces.Count; i++)

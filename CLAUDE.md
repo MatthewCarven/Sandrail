@@ -227,7 +227,7 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   `Cars/` holds `CarSpec`, `Surfaces`, the `Wings` (parts, by ID) and `WheelModel`, the car's laws as
   plain functions, and `RandomCars` (2026-11-26: a car from a seed through `Hash64`, around another car, each number
   in the ticked groups within a spread of its own, on its slider's steps, `Tunable.OnStep`). `Pieces/` is
-  the road: `Frame`, the centrelines (line, pitch, banked turn, loop), `Chain`, `Profile`, the `Sweep`
+  the road: `Frame`, the centrelines (line, pitch, banked turn, a turn with gradual ends, loop), `Chain`, `Profile`, the `Sweep`
   mesher and the `TestGroundLayout`. `Driving/` is the autodriver: `RacingLine` (samples, curvature,
   bank, each sample's surface grip, speed plan, and `MinimumCurvature`, the racing line inside the wheels' room) and `Autodriver`
   (a front-axle Stanley tracker with yaw damping and slip guards); `LapTimer`, which times laps
@@ -237,7 +237,8 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   out by a millimetre), `Placement` and `PlacedPiece` (turned and mirrored onto the grid),
   `PieceCatalogue` (one piece a file from `content/base/pieces/`), the `Showroom` (the starter set where it always
   was, then the pieces added since in the order they were added, `Showroom.Added`, the crossing among them, each in
-  the first free spot and on its side if it must be: add a new piece's ID to the end of `Added` and to the editor's
+  the first free spot, on its side or any way round or mirrored if it must be, and past the grid's east edge when the
+  grid has no room, where the game draws the plain on to meet it: add a new piece's ID to the end of `Added` and to the editor's
   `PaletteOrder`, or `pieces2`'s stations move), `Stacking` (crossings, PIECES-PLAN: when two
   pieces may share a tile, one 4 m clear over the other, measured on the road; the legs under a deck, left out over a
   road below; `Lay` puts a piece with road under it on pillars, `PlacedPiece.Pillars`, never kept in the file), and `Track` (the
@@ -394,9 +395,14 @@ hint), short landing on the top and long on the flat; `pieces2` flies both (held
 **P3 is built** (2026-11-28): dirt and sand straights, drawn in their own colour (the road's shader reads a piece's
 surface now; road looks as it did), braked from 80 km/h to 47 and 54 over a tile where road takes it to 33; **the
 autodriver's plan reads each piece's surface** (`RacingLine.GripAt`, exactly 1 on road, so every plan on road is the
-same to the bit); and a 30 m corner banked 40°, which holds 69 km/h like the 20° one, not flat out: a bank fades to
-nothing at both ends of a turn that's at full curvature end to end, and a shorter ease launches the car. The lever is a
-transition curve (Core code). Next: a climbing corner and a corkscrew. The generator stays version 1.
+same to the bit); and a 40° banked corner, first on 30 m, where it held 69 km/h like the 20° one (a bank fades to
+nothing at both ends of a turn at full curvature end to end), then, at his word, **reshaped on 3 × 3 with gradual ends**
+(2026-11-29: `base:corner-50-steep`, a `transition` on its turn step, `TransitionTurnCentreline`: the curve tightens
+from straight to a 27 m middle and back, the bank leading it as the root of the curve's share), which holds 127 km/h
+against the same tiles' 20° corner's 89. It has a hint, 105-120 km/h, because the plan can't see the springs and
+the lock that hold it, and the autodriver is clean on it at 70 to 100%. The showroom was full: a block with no room
+goes past the grid's east edge, the plain drawn on to meet it. Next: a climbing corner and a corkscrew. The generator
+stays version 1.
 Slow motion is in too: `,` and `.` (`GameClock`). **The stock car has his
 steering** (`maxSteerDeg` 21.35, `minSteerDeg` 2.05; fingerprint `4f918acd`), lifted from his saved
 buggy on the evening of 2026-11-23, and nothing else of his: players start with it and set it up by

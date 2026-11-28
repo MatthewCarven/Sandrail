@@ -140,6 +140,173 @@ public sealed class TurnCentreline : ICentreline
 }
 
 /// <summary>
+/// A turn with gradual ends (PIECES-PLAN, P3): its curve tightens from straight to its middle radius over the first
+/// <c>transition</c> share of its length and loosens to straight again over the last, and its bank rises and falls ahead
+/// of it, so the corner is nearly straight wherever it's nearly flat. It ends exactly where an arc of
+/// <c>radius</c> through the same angle would, so it fits the grid as that arc does; its middle is tighter to make up for
+/// its gentle ends.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Why</b>: a <see cref="TurnCentreline"/>'s bank eases in from flat while its curve is at full tightness from end to
+/// end, so both its ends are a flat corner whatever its bank in the middle. A 40° bank on a 30 m arc held 69 km/h, as a
+/// 20° one did, and a quicker ease only launched the car (worklog, 2026-11-28).
+/// </para>
+/// <para>
+/// <b>The shape</b>: curvature is the middle's times a share that ramps 0 to 1 by smoothstep, the shape of
+/// <see cref="TurnCentreline"/>'s bank ease, and the bank is the full bank times the share's square root. Heading is closed-form (smoothstep's integral, <c>x³ − x⁴/2</c>) and
+/// position is integrated in doubles at a few centimetres. The curve is symmetric about its middle, so its chord points
+/// half the angle round, as the arc's does, and its size scales with the middle radius: the middle radius is the arc's
+/// chord over the chord of the same shape at a radius of 1.
+/// </para>
+/// </remarks>
+public sealed class TransitionTurnCentreline : ICentreline
+{
+    private const double StepM = 0.02;
+
+    private readonly Frame _start;
+    private readonly float _side;
+    private readonly float _bank;
+    private readonly float _pivot;
+    private readonly double _transition;
+    private readonly double _turn;
+    private readonly double _length;
+    private readonly double[] _forward;
+    private readonly double[] _across;
+
+    /// <param name="start">Where it begins.</param>
+    /// <param name="angleDeg">How far it turns, positive to the right; at most 180 either way.</param>
+    /// <param name="radius">The arc it stands in for: it ends where this arc through the angle would.</param>
+    /// <param name="transition">The share of its length each end takes to tighten or loosen, above 0 and at most 0.5.</param>
+    /// <param name="bankDeg">Its bank through the middle, toward the inside.</param>
+    /// <param name="bankPivotM">How far from the middle the bank pivots: the inside edge, as a turn's.</param>
+    public TransitionTurnCentreline(Frame start, float angleDeg, float radius, float transition, float bankDeg = 0.0f, float bankPivotM = 0.0f)
+    {
+        _start = start;
+        _side = MathF.Sign(angleDeg);
+        _bank = bankDeg * (MathF.PI / 180.0f);
+        _pivot = bankPivotM;
+        _transition = transition;
+        _turn = Math.Abs(angleDeg) * (Math.PI / 180.0);
+
+        // The same shape at a middle radius of 1, then scaled so its chord is the arc's. Both chords point half the angle
+        // round; past 180° gentle ends can point this one backwards, which no radius mends, so it's held to 180°.
+        if (Math.Abs(angleDeg) > 180.0f || !(transition > 0.0f && transition <= 0.5f))
+        {
+            throw new ArgumentOutOfRangeException(nameof(angleDeg), $"A turn with gradual ends turns at most 180° with a transition above 0 and at most 0.5, not {angleDeg}° and {transition}.");
+        }
+
+        double unitLength = _turn / (1.0 - _transition);
+        (double f, double a) = Integrate(unitLength, null, null);
+        double along = (f * Math.Cos(_turn / 2.0)) + (a * Math.Sin(_turn / 2.0));
+        double middle = 2.0 * radius * Math.Sin(_turn / 2.0) / along;
+        MiddleRadius = (float)middle;
+        _length = unitLength * middle;
+        Length = (float)_length;
+        TurnDeg = (float)(_turn / (1.0 - _transition) * (180.0 / Math.PI));
+
+        int steps = (int)Math.Ceiling(_length / StepM);
+        _forward = new double[steps + 1];
+        _across = new double[steps + 1];
+        Integrate(_length, _forward, _across);
+    }
+
+    public float Length { get; }
+
+    /// <summary>
+    /// The turn as the sweep reads it, at the middle's rate over the whole length, so no segment of the mesh turns more
+    /// than a few degrees where it's tightest.
+    /// </summary>
+    public float TurnDeg { get; }
+
+    /// <summary>Its radius through the middle, where the curve is tightest and the bank full.</summary>
+    public float MiddleRadius { get; }
+
+    public Frame FrameAt(float distance)
+    {
+        double d = Math.Clamp(distance, 0.0f, Length);
+        double u = _length > 0.0 ? d / _length : 0.0;
+        double phi = Heading(u);
+
+        int steps = _forward.Length - 1;
+        double at = d / _length * steps;
+        int i = Math.Min((int)at, steps - 1);
+        double w = at - i;
+        double forwardM = _forward[i] + ((_forward[i + 1] - _forward[i]) * w);
+        double acrossM = _across[i] + ((_across[i + 1] - _across[i]) * w);
+
+        float s = _side;
+        Vector3 f0 = _start.Forward;
+        Vector3 u0 = _start.Up;
+        Vector3 r0 = _start.Right;
+        Vector3 position = _start.Position + (f0 * (float)forwardM) + (r0 * (float)(s * acrossM));
+        Vector3 forward = Vector3.Normalize((f0 * (float)Math.Cos(phi)) + (r0 * (float)(s * Math.Sin(phi))));
+        Vector3 flatRight = Vector3.Normalize(Vector3.Cross(forward, u0));
+
+        // The bank leads the curve, as the square root of its share: banked in step, halfway in the curve is a 53 m arc on
+        // half the bank, slower than the middle; at the root, it's on 71% of it, and nowhere is slower than the middle.
+        float bank = _bank * (float)Math.Sqrt(Share(u));
+        Vector3 up = Vector3.Normalize((u0 * MathF.Cos(bank)) + (flatRight * (s * MathF.Sin(bank))));
+        position += u0 * (_pivot * MathF.Sin(MathF.Abs(bank)));
+        return Frame.Of(position, forward, up);
+    }
+
+    /// <summary>0 at both ends, 1 through the middle, by smoothstep over the transition share: the curve's and the bank's.</summary>
+    private double Share(double u)
+    {
+        double x = Math.Clamp(Math.Min(u, 1.0 - u) / _transition, 0.0, 1.0);
+        return x * x * (3.0 - (2.0 * x));
+    }
+
+    /// <summary>How far it has turned at a share of its length, radians: the curvature's share integrated, closed-form.</summary>
+    private double Heading(double u)
+    {
+        double t = _transition;
+        static double Ramp(double x) => (x * x * x) - (x * x * x * x / 2.0);
+        double ramped;
+        if (u <= t)
+        {
+            ramped = t * Ramp(u / t);
+        }
+        else if (u >= 1.0 - t)
+        {
+            ramped = (1.0 - t) - (t * Ramp((1.0 - u) / t));
+        }
+        else
+        {
+            ramped = (t / 2.0) + (u - t);
+        }
+
+        return _turn * ramped / (1.0 - t);
+    }
+
+    /// <summary>
+    /// Forward and across from the start, over a length, by the midpoint rule in steps of about <see cref="StepM"/>;
+    /// into the tables when given. Where it ends.
+    /// </summary>
+    private (double Forward, double Across) Integrate(double length, double[]? forward, double[]? across)
+    {
+        int steps = forward?.Length - 1 ?? (int)Math.Ceiling(length / StepM * 50.0);
+        double f = 0.0;
+        double a = 0.0;
+        for (int i = 0; i < steps; i++)
+        {
+            double phi = Heading((i + 0.5) / steps);
+            double ds = length / steps;
+            f += Math.Cos(phi) * ds;
+            a += Math.Sin(phi) * ds;
+            if (forward is not null)
+            {
+                forward[i + 1] = f;
+                across![i + 1] = a;
+            }
+        }
+
+        return (f, a);
+    }
+}
+
+/// <summary>
 /// A loop: tall rather than round, and offset sideways so its exit runs beside its entry.
 /// </summary>
 /// <remarks>

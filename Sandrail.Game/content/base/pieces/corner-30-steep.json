@@ -1,7 +1,0 @@
-{
-  "id": "base:corner-30-steep",
-  "name": "Steep-banked corner, 30 m",
-  "tiles": [[0, 0], [1, 0], [0, 1], [1, 1]],
-  "out": { "tile": [1, 1], "side": "right" },
-  "path": [{ "turn": { "angle": 90, "radius": 30, "bank": 40 } }]
-}

@@ -167,27 +167,87 @@ public class MorePiecesTests
     }
 
     /// <summary>
-    /// The steep-banked corner (P3) is the 30 m corner's turn banked 40° rather than 20°: the bank pivots on its inner
-    /// edge, so through its middle the outer edge stands its width times sin 40°, 6.4 m, over the way in.
+    /// The steep-banked corner (P3, reshaped at his word) sits on the 50 m corner's 3 × 3 tiles and leaves by its way
+    /// out, but tightens gradually over each half: nearly straight at its ends, about 27 m through its middle, where it's
+    /// banked 40° and its outer edge stands its width times sin 40°, 6.4 m, over the way in (the bank pivots on the inner
+    /// edge). The bank leads the curve: halfway into the corner's first half the curve is at half its middle's and the bank
+    /// already at 71% of 40°. It's a stunt with a hint, since the speed plan can't see what holds it (the springs, the lock).
     /// </summary>
     [Fact]
-    public void TheSteepBankStandsItsOuterEdgeSixMetresUp()
+    public void TheSteepCornerTightensGraduallyOnTheFiftyMetreCornersTiles()
     {
-        PlacedPiece steep = Placed("corner-30-steep", 10, 20);
-        PlacedPiece gentle = Placed("corner-30-banked", 10, 20);
+        PlacedPiece steep = Placed("corner-50-steep", 10, 20);
+        PlacedPiece gentle = Placed("corner-50-banked", 10, 20);
         Assert.Equal(gentle.Out, steep.Out);
         Assert.Equal(gentle.Tiles, steep.Tiles);
+        Assert.True(steep.PathMisfitM() <= PieceDef.FitM);
+        Assert.True(TrackRacing.IsStunt(steep.Def));
 
-        TurnCentreline turn = Assert.IsType<TurnCentreline>(Assert.Single(steep.Road().Pieces));
+        var turn = Assert.IsType<TransitionTurnCentreline>(Assert.Single(steep.Road().Pieces));
+        Assert.Equal(27.0f, turn.MiddleRadius, 0);
+
+        // A quarter of the way round, the curve is at half its middle's, and the bank at 40° times the root of a half.
+        float quarter = turn.Length / 4.0f;
+        Assert.Equal(40.0f * MathF.Sqrt(0.5f), BankDeg(turn.FrameAt(quarter)), 1);
+        Assert.Equal(0.5f / turn.MiddleRadius * (180.0f / MathF.PI), Vector3Angle(turn.FrameAt(quarter - 0.5f).Forward, turn.FrameAt(quarter + 0.5f).Forward), 2);
+
+        // A metre at either end turns a small fraction of a metre through the middle.
+        float Turned(float from) => Vector3Angle(turn.FrameAt(from).Forward, turn.FrameAt(from + 1.0f).Forward);
+        Assert.True(Turned(0.0f) < Turned(turn.Length / 2.0f) / 20.0f);
+        Assert.True(Turned(turn.Length - 1.0f) < Turned(turn.Length / 2.0f) / 20.0f);
+        Assert.Equal(1.0f / turn.MiddleRadius * (180.0f / MathF.PI), Turned(turn.Length / 2.0f - 0.5f), 2);
+
+        // Flat at its ends, 40° through its middle.
         Frame middle = turn.FrameAt(turn.Length / 2.0f);
-        float bankDeg = MathF.Acos(Math.Clamp(middle.Up.Y, -1.0f, 1.0f)) * (180.0f / MathF.PI);
-        Assert.Equal(40.0f, bankDeg, 1);
-
-        // Its middle rises half the outer edge's height, the inner edge staying where it was.
+        Assert.Equal(0.0f, BankDeg(turn.FrameAt(0.0f)), 2);
+        Assert.Equal(0.0f, BankDeg(turn.FrameAt(turn.Length)), 2);
+        Assert.Equal(40.0f, BankDeg(middle), 1);
         float halfSin = (steep.Def.WidthM / 2.0f) * MathF.Sin(40.0f * MathF.PI / 180.0f);
         Assert.Equal(halfSin, middle.Position.Y - steep.Start.Position.Y, 2);
         Assert.Equal(6.43f, 2.0f * halfSin, 2);
     }
+
+    /// <summary>
+    /// A turn with gradual ends, through any angle up to 180° and with any transition, ends where the arc it stands
+    /// in for ends, facing the same way, to well under the grid's millimetre; with no bank it stays on the level.
+    /// </summary>
+    [Theory]
+    [InlineData(90.0f, 50.0f, 0.25f)]
+    [InlineData(90.0f, 30.0f, 0.5f)]
+    [InlineData(-45.0f, 70.0f, 0.1f)]
+    [InlineData(180.0f, 20.0f, 0.3f)]
+    [InlineData(-180.0f, 40.0f, 0.5f)]
+    [InlineData(135.0f, 25.0f, 0.4f)]
+    public void AGradualTurnEndsWhereItsArcEnds(float angle, float radius, float transition)
+    {
+        Frame start = Frame.Level(new System.Numerics.Vector3(3.0f, 0.0f, -7.0f), 30.0f);
+        Frame arc = new TurnCentreline(start, angle, radius) is var a ? a.FrameAt(a.Length) : default;
+        var eased = new TransitionTurnCentreline(start, angle, radius, transition);
+        Frame end = eased.FrameAt(eased.Length);
+        Assert.True(System.Numerics.Vector3.Distance(arc.Position, end.Position) < 2e-4f);
+        Assert.True(Vector3Angle(arc.Forward, end.Forward) < 0.01f);
+        Assert.True(eased.MiddleRadius < radius);
+        Assert.All(Enumerable.Range(0, 21), k => Assert.Equal(0.0f, eased.FrameAt(eased.Length * k / 20.0f).Position.Y, 4));
+    }
+
+    /// <summary>A transition must be a share of the corner from above 0 to a half, on a turn of at most 180°.</summary>
+    [Theory]
+    [InlineData(0.0f, 90.0f)]
+    [InlineData(0.6f, 90.0f)]
+    [InlineData(0.25f, 270.0f)]
+    public void AGradualTurnRefusesWhatItCantMake(float transition, float angle)
+    {
+        PieceDef def = Catalogue.Value.Find("base:corner-50-steep")! with
+        {
+            Path = [new PathStep { Turn = new TurnStep { Angle = angle, Radius = 50.0f, Bank = 40.0f, Transition = transition } }],
+        };
+        Assert.Contains(def.Problems(), p => p.Contains("transition", StringComparison.Ordinal));
+    }
+
+    private static float Vector3Angle(System.Numerics.Vector3 a, System.Numerics.Vector3 b) =>
+        MathF.Acos(Math.Clamp(System.Numerics.Vector3.Dot(System.Numerics.Vector3.Normalize(a), System.Numerics.Vector3.Normalize(b)), -1.0f, 1.0f)) * (180.0f / MathF.PI);
+
+    private static float BankDeg(Frame frame) => MathF.Acos(Math.Clamp(frame.Up.Y, -1.0f, 1.0f)) * (180.0f / MathF.PI);
 
     /// <summary>
     /// The autodriver's plan reads each piece's surface (P3): with the straights before a corner made sand, it brakes for
@@ -235,7 +295,7 @@ public class MorePiecesTests
         {
             Id = "test:surfaces",
             Name = "Dirt, sand and a steep bank",
-            Pieces = [P("start", 10, 26), P("straight-dirt", 10, 25), P("straight-sand", 10, 24), P("corner-30-steep", 10, 23), P("straight", 12, 22, Compass.East), P("finish", 13, 22, Compass.East)],
+            Pieces = [P("start", 10, 26), P("straight-dirt", 10, 25), P("straight-sand", 10, 24), P("corner-50-steep", 10, 23), P("straight", 13, 21, Compass.East), P("finish", 14, 21, Compass.East)],
         };
         LaidTrack laid = track.Lay(Catalogue.Value);
         Assert.Empty(laid.Problems);

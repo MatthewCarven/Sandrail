@@ -125,6 +125,10 @@ public sealed class PlacedPiece(PieceDef def, Placement placement)
             {
                 chain.Pitch(pitch.Angle, pitch.Radius);
             }
+            else if (step.Turn is { Transition: float transition } eased)
+            {
+                chain.TransitionTurn(sign * eased.Angle, eased.Radius, transition, eased.Bank, eased.Bank > 0.0f ? Def.WidthM / 2.0f : 0.0f);
+            }
             else if (step.Turn is TurnStep turn)
             {
                 chain.Turn(sign * turn.Angle, turn.Radius, turn.Bank, turn.Bank > 0.0f ? Def.WidthM / 2.0f : 0.0f, turn.Ease);

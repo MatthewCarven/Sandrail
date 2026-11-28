@@ -85,6 +85,13 @@ public sealed record TurnStep
 
     /// <summary>The share of the corner the bank takes to come in, and again to go out: the corner lap's half.</summary>
     public float Ease { get; init; } = 0.5f;
+
+    /// <summary>
+    /// The share of the corner each end takes to tighten from straight, and to loosen again, its bank in step (PIECES-PLAN,
+    /// P3): a <see cref="TransitionTurnCentreline"/>, whose middle is tighter than <see cref="Radius"/> so it ends where that
+    /// arc would, and whose bank ignores <see cref="Ease"/>. Null, so left out of the fingerprint, for an arc.
+    /// </summary>
+    public float? Transition { get; init; }
 }
 
 /// <summary>
@@ -370,6 +377,11 @@ public sealed record PieceDef
             if (!(turn.Ease > 0.0f && turn.Ease <= 0.5f))
             {
                 problems.Add($"{at}.turn.ease is {turn.Ease}, and must be above 0 and at most 0.5");
+            }
+
+            if (turn.Transition is float transition && !(transition > 0.0f && transition <= 0.5f && MathF.Abs(turn.Angle) <= 180.0f))
+            {
+                problems.Add($"{at}.turn.transition is {transition}, and must be above 0 and at most 0.5, on a turn of at most 180°");
             }
         }
 

@@ -2,6 +2,60 @@
 
 Newest first. What happened and why; findings worth keeping.
 
+## 2026-11-29 — The steep bank, reshaped: gradual ends on 3 × 3 (PIECES-PLAN, P3)
+
+He asked what to do about the 40° corner holding no more than the 20° one: *"make them longer?"* Longer alone wasn't
+the answer. The 70 m banked corner held 99 km/h against the 148 its full bank says, and the U-turn 59 against 79,
+because however long a corner is, an arc's bank fades to nothing at ends that are at full curvature. Longer *with
+gradual ends* was the answer, and he picked 3 × 3 (*"Yes, on 3 × 3"*). None of his 42 tracks used the 30 m steep corner,
+so it was replaced rather than kept beside.
+
+**A turn with gradual ends** (`TransitionTurnCentreline`; `transition` on a turn step, null and so absent from every
+existing piece's fingerprint): curvature is the middle's times a smoothstep share over the first and last `transition`
+of its length, so it starts and ends straight. Heading is closed-form; position is integrated in doubles every 2 cm.
+The curve is symmetric, so its chord points half the angle round, as the arc's does, and its size scales with its middle
+radius; the middle radius is the arc's chord over the chord at radius 1. It ends where the arc ends, to well under the
+grid's millimetre, at any angle to 180°. **Past 180° it can't**: with gentle ends the chord points backwards, and no
+radius mends that, so transitions are refused on bigger turns.
+
+**What held it back, in turn** (`pieces2`, the stock car held at a speed down the middle; the same tiles' 20° corner
+holds 89 km/h and leaves at 99):
+
+| `base:corner-50-steep` | Holds | Leaves | Why it went |
+|---|---|---|---|
+| Transition 0.25, bank in step | 89 | 99, near the exit | The bank changes over 18 m: the road's middle falls 3.2 m out of the corner, a crest the car can't follow |
+| Transition 0.5, bank in step | 99 | 108, near the exit | Halfway in, the curve is a 53 m arc already while the bank is 20°: slower than the middle |
+| Transition 0.5, **bank leading** | **127** | 137 | The middle: 3.7 g pressing the springs past their 35 cm, under 8° of steering lock left |
+
+**The bank leads the curve**: it rises as the square root of the curve's share, so halfway in the curve is at half its
+middle's and the bank at 71% of 40° (28°), not 20°. Worked through with the car's grip, every point is then at least
+as fast as the middle. The middle radius is 27 m.
+
+**The autodriver couldn't drive it.** Its plan's banked-curve sum, `v² = gR(tan θ + μ)/(1 − μ tan θ)`, all but blows up
+at 40° (μ tan θ near 1): it planned 150-170 km/h at 90% and flew off at every caution, 70% included. Keeping its line to
+the middle didn't save it, and neither would its crest cap. That cap reads the road's pitch from its frames, which on any
+turn face level even where the bank lifts the middle 3.2 m, so it saw no crest there. (Every turn has always been like
+that; not changed.) **What holds the corner at 127 is the springs and the steering lock, which the plan doesn't model.**
+So, as for the loop and the jumps, the piece has **a hint, 105-120 km/h**, taken down the middle: on a sprint with
+200 m of road into it, clean at 70, 80, 90 and 100% (15.56, 15.63, 15.54, 15.53 s). The same sprint with the 20° corner
+is clean to 90% (15.47 s) and goes off at 100%.
+
+**The showroom was full.** The 3 × 3 block (a 7-tile run-up for a hint over 100, the corner, a run-out) found no room
+facing north or east, so the old band layout put it over three other stations (the showroom test caught it). Facing south
+and west, then mirrored each way round, found no room either. **So a block with no room on the grid goes past its east
+edge**, up to `Showroom.Overflow` (16 tiles), and the game draws the showroom's plain on to meet it. The plain's
+collider was always a boundary plane, and its grid lines are drawn from world position. Stations 1-28 haven't moved;
+the steep corner is station 29, past the grid's east edge.
+
+**Checks**: 412 tests. The new ones:
+- the steep corner's tiles, way out, 27 m middle, the bank leading, 40° and its 6.4 m edge, its hint;
+- a gradual turn ends where its arc does, at 90° on 30 and 50 m, 45° left, 180° either way and 135°;
+- transitions refused at 0, 0.6 and on a 270° turn.
+
+The headless check is clean. The other seventeen oracles are identical, and `pieces2`'s earlier trials are unchanged.
+The fingerprints of the game's tracks and his 42 (a fresh scratch copy, eleven more than last time) match main's line for
+line. 1000 seeds are identical apart from their timings. The generator stays version 1.
+
 ## 2026-11-29 — The Esc menu's dead padlocks and freeze: a layout loop, now gone
 
 Twice in Change car on the test ground (2026-11-28 and 29) the menu died on him: first the padlocks stopped answering,

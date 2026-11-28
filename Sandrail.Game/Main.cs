@@ -363,6 +363,7 @@ public partial class Main : Node3D
             }
 
             _showroom = Showroom.Lay(catalogue);
+            WidenPlainEast(_showroom.Pieces.SelectMany(p => p.Tiles).Max(t => t.Column));
             TrackView.Build(this, _showroom.Pieces);
             TrackView.BuildLegs(this, _showroom.Legs);
             _stations = _showroom.Stations;
@@ -1360,6 +1361,25 @@ public partial class Main : Node3D
 
             GetTree().Quit();
         }
+    }
+
+    /// <summary>
+    /// Draws the plain on past the grid's east edge to a column and two tiles beyond, where the showroom has laid a block
+    /// the full grid had no room for (P3). Only the look: its collider is a boundary plane, everywhere already.
+    /// </summary>
+    private void WidenPlainEast(int lastColumn)
+    {
+        if (lastColumn < TrackGrid.Size)
+        {
+            return;
+        }
+
+        float west = TrackGrid.Origin.X;
+        float east = TrackGrid.Origin.X + ((lastColumn + 3) * TrackGrid.TileM);
+        float depth = TrackGrid.Size * TrackGrid.TileM;
+        var mesh = GetNode<MeshInstance3D>("Ground/Mesh");
+        mesh.Mesh = new PlaneMesh { Size = new Vector2(east - west, depth) };
+        mesh.Position = new Vector3((west + east) / 2.0f, 0.0f, 0.0f);
     }
 
     private void SetUpGround(Surface surface)

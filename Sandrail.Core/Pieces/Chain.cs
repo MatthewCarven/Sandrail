@@ -26,6 +26,10 @@ public sealed class Chain(Frame start)
     public Chain Turn(float angleDeg, float radius, float bankDeg = 0.0f, float bankPivotM = 0.0f, float bankEase = 0.25f) =>
         Add(new TurnCentreline(Settle(End), angleDeg, radius, bankDeg, bankPivotM, bankEase));
 
+    /// <summary>A turn with gradual ends, standing in for an arc of <paramref name="radius"/> (<see cref="TransitionTurnCentreline"/>).</summary>
+    public Chain TransitionTurn(float angleDeg, float radius, float transition, float bankDeg = 0.0f, float bankPivotM = 0.0f) =>
+        Add(new TransitionTurnCentreline(Settle(End), angleDeg, radius, transition, bankDeg, bankPivotM));
+
     public Chain Add(ICentreline piece)
     {
         _pieces.Add(piece);

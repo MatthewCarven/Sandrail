@@ -113,7 +113,7 @@ public partial class Oracle
         new("base:tabletop", 100.0f, TrialKind.Fly),
 
         // P3: each surface straight braked from 80 km/h and pulled from 40 down its one tile, against the road tile before
-        // the dirt one; and the 40° corner held at speeds, beside the 20° 30 m corner of the starter set.
+        // the dirt one; and the 20° 30 m corner of the starter set held at speeds, where the 40° corner began.
         new("base:straight-dirt", 80.0f, TrialKind.Brake, Shift: -TrackGrid.TileM),
         new("base:straight-dirt", 80.0f, TrialKind.Brake),
         new("base:straight-sand", 80.0f, TrialKind.Brake),
@@ -125,12 +125,20 @@ public partial class Oracle
         new("base:corner-30-banked", 70.0f, TrialKind.Corner),
         new("base:corner-30-banked", 75.0f, TrialKind.Corner),
         new("base:corner-30-banked", 80.0f, TrialKind.Corner),
-        new("base:corner-30-steep", 65.0f, TrialKind.Corner),
-        new("base:corner-30-steep", 70.0f, TrialKind.Corner),
-        new("base:corner-30-steep", 75.0f, TrialKind.Corner),
-        new("base:corner-30-steep", 80.0f, TrialKind.Corner),
-        new("base:corner-30-steep", 90.0f, TrialKind.Corner),
-        new("base:corner-30-steep", 100.0f, TrialKind.Corner),
+
+        // The 40° corner on 3 × 3 with gradual ends, beside the 20° 50 m corner of the starter set on the same tiles.
+        new("base:corner-50-banked", 70.0f, TrialKind.Corner),
+        new("base:corner-50-banked", 80.0f, TrialKind.Corner),
+        new("base:corner-50-banked", 90.0f, TrialKind.Corner),
+        new("base:corner-50-banked", 100.0f, TrialKind.Corner),
+        new("base:corner-50-steep", 90.0f, TrialKind.Corner),
+        new("base:corner-50-steep", 100.0f, TrialKind.Corner),
+        new("base:corner-50-steep", 110.0f, TrialKind.Corner),
+        new("base:corner-50-steep", 120.0f, TrialKind.Corner),
+        new("base:corner-50-steep", 130.0f, TrialKind.Corner),
+        new("base:corner-50-steep", 140.0f, TrialKind.Corner),
+        new("base:corner-50-steep", 150.0f, TrialKind.Corner),
+        new("base:corner-50-steep", 160.0f, TrialKind.Corner),
     ];
 
     private static readonly PieceTrial[] Trials =
@@ -621,7 +629,8 @@ public partial class Oracle
         "base:hump" => "hump",
         "base:tabletop" => "tabletop",
         "base:corner-30-banked" => "banked 30 m corner",
-        "base:corner-30-steep" => "40° banked 30 m corner",
+        "base:corner-50-banked" => "banked 50 m corner",
+        "base:corner-50-steep" => "40° banked 50 m corner",
         _ => trial.Piece,
     };
 }
