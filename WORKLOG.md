@@ -25,14 +25,39 @@ His `--profile=unprofiled` run froze after 13.6 hours (started 22:43, stopped ab
 - **The next game** is `--profile=unprofiled`, with `--since=` the time Profile every car on every track began, so only
   that run's rows count (Core: `ProfileProgress` reads `when`; a test). A note in the profiles folder says why.
 - **`profile.cmd`** (or `profile.cmd everywhere`) passes `--restart-file=`: the game leaves the next game's flags there
-  and ends with 75, and the launcher starts it in the same window. Without it the game starts the next one itself (a
-  console of its own headless, the game's window otherwise). `--restart-after=` and `--stall-after=` are for checks.
+  and ends with 75, and the launcher starts it. Without it the game starts the next one itself, the game's own exe with
+  no console (its window, or headless). `--restart-after=` and `--stall-after=` are for checks.
+- **Never a console** (2026-11-27's freeze was a print held by a console being scrolled): `profile.cmd` sends every
+  game's output to `profile.txt` and shows it in a second window that's safe to scroll, as the replacement `profile
+  headless.cmd` written that day did (never copied into his checkout; this is it, one launcher). A next game the game
+  starts itself writes where it did when that was a file (handed on by .NET's only way, asking for its input too), and
+  otherwise into pipes that close as the old game ends, so only to its log. Closing the launcher's window stops every
+  game: Godot's console wrapper keeps its game and whatever it starts in a job, killed with the wrapper.
+- **Godot's own list of flags leaves out the ones it takes** (`--headless`, `--log-file`): a next game made from it
+  opened a window and wrote his `godot.log` (one check did, pushing his oldest log out). The flags come from the
+  process's own command line now.
 
-**Checked** (scratch folders, three cars, the game's three tracks): restarted three times through the launcher with
-his rows from earlier in the folder, the 67 rows are those of a straight run cell for cell (all but `when`), ghosts'
-snapshots byte for byte; the main thread suspended three times: ended after 20 s each, carried on, the car frozen twice
-left out, every row written matching; the game starting its own next game, headless and in a window, the same. 403 tests.
-Still to do: the oracles against main's tip (rows unchanged suggests they are), and CLAUDE.md.
+**Checked** (scratch folders, three cars, the game's three tracks, against a straight run of 67 rows in 6 min 7 s):
+- **Through the launcher**, restarted three times with rows from earlier in the folder: the 67 rows cell for cell (all
+  but `when`), in 6 min 14 s, every game after the first `--since=` the start; ghosts' snapshots byte for byte (a
+  ghost's header carries its own `when`).
+- **The watchdog**, the main thread suspended from outside three times: each game ended 20 s on, the next carried the
+  stopped sweep on from its next caution, and the car frozen twice on the Shakedown was left out (*1 car wouldn't start:
+  random-105677 on Shakedown (froze twice)*). Every row written is the straight run's. A ghost of a sweep carried on
+  mid-way has its header's time a last digit apart (77.38273004194099 against 77.382730041941): the clock subtracts
+  tick counts that differ in a fresh scene; its snapshots are the same. That was so of Profile unprofiled cars already.
+- **The game starting its next game itself**, headless and in a window, its output into a file (the next game wrote on
+  into it) and into a pipe (the next game only into its log): every row the straight run's, his logs untouched.
+- **`profile.cmd` with output in `profile.txt`**: its window showed its own five lines; both games' output was in the
+  file. Killing the console wrapper took the game with it.
+- **The oracles**, all 18, identical line for line to main's tip (7eebdb9), committed spec `4f918acd`: straight 0-100
+  km/h 5.17 s, top 177 km/h; drop 0.305 of 0.35 m; brake 38.4 m; circle 1.06 g; handbrake 34.0 m; sweeper 0.97 g at
+  122 km/h; lap 26.91 standing, 24.51 flying; loop through 0.1 m off; jump 39.6 m on the down-ramp; track and ghost
+  56.76 on the shakedown; `pieces`, `pieces2`, `air`, `bumps`, `climb`, `respawn` and `bank` as they were. 403 tests.
+
+The **frozen game** was left for him to close; the dump (772 MB) was read and deleted. The more-pieces session's eight
+checks are a reminder that a screenshot launch wants `--log-file` too.
+
 ## 2026-11-28 — Dirt and sand straights, and a 40° bank (PIECES-PLAN, P3)
 
 His *"Please continue Claude"* after P2. Three piece files:

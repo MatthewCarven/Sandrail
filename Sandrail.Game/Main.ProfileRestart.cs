@@ -37,8 +37,10 @@ namespace Sandrail.Game;
 /// </para>
 /// <para>
 /// <b>How the next game comes</b>: with <c>--restart-file=</c> (as <c>profile.cmd</c> passes it), its flags go in that
-/// file and the game ends with 75, for the launcher to start it in the same console. Without, the game starts it
-/// itself: in a window of its own, or a console of its own when headless. Either way it's <c>--profile=unprofiled</c>,
+/// file and the game ends with 75, for the launcher to start. Without, the game starts it itself, never in a console:
+/// a console holds a game's every print while its window is scrolled or has text selected (the freeze of 2026-11-27),
+/// so the next game writes where this one did if that was a file, and otherwise only to its log, and a launcher
+/// sends the game's output to a file too. Either way it's <c>--profile=unprofiled</c>,
 /// with <c>--since=</c> the time Profile every car on every track began, so it drives what this run hasn't, and a note
 /// in the profiles folder says why it was started.
 /// </para>
@@ -80,7 +82,6 @@ public partial class Main
     private static volatile string _watchWhat = string.Empty;
     private static string[] _nextGameArgs = [];
     private static string _nextGameExe = string.Empty;
-    private static bool _nextGameShell;
     private static string[] _nextGameEngineArgs = [];
     private static string? _restartFile;
     private static string _restartNote = string.Empty;
@@ -124,7 +125,7 @@ public partial class Main
             .ToArray();
         _nextGameArgs = user;
         _nextGameEngineArgs = EngineArgs();
-        (_nextGameExe, _nextGameShell) = NextGameExe();
+        _nextGameExe = OS.GetExecutablePath();
 
         if (File.Exists(_restartNote))
         {
@@ -251,9 +252,17 @@ public partial class Main
             }
             else
             {
+                // The game itself, with no console: its output goes on into this one's when that's a file (handed
+                // over by asking for its input, the one way .NET passes the others on), and otherwise into pipes this
+                // game closes as it ends, so it's only in the log, never in a console that could hold it.
+                bool toFile = OperatingSystem.IsWindows() && GetFileType(GetStdHandle(StdOutputHandle)) == FileTypeDisk;
                 var start = new ProcessStartInfo(_nextGameExe, CommandLine([.. _nextGameEngineArgs, "--", .. user]))
                 {
-                    UseShellExecute = _nextGameShell,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = !toFile,
+                    RedirectStandardError = !toFile,
                     WorkingDirectory = System.Environment.CurrentDirectory,
                 };
                 Process.Start(start)?.Dispose();
@@ -305,25 +314,6 @@ public partial class Main
         }
 
         return args.ToArray();
-    }
-
-    /// <summary>
-    /// What starts the next game when there's no launcher: headless, the console wrapper beside the game in a console of
-    /// its own, so it can be watched and stopped; in a window, the game itself.
-    /// </summary>
-    private static (string Exe, bool Shell) NextGameExe()
-    {
-        string exe = OS.GetExecutablePath();
-        if (DisplayServer.GetName() == "headless")
-        {
-            string console = Path.Combine(Path.GetDirectoryName(exe) ?? string.Empty, $"{Path.GetFileNameWithoutExtension(exe)}_console.exe");
-            if (File.Exists(console))
-            {
-                return (console, true);
-            }
-        }
-
-        return (exe, false);
     }
 
     /// <summary>Flags as one command line, each quoted as Windows reads them back, and as cmd passes them on.</summary>
@@ -390,6 +380,15 @@ public partial class Main
             LocalFree(argv);
         }
     }
+
+    private const int StdOutputHandle = -11;
+    private const int FileTypeDisk = 1;
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GetStdHandle(int which);
+
+    [DllImport("kernel32.dll")]
+    private static extern int GetFileType(IntPtr file);
 
     [DllImport("kernel32.dll")]
     private static extern IntPtr GetCommandLineW();

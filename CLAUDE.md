@@ -59,6 +59,18 @@ start.cmd
 `--path` loads whatever DLL is already built. Anything you pass lands after `--` as a game flag. It uses
 the Godot copied into this folder (gitignored) and falls back to Overburden's.
 
+```bash
+profile.cmd
+```
+
+`profile.cmd` is **the overnight profile** (2026-11-28): Profile unprofiled cars headless, or `profile.cmd everywhere`
+for every car driven again, flags after as with `start.cmd`. The game never writes to a console (a scrolled or selected
+console holds its every print, the freeze of 2026-11-27): every game's output goes to `profile.txt` (gitignored), shown
+in a second window that's safe to scroll. The game hands the rest to a fresh game every five or six hours, since
+**Godot 4.7.1's Jolt stops for good after 2^32 barrier jobs, about 88 million physics ticks of one process** (13.6 h at
+x16), and after three minutes with nothing moving (`Main.ProfileRestart.cs`); this starts each next game. Closing its
+window stops the lot.
+
 Benches are **Release only**:
 
 ```bash
@@ -172,7 +184,12 @@ from one track to the next, over the flag, until the game is closed),
 `--ghost=you|auto|none|<car>` (whose ghost shows on a track, M4c; since P4 a car profiled on the track, by its name or
 fingerprint, `--ghost=stock`; G changes it in the game) and
 `--ghosts=<folder>` (where ghosts and bests are kept, `user://ghosts` unless told: **point checks at a
-scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--tunes=<folder>` (the garage's cars, `user://tunes` unless told: **a scratch copy for checks** too; the Esc menu's Change car picks one, and the lock beside a car there unlocks Set inactive, which moves its file into `inactive/` inside the folder, still listed and drivable but left out of Profile every car; F2's Save as a new car adds one, and Save on the stock car asks for a name, since the game never writes it), `--profile=this|all` with `--track=` or `--seed=` (P3: the autodriver sweeps the car, or every car in the garage, from 50% aggression by 5% until a run isn't clean, writes a row a run and quits; in play the Esc menu's Profile button opens Profile this car and Profile every car, which do the same, Esc stops it), `--profile=everywhere`, needing neither (every car on every track: Profile every car on each of Load a track's tracks in turn, the unfinished ones left out and a fingerprint profiled once; Profile every car on every track, the third under the Esc menu's Profile, does the same in play and comes back to the track and car it began on, Esc stops it), `--profile=unprofiled`, needing neither too (Profile unprofiled cars, the fourth under Profile: the same chain driving only the cars a track's sheets haven't a whole sweep of, a stopped sweep carried on from the caution after its last clean run, so a run that died is picked up where it left off) and `--profiles=<folder>` (where the sheets go, `user://profiles` unless told: **a scratch folder for checks**, since every finished run of his writes a row there too), `--replay=you|auto|<car>` (a profiled car's best by name or fingerprint, P4) with `--replay-at=<seconds>` and
+scratch folder**, so his bests are never touched), `--saved=<folder>` (where tracks are saved and read back, `user://tracks` unless told: **point checks at a scratch folder** too), `--tunes=<folder>` (the garage's cars, `user://tunes` unless told: **a scratch copy for checks** too; the Esc menu's Change car picks one, and the lock beside a car there unlocks Set inactive, which moves its file into `inactive/` inside the folder, still listed and drivable but left out of Profile every car; F2's Save as a new car adds one, and Save on the stock car asks for a name, since the game never writes it), `--profile=this|all` with `--track=` or `--seed=` (P3: the autodriver sweeps the car, or every car in the garage, from 50% aggression by 5% until a run isn't clean, writes a row a run and quits; in play the Esc menu's Profile button opens Profile this car and Profile every car, which do the same, Esc stops it), `--profile=everywhere`, needing neither (every car on every track: Profile every car on each of Load a track's tracks in turn, the unfinished ones left out and a fingerprint profiled once; Profile every car on every track, the third under the Esc menu's Profile, does the same in play and comes back to the track and car it began on, Esc stops it), `--profile=unprofiled`, needing neither too (Profile unprofiled cars, the fourth under Profile: the same chain driving only the cars a track's sheets haven't a whole sweep of, a stopped sweep carried on from the caution after its last clean run, so a run that died is picked up where it left off; with `--since=2026-11-27T22:43:41`, only rows written since then
+count, which is how a restarted every-car run carries on), `--restart-file=<path>` (what `profile.cmd` passes: at a
+restart the game writes the next game's flags there and ends with 75; without it the game starts the next one itself,
+with no console), `--restart-after=<ticks>` and `--stall-after=<seconds>` (the restart's tick budget and the
+watchdog's wait, for checks), `--froze=<track>:<car>` (fingerprints; the watchdog adds one to the next game's flags, and
+a run named twice is left out) and `--profiles=<folder>` (where the sheets go, `user://profiles` unless told: **a scratch folder for checks**, since every finished run of his writes a row there too), `--replay=you|auto|<car>` (a profiled car's best by name or fingerprint, P4) with `--replay-at=<seconds>` and
 `--replay-camera=trackside|chase|free` (a saved best's replay from the start, M4d, for a look or a
 screenshot; in the game Enter watches the last run and the Esc menu offers the bests),
 `--time=<scale>` (how fast time goes, `0.25` for a quarter speed; in the game `,` and `.`, or the D-pad's left and
@@ -253,7 +270,9 @@ in the headers), change numbers in a `-Spec` variant, run the oracles, and only 
   replay's `FreeCamera`; `Main.Profile.cs` is the profiler (sweeps through the race's own code, rows to the sheet,
   rows held while a spreadsheet has it open), and `Main.ProfileEverywhere.cs` chains it over every track (Profile every
   car on every track, and Profile unprofiled cars), and `Main.ProfileWatch.cs` watches every load a profile makes (a
-  minute to get its first run going, tried twice, then skipped); `Main.Ghosts.cs` loads and saves each
+  minute to get its first run going, tried twice, then skipped), and `Main.ProfileRestart.cs` carries a chain over
+  every track on in a fresh game (past a tick budget, before Jolt's barrier wraps; or from a watchdog thread after
+  three minutes with nothing moving; with `--restart-file=`, or started itself with no console); `Main.Ghosts.cs` loads and saves each
   track's bests as ghosts, and since P4 each profiled car's best clean run (`profile-<car fingerprint>.ghost`, G steps
   through them), and `Main.Replay.cs` plays a run back (trackside, chase or free cameras);
   `Editor/` the `EditorView` (M5: camera, cursor, track laid onto the road's end, the palette, the mouse, problems; `Main.Editor.cs` opens it); `Ui/` the `Hud`, `TelemetryOverlay`, `TuningPanel`, the Esc menu (`SeedMenu`) and its drawn padlock (`LockButton`); `World/` builds the test ground's meshes and
@@ -345,6 +364,16 @@ and the profile carries on; a track or car the game refuses is skipped at once i
 unprofiled cars**, fourth under Profile, `--profile=unprofiled`, drives only what each track's sheets haven't got, a
 stopped sweep carried on from the caution after its last clean run (his pick). Jolt's "exceeded the maximum number of
 jobs" warning is Godot's own, once a launch, and changes no row.
+**Why the overnight profile froze, and a fresh game before it can again** (2026-11-28): after 13.6 hours his
+`--profile=unprofiled` run stopped for good, alive and asleep. A dump showed **Jolt's job barrier, as Godot 4.7.1 has
+it, wrapped its 32-bit count** (read 0xFFFFFFE5, write 0x7C9; it lets jobs go only while read < write), so no job was
+let go again, its 2,048 job slots filled, and the physics step waited forever. Fixed in Jolt (jrouwe/JoltPhysics#2206,
+2026-11-06), not yet in Godot. It comes after about 88 million ticks of one process with 16 worker threads (2 jobs a
+thread and 17 more a tick), so every long profile at x16 hits it, headless or in a window. Now a chain over every track
+hands the rest to a fresh game at a load past 38.3 million ticks, and a watchdog thread does the same after three
+minutes with nothing moving; the next game is Profile unprofiled cars with `--since=` the chain's start. **Run it
+overnight with `profile.cmd`**, which keeps the game off the console too. Checked: restarts and freezes come out row
+for row as a straight run, the 18 oracles identical.
 **P5, his play with the profile, is next**, then his tuning.
 **More pieces** (2026-11-26, his ask, `docs/PIECES-PLAN.md`, its five decisions his): **crossings first**, since he
 "can never get the heights to work out correctly like i want to go under sometimes", which was never heights: a tile

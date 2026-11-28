@@ -24,3 +24,6 @@ Godot_v*/
 
 # The car profile's viewer, built by tools/profile-viewer/build.cmd and kept beside the code
 /SandrailProfiles.exe
+
+# What profile.cmd's games say, every one in turn (it shows it in a second window)
+/profile.txt
